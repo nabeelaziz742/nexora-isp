@@ -1,0 +1,233 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ========================================
+     NEXORA CORE THEME
+  ======================================== */
+
+  --background: #070a0f;
+  --foreground: #f8fafc;
+
+  --surface: #0d1117;
+  --surface-elevated: #121821;
+
+  --card: #0d1117;
+  --card-foreground: #f8fafc;
+
+  --popover: #121821;
+  --popover-foreground: #f8fafc;
+
+  --border: #202938;
+  --input: #202938;
+  --ring: #3b82f6;
+
+  /* ========================================
+     BRAND & SYSTEM COLORS
+  ======================================== */
+
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+
+  --secondary: #121821;
+  --secondary-foreground: #f8fafc;
+
+  --muted: #121821;
+  --muted-foreground: #64748b;
+
+  --accent: #121821;
+  --accent-foreground: #f8fafc;
+
+  --destructive: #ef4444;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --intelligence: #8b5cf6;
+
+  /* ========================================
+     TEXT COLORS
+  ======================================== */
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* ========================================
+     CHART COLORS
+  ======================================== */
+
+  --chart-1: #3b82f6;
+  --chart-2: #22c55e;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ef4444;
+
+  /* ========================================
+     SIDEBAR
+  ======================================== */
+
+  --sidebar: #0d1117;
+  --sidebar-foreground: #f8fafc;
+
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+
+  --sidebar-accent: #121821;
+  --sidebar-accent-foreground: #f8fafc;
+
+  --sidebar-border: #202938;
+  --sidebar-ring: #3b82f6;
+
+  /* ========================================
+     RADIUS
+  ======================================== */
+
+  --radius: 0.625rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@theme inline {
+  /* ========================================
+     FONT MAPPING
+  ======================================== */
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  /* ========================================
+     SHADCN COLOR MAPPING
+  ======================================== */
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ========================================
+     CHART MAPPING
+  ======================================== */
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ========================================
+     SIDEBAR MAPPING
+  ======================================== */
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground:
+    var(--sidebar-primary-foreground);
+
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground:
+    var(--sidebar-accent-foreground);
+
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ========================================
+     RADIUS MAPPING
+  ======================================== */
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  .nexora-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3545 #0d1117;
+}
+
+.nexora-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.nexora-scrollbar::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.nexora-scrollbar::-webkit-scrollbar-thumb {
+  background: #2b3545;
+}
+
+.nexora-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3b4759;
+}
+
+@media (max-width: 640px) {
+  .nexora-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+}
