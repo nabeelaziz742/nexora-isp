@@ -9,6 +9,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
+def env_list(name, default=""):
+    return [
+        value.strip()
+        for value in os.getenv(name, default).split(",")
+        if value.strip()
+    ]
+
+
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 if not SECRET_KEY:
@@ -18,10 +26,10 @@ if not SECRET_KEY:
 
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost",
+)
 
 
 INSTALLED_APPS = [
@@ -94,12 +102,22 @@ DATABASES = {
     }
 }
 
-WHATSAPP_ACCESS_TOKEN = os.getenv("EAAPKRy6ZBkyMBSAaqZA5BEDuaFSEmPA0SLSlhRWPalxDZCMrpjlkeh0ZBgu0Ovt5hopEgbyBDvWahgBmIacIYZBidtCdJWJdnWxvhDbbKCroK0zpSfCz3b1KEUApBN1jgGdeJjRjnTFXs1boziAsmVNveLbDZAgZA0LhbC6IghMdLZAhaiZC0z9zjSvaJQWmIflG20NIcDzmwhrZAZBapO8pWDSdNLvVvEkSniwTLcFjkcUKUY312eZAoi3XIbOT4vWPyUmN9M005gZAYkjZArxJiIXVQKZBZAAZD")
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("1219757597888503")
-WHATSAPP_BUSINESS_ACCOUNT_ID = os.getenv(
-    "2864084640609440"
+WHATSAPP_ACCESS_TOKEN = os.getenv(
+    "WHATSAPP_ACCESS_TOKEN",
+    "",
 )
-WHATSAPP_VERIFY_TOKEN = os.getenv("NEXORA_VERIFY_TOKEN_123456")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv(
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "",
+)
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.getenv(
+    "WHATSAPP_BUSINESS_ACCOUNT_ID",
+    "",
+)
+WHATSAPP_VERIFY_TOKEN = os.getenv(
+    "WHATSAPP_VERIFY_TOKEN",
+    "",
+)
 WHATSAPP_API_VERSION = os.getenv(
     "WHATSAPP_API_VERSION",
     "v25.0",
@@ -159,9 +177,13 @@ REST_FRAMEWORK = {
     ),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+)
 
 CORS_ALLOW_CREDENTIALS = True
