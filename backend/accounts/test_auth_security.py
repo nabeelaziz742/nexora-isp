@@ -1,9 +1,17 @@
 from django.core.cache import cache
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
 
+@override_settings(
+    REST_FRAMEWORK={
+        "DEFAULT_THROTTLE_RATES": {
+            "login": "5/minute",
+            "copilot": "10/minute",
+        },
+    }
+)
 class LoginThrottleTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
