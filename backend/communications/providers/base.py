@@ -2,9 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class BaseCommunicationProvider(ABC):
-    """
-    Base class for all communication providers.
-    """
+    """Base class for communication providers."""
 
     @abstractmethod
     def send(
@@ -18,13 +16,14 @@ class BaseCommunicationProvider(ABC):
         """
         Send a communication.
 
-        Must return:
-
-        {
-            "success": bool,
-            "provider_message_id": str,
-            "response": dict,
-            "error": str,
-        }
+        Must return a dictionary containing at least:
+        success, provider_message_id, response, error, retryable.
         """
         raise NotImplementedError
+
+    def health_check(self, *, provider):
+        """Validate provider connectivity without sending a customer message."""
+        return {
+            "success": False,
+            "message": "Provider health check is not implemented.",
+        }
