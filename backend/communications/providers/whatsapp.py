@@ -67,23 +67,12 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
         }
 
         try:
-            print("\n========== META REQUEST ==========")
-            print("URL:", url)
-            print("Recipient:", recipient)
-            print("Payload:", payload)
-            print("==================================")
-
             response = requests.post(
                 url,
                 headers=headers,
                 json=payload,
                 timeout=30,
             )
-
-            print("\n========== META RESPONSE =========")
-            print("Status:", response.status_code)
-            print("Body:", response.text)
-            print("==================================\n")
 
             try:
                 data = response.json()
@@ -93,6 +82,18 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 }
 
             if not response.ok:
+                error_data = data.get("error", {})
+                error_message = (
+                    error_data.get("message")
+                    if isinstance(error_data, dict)
+                    else None
+                ) or "WhatsApp provider request failed."
+
+                logger.warning(
+                    "WhatsApp provider request failed with status %s",
+                    response.status_code,
+                )
+
                 return {
                     "success": False,
                     "provider_message_id": "",
@@ -105,7 +106,7 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                         504,
                     },
                     "response": data,
-                    "error": data.get("error", {}).get("message", response.text),
+                    "error": error_message,
                 }
 
             message_id = None
@@ -114,8 +115,8 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 message_id = data["messages"][0].get("id")
 
             logger.info(
-                "WhatsApp message sent successfully to %s",
-                recipient,
+                "WhatsApp message sent successfully with provider status %s",
+                response.status_code,
             )
 
             return {
@@ -129,8 +130,8 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
 
         except Exception as exc:
             logger.exception(
-                "WhatsApp send failed for recipient %s",
-                recipient,
+                "WhatsApp provider request failed unexpectedly: %s",
+                exc,
             )
 
             return {
