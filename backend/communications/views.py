@@ -1,3 +1,8 @@
+import hashlib
+import hmac
+import logging
+import re
+
 from rest_framework import status
 from rest_framework.decorators import action, api_view, permission_classes
 
@@ -6,7 +11,6 @@ from django.utils import timezone
 from django.db.models import F
 from django.db.models import Q
 from tenancy.models import AuditLog
-import re
 from django.conf import settings
 from django.http import HttpResponse
 
@@ -42,7 +46,6 @@ from .serializers import (
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -876,17 +879,37 @@ class WhatsAppWebhookAPIView(APIView):
 
         return HttpResponse("Verification failed.", status=403)
 
+    @staticmethod
+    def _valid_signature(request):
+        app_secret = settings.WHATSAPP_APP_SECRET
+        signature = request.headers.get("X-Hub-Signature-256", "")
+
+        if not app_secret or not signature.startswith("sha256="):
+            return False
+
+        expected = "sha256=" + hmac.new(
+            app_secret.encode("utf-8"),
+            request.body,
+            hashlib.sha256,
+        ).hexdigest()
+
+        return hmac.compare_digest(signature, expected)
+
     def post(self, request):
         """
         Receive WhatsApp delivery events.
         """
 
+        if not self._valid_signature(request):
+            logger.warning("Rejected WhatsApp webhook with invalid signature.")
+            return Response(
+                {"success": False},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         payload = request.data
 
-        logger.info(
-            "WhatsApp Webhook Payload: %s",
-            payload,
-        )
+        logger.info("Received WhatsApp webhook event.")
 
         try:
 
@@ -897,6 +920,25 @@ class WhatsAppWebhookAPIView(APIView):
                 for change in entry.get("changes", []):
 
                     value = change.get("value", {})
+                    metadata = value.get("metadata", {})
+                    phone_number_id = metadata.get("phone_number_id")
+
+                    if not phone_number_id:
+                        logger.warning("WhatsApp webhook missing phone_number_id.")
+                        continue
+
+                    provider = CommunicationProvider.objects.filter(
+                        phone_number_id=phone_number_id,
+                        provider_type=CommunicationProvider.ProviderType.WHATSAPP,
+                        status=CommunicationProvider.Status.ACTIVE,
+                    ).first()
+
+                    if not provider:
+                        logger.warning(
+                            "No active WhatsApp provider for phone_number_id %s.",
+                            phone_number_id,
+                        )
+                        continue
 
                     statuses = value.get("statuses", [])
 
@@ -914,11 +956,12 @@ class WhatsAppWebhookAPIView(APIView):
                                 "queue",
                             ).get(
                                 provider_message_id=message_id,
+                                queue__provider=provider,
                             )
 
                         except CommunicationLog.DoesNotExist:
                             logger.warning(
-                                "CommunicationLog not found: %s",
+                                "CommunicationLog not found for provider message %s.",
                                 message_id,
                             )
                             continue
@@ -939,11 +982,26 @@ class WhatsAppWebhookAPIView(APIView):
                             log.status = CommunicationLog.Status.FAILED
                             log.queue.status = CommunicationQueue.Status.FAILED
 
+                        else:
+                            continue
+
                         log.provider_response = status_name
 
-                        log.save()
+                        log.save(
+                            update_fields=[
+                                "status",
+                                "provider_response",
+                                "delivered_at",
+                                "updated_at",
+                            ]
+                        )
 
-                        log.queue.save()
+                        log.queue.save(
+                            update_fields=[
+                                "status",
+                                "updated_at",
+                            ]
+                        )
 
             return Response(
                 {
