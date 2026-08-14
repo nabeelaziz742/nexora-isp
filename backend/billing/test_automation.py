@@ -62,15 +62,21 @@ class CollectionAutomationTests(TestCase):
             sms_enabled=False,
         )
 
-    def _invoice(self, *, due_date):
+    def _invoice(
+        self,
+        *,
+        due_date,
+        billing_period_start=date(2026, 8, 1),
+        billing_period_end=date(2026, 8, 31),
+    ):
         invoice = Invoice.objects.create(
             organization=self.organization,
             invoice_number=f"AUTO-{Invoice.objects.count() + 1:04d}",
             service_account=self.service_account,
             billing_profile=self.billing_profile,
-            billing_period_start=date(2026, 8, 1),
-            billing_period_end=date(2026, 8, 31),
-            issue_date=date(2026, 8, 1),
+            billing_period_start=billing_period_start,
+            billing_period_end=billing_period_end,
+            issue_date=billing_period_start,
             due_date=due_date,
             status=Invoice.Status.UNPAID,
         )
@@ -169,7 +175,11 @@ class CollectionAutomationTests(TestCase):
         paid = self._invoice(due_date=date(2026, 8, 1))
         paid.status = Invoice.Status.PAID
         paid.save(update_fields=["status", "updated_at"])
-        future = self._invoice(due_date=date(2026, 8, 20))
+        future = self._invoice(
+            due_date=date(2026, 9, 20),
+            billing_period_start=date(2026, 9, 1),
+            billing_period_end=date(2026, 9, 30),
+        )
 
         with patch("billing.automation.process_invoice_collection") as process:
             process.return_value = type(
