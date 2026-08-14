@@ -85,6 +85,7 @@ class CommandCenterRecentActivityAPIView(
 
 class OperationsCopilotAPIView(CommandCenterBaseAPIView):
     throttle_classes = [CopilotRateThrottle]
+    throttle_scope = "copilot"
 
     def post(self, request):
         request_serializer = OperationsCopilotRequestSerializer(
