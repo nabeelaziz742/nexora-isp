@@ -10,20 +10,7 @@ from .models import (
 
 
 class CommunicationAutomationService:
-    """
-    Executes event-based communication automations.
-
-    Flow:
-        Business Event
-            ↓
-        Find Enabled Automations
-            ↓
-        Render Template
-            ↓
-        Create Queue Item
-            ↓
-        Update Automation Status
-    """
+    """Execute event-based communication automations."""
 
     @classmethod
     def execute_trigger(
@@ -35,28 +22,34 @@ class CommunicationAutomationService:
         invoice=None,
         complaint=None,
         work_order=None,
+        lifecycle_event=None,
+        provisioning_request_id=None,
     ):
         automations = (
             CommunicationAutomation.objects.select_related(
                 "template",
                 "template__communication_provider",
-            )
-            .filter(
+            ).filter(
                 organization=organization,
                 trigger=trigger,
                 is_enabled=True,
-            )
-            .order_by("execution_order")
+            ).order_by("execution_order")
         )
 
+        queues = []
         for automation in automations:
-            cls.execute_automation(
+            queue = cls.execute_automation(
                 automation=automation,
                 customer=customer,
                 invoice=invoice,
                 complaint=complaint,
                 work_order=work_order,
+                lifecycle_event=lifecycle_event or trigger,
+                provisioning_request_id=provisioning_request_id,
             )
+            if queue is not None:
+                queues.append(queue)
+        return queues
 
     @classmethod
     @transaction.atomic
@@ -68,7 +61,10 @@ class CommunicationAutomationService:
         invoice=None,
         complaint=None,
         work_order=None,
+        lifecycle_event=None,
+        provisioning_request_id=None,
     ):
+        provider = automation.template.communication_provider
         context = cls.build_context(
             customer=customer,
             invoice=invoice,
@@ -76,36 +72,38 @@ class CommunicationAutomationService:
             work_order=work_order,
         )
 
-        rendered_subject = cls.render_template(
-            automation.template.subject,
-            context,
-        )
+        if invoice:
+            context["invoice_id"] = str(invoice.id)
+        if lifecycle_event:
+            context["lifecycle_event"] = str(lifecycle_event)
+        if provisioning_request_id:
+            context["provisioning_request_id"] = str(provisioning_request_id)
 
-        rendered_body = cls.render_template(
-            automation.template.body,
-            context,
-        )
+        recipient = cls.get_recipient(customer, provider.provider_type)
+        if not recipient:
+            automation.last_execution_status = "SKIPPED"
+            automation.last_executed_at = timezone.now()
+            automation.save(update_fields=["last_executed_at", "last_execution_status"])
+            return None
+
+        rendered_subject = cls.render_template(automation.template.subject, context)
+        rendered_body = cls.render_template(automation.template.body, context)
 
         scheduled_at = timezone.now()
-
         if automation.delay_minutes:
-            scheduled_at += timezone.timedelta(
-                minutes=automation.delay_minutes
-            )
+            scheduled_at += timezone.timedelta(minutes=automation.delay_minutes)
 
         queue = CommunicationQueue.objects.create(
             organization=automation.organization,
             customer=customer,
             template=automation.template,
-            provider=automation.template.communication_provider,
-            recipient=cls.get_recipient(
-                customer,
-                automation.template.communication_provider.provider_type,
-            ),
+            provider=provider,
+            recipient=recipient,
             payload=context,
             rendered_subject=rendered_subject,
             rendered_body=rendered_body,
             scheduled_at=scheduled_at,
+            max_attempts=automation.max_retry_attempts,
         )
 
         CommunicationLog.objects.create(
@@ -118,55 +116,38 @@ class CommunicationAutomationService:
 
         automation.last_executed_at = timezone.now()
         automation.last_execution_status = "SUCCESS"
-        automation.save(
-            update_fields=[
-                "last_executed_at",
-                "last_execution_status",
-            ]
-        )
-
+        automation.save(update_fields=["last_executed_at", "last_execution_status"])
         return queue
 
     @staticmethod
     def render_template(template_text, context):
         if not template_text:
             return ""
-
-        return Template(template_text).render(
-            Context(context)
-        )
+        return Template(template_text).render(Context(context))
 
     @staticmethod
-    def build_context(
-        *,
-        customer=None,
-        invoice=None,
-        complaint=None,
-        work_order=None,
-    ):
+    def build_context(*, customer=None, invoice=None, complaint=None, work_order=None):
         context = {}
-
         if customer:
             context.update(
                 {
                     "customer_name": customer.full_name,
                     "customer_email": getattr(customer, "email", ""),
-                    "customer_phone": getattr(customer, "phone_number", ""),
+                    "customer_phone": (
+                        getattr(customer, "phone", "")
+                        or getattr(customer, "phone_number", "")
+                        or getattr(customer, "alternate_phone", "")
+                    ),
                     "organization_name": customer.organization.name,
                 }
             )
-
         if invoice:
             context.update(
                 {
                     "invoice_number": invoice.invoice_number,
-                    "invoice_number": invoice.invoice_number,
-                    "due_date": invoice.due_date.isoformat()
-                    if invoice.due_date
-                    else "",
+                    "due_date": invoice.due_date.isoformat() if invoice.due_date else "",
                 }
             )
-
         if complaint:
             context.update(
                 {
@@ -174,22 +155,19 @@ class CommunicationAutomationService:
                     "ticket_subject": complaint.subject,
                 }
             )
-
         if work_order:
-            context.update(
-                {
-                    "work_order_number": work_order.work_order_number,
-                }
-            )
-
+            context["work_order_number"] = work_order.work_order_number
         return context
 
     @staticmethod
     def get_recipient(customer, provider_type):
         if customer is None:
             return ""
-
         if provider_type == "EMAIL":
-            return customer.email or ""
-
-        return customer.phone or customer.alternate_phone or ""
+            return getattr(customer, "email", "") or ""
+        return (
+            getattr(customer, "phone", "")
+            or getattr(customer, "phone_number", "")
+            or getattr(customer, "alternate_phone", "")
+            or ""
+        )
