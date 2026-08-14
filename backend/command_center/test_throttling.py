@@ -10,9 +10,7 @@ class CopilotRateThrottleTests(SimpleTestCase):
         cache.clear()
         self.factory = APIRequestFactory()
         self.throttle = CopilotRateThrottle()
-        self.throttle.rate = "10/minute"
-        self.throttle.num_requests = 10
-        self.throttle.duration = 60
+        self.throttle.get_rate = lambda: "10/minute"
 
     def tearDown(self):
         cache.clear()
