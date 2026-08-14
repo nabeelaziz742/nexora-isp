@@ -65,6 +65,32 @@ class CommunicationAutomationService:
         provisioning_request_id=None,
     ):
         provider = automation.template.communication_provider
+
+        # Never enqueue from a stale, cross-tenant, inactive, or archived
+        # communication configuration. This protects direct service callers
+        # that bypass serializer validation.
+        if (
+            automation.organization_id != automation.template.organization_id
+            or automation.organization_id != provider.organization_id
+            or not provider.is_connected
+            or provider.status != provider.Status.ACTIVE
+            or automation.template.status != automation.template.Status.ACTIVE
+        ):
+            automation.last_execution_status = "SKIPPED"
+            automation.last_executed_at = timezone.now()
+            automation.save(
+                update_fields=["last_executed_at", "last_execution_status"]
+            )
+            return None
+
+        if customer is not None and customer.organization_id != automation.organization_id:
+            automation.last_execution_status = "SKIPPED"
+            automation.last_executed_at = timezone.now()
+            automation.save(
+                update_fields=["last_executed_at", "last_execution_status"]
+            )
+            return None
+
         context = cls.build_context(
             customer=customer,
             invoice=invoice,
@@ -103,7 +129,7 @@ class CommunicationAutomationService:
             rendered_subject=rendered_subject,
             rendered_body=rendered_body,
             scheduled_at=scheduled_at,
-            max_attempts=automation.max_retry_attempts,
+            max_attempts=max(1, automation.max_retry_attempts),
         )
 
         CommunicationLog.objects.create(
@@ -115,7 +141,7 @@ class CommunicationAutomationService:
         )
 
         automation.last_executed_at = timezone.now()
-        automation.last_execution_status = "SUCCESS"
+        automation.last_execution_status = "QUEUED"
         automation.save(update_fields=["last_executed_at", "last_execution_status"])
         return queue
 
