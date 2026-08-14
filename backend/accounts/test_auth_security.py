@@ -1,17 +1,10 @@
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
+from unittest.mock import patch
 
 
-@override_settings(
-    REST_FRAMEWORK={
-        "DEFAULT_THROTTLE_RATES": {
-            "login": "5/minute",
-            "copilot": "10/minute",
-        },
-    }
-)
 class LoginThrottleTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -26,14 +19,15 @@ class LoginThrottleTests(TestCase):
         cache.clear()
 
     def test_login_endpoint_is_rate_limited(self):
-        responses = [
-            self.client.post(
-                "/api/v1/auth/login/",
-                self.payload,
-                format="json",
-            )
-            for _ in range(6)
-        ]
+        with patch("rest_framework.throttling.ScopedRateThrottle.get_rate", return_value="5/minute"):
+            responses = [
+                self.client.post(
+                    "/api/v1/auth/login/",
+                    self.payload,
+                    format="json",
+                )
+                for _ in range(6)
+            ]
 
         self.assertTrue(
             all(
