@@ -69,7 +69,7 @@ export default function AIDailyBriefing() {
     }
   }
 
-  function useSuggestedQuestion(
+  function setSuggestedQuestion(
     suggestedQuestion: string,
   ) {
     if (loading) {
@@ -162,7 +162,7 @@ export default function AIDailyBriefing() {
               type="button"
               disabled={loading}
               onClick={() =>
-                useSuggestedQuestion(suggestedQuestion)
+                setSuggestedQuestion(suggestedQuestion)
               }
               className="border border-[var(--border)] bg-white/[0.02] px-2.5 py-1.5 text-left text-[9px] text-[var(--text-secondary)] transition hover:border-violet-500/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
