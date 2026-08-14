@@ -1,16 +1,13 @@
-import logging
-
 from .base import BaseCommunicationProvider
-
-logger = logging.getLogger(__name__)
 
 
 class SMSProvider(BaseCommunicationProvider):
     """
-    Placeholder SMS Provider.
+    SMS provider contract.
 
-    Replace this class with your preferred
-    SMS gateway implementation.
+    A real gateway implementation must replace this class before SMS is
+    enabled for a tenant. We intentionally fail closed instead of reporting
+    a message as sent when no gateway is configured.
     """
 
     def send(
@@ -21,18 +18,11 @@ class SMSProvider(BaseCommunicationProvider):
         message="",
         provider,
     ):
-        logger.info(
-            "SMS placeholder: %s",
-            recipient,
-        )
-
         return {
-            "success": True,
+            "success": False,
             "provider_message_id": "",
-            "response": {
-                "status": "queued",
-                "recipient": recipient,
-                "message": message,
-            },
-            "error": "",
+            "status_code": None,
+            "retryable": False,
+            "response": {"status": "not_configured"},
+            "error": "SMS provider is not configured.",
         }
