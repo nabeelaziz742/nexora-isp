@@ -21,6 +21,7 @@ from command_center.services import (
     get_priority_queues,
     get_recent_operational_activity,
 )
+from command_center.throttles import CopilotRateThrottle
 from tenancy.permissions import (
     HasActiveTenantContext,
     IsOrganizationStaffOrOwner,
@@ -83,6 +84,8 @@ class CommandCenterRecentActivityAPIView(
 
 
 class OperationsCopilotAPIView(CommandCenterBaseAPIView):
+    throttle_classes = [CopilotRateThrottle]
+
     def post(self, request):
         request_serializer = OperationsCopilotRequestSerializer(
             data=request.data
