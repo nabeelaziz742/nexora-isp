@@ -3,6 +3,7 @@ from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory
 
 from command_center.throttles import CopilotRateThrottle
+from command_center.views import OperationsCopilotAPIView
 
 
 class CopilotRateThrottleTests(SimpleTestCase):
@@ -10,7 +11,7 @@ class CopilotRateThrottleTests(SimpleTestCase):
         cache.clear()
         self.factory = APIRequestFactory()
         self.throttle = CopilotRateThrottle()
-        self.throttle.get_rate = lambda: "10/minute"
+        self.view = OperationsCopilotAPIView()
 
     def tearDown(self):
         cache.clear()
@@ -28,11 +29,11 @@ class CopilotRateThrottleTests(SimpleTestCase):
         )()
 
         allowed = [
-            self.throttle.allow_request(request, None)
+            self.throttle.allow_request(request, self.view)
             for _ in range(10)
         ]
 
         self.assertEqual(allowed, [True] * 10)
         self.assertFalse(
-            self.throttle.allow_request(request, None)
+            self.throttle.allow_request(request, self.view)
         )
