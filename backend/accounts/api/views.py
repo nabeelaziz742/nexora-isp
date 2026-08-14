@@ -24,10 +24,21 @@ class TenantLoginAPIView(APIView):
             raise_exception=True,
         )
 
-        return Response(
+        response = Response(
             serializer.validated_data,
             status=status.HTTP_200_OK,
         )
+
+        # A successful login proves the credentials are valid. Reset only
+        # this request's throttle bucket so previous failed attempts do not
+        # penalize the legitimate user on subsequent logins.
+        throttle = ScopedRateThrottle()
+        throttle.scope = self.throttle_scope
+        cache_key = throttle.get_cache_key(request, self)
+        if cache_key:
+            throttle.cache.delete(cache_key)
+
+        return response
 
 
 class CurrentSessionAPIView(APIView):
