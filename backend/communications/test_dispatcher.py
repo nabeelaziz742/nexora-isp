@@ -59,15 +59,27 @@ class CommunicationDispatcherTests(TestCase):
         values.update(overrides)
         return CommunicationQueue.objects.create(**values)
 
-    def test_dispatches_ready_queue_item(self):
-        queue = self.create_queue()
-        CommunicationLog.objects.create(
+    def create_log(self, queue):
+        return CommunicationLog.objects.create(
             organization=self.organization,
             queue=queue,
             recipient=queue.recipient,
             subject=queue.rendered_subject,
             message=queue.rendered_body,
         )
+
+    @patch("communications.dispatcher.ProviderFactory.get")
+    def test_provider_acceptance_marks_log_sent_not_delivered(self, get_provider):
+        provider = Mock()
+        provider.send.return_value = {
+            "success": True,
+            "provider_message_id": "provider-message-1",
+            "response": {"status": "accepted"},
+        }
+        get_provider.return_value = provider
+
+        queue = self.create_queue()
+        self.create_log(queue)
 
         result = CommunicationDispatcher.dispatch_next()
 
@@ -78,7 +90,8 @@ class CommunicationDispatcherTests(TestCase):
         self.assertEqual(queue.status, CommunicationQueue.Status.SENT)
         self.assertIsNotNone(queue.sent_at)
         self.assertIsNone(queue.next_retry_at)
-        self.assertEqual(log.status, CommunicationLog.Status.DELIVERED)
+        self.assertEqual(log.status, CommunicationLog.Status.SENT)
+        self.assertEqual(log.provider_message_id, "provider-message-1")
 
     def test_future_retry_is_not_dispatched(self):
         queue = self.create_queue(
@@ -95,12 +108,13 @@ class CommunicationDispatcherTests(TestCase):
         self.assertEqual(queue.attempts, 1)
 
     @patch("communications.dispatcher.ProviderFactory.get")
-    def test_failed_delivery_is_scheduled_for_retry(self, get_provider):
+    def test_retryable_failure_is_scheduled_for_retry(self, get_provider):
         provider = Mock()
         provider.send.return_value = {
             "success": False,
+            "retryable": True,
             "provider_message_id": "",
-            "response": {"status": "failed"},
+            "response": {"status": "unavailable"},
             "error": "Provider unavailable",
         }
         get_provider.return_value = provider
@@ -121,10 +135,35 @@ class CommunicationDispatcherTests(TestCase):
         self.assertGreater(queue.next_retry_at, before)
 
     @patch("communications.dispatcher.ProviderFactory.get")
+    def test_non_retryable_failure_is_failed_immediately(self, get_provider):
+        provider = Mock()
+        provider.send.return_value = {
+            "success": False,
+            "retryable": False,
+            "provider_message_id": "",
+            "response": {"status": "invalid_request"},
+            "error": "Invalid recipient",
+        }
+        get_provider.return_value = provider
+
+        queue = self.create_queue()
+
+        result = CommunicationDispatcher.process(queue)
+
+        queue.refresh_from_db()
+
+        self.assertFalse(result)
+        self.assertEqual(queue.status, CommunicationQueue.Status.FAILED)
+        self.assertEqual(queue.attempts, 1)
+        self.assertIsNone(queue.next_retry_at)
+        self.assertEqual(queue.last_error, "Invalid recipient")
+
+    @patch("communications.dispatcher.ProviderFactory.get")
     def test_max_attempts_marks_queue_failed(self, get_provider):
         provider = Mock()
         provider.send.return_value = {
             "success": False,
+            "retryable": True,
             "provider_message_id": "",
             "response": {"status": "failed"},
             "error": "Provider unavailable",
