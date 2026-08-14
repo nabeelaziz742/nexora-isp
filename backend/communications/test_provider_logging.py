@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -19,11 +21,12 @@ class WhatsAppProviderLoggingTests(SimpleTestCase):
             phone_number_id="phone-123",
             access_token="secret-token",
         )
+        stdout = StringIO()
 
         with self.assertLogs(
             "communications.providers.whatsapp",
             level="INFO",
-        ) as logs:
+        ) as logs, redirect_stdout(stdout):
             result = WhatsAppCloudProvider().send(
                 recipient="03001234567",
                 message="Sensitive customer message",
@@ -32,8 +35,8 @@ class WhatsAppProviderLoggingTests(SimpleTestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["provider_message_id"], "wamid.test")
+        self.assertEqual(stdout.getvalue(), "")
         output = "\n".join(logs.output)
         self.assertNotIn("Sensitive customer message", output)
         self.assertNotIn("03001234567", output)
         self.assertNotIn("secret-token", output)
-        self.assertNotIn("Sensitive customer message", output)
