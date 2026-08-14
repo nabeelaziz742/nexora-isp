@@ -9,9 +9,30 @@ logger = logging.getLogger(__name__)
 
 
 class WhatsAppCloudProvider(BaseCommunicationProvider):
-    """
-    Meta WhatsApp Cloud API Provider
-    """
+    """Meta WhatsApp Cloud API Provider."""
+
+    @staticmethod
+    def _safe_response(data):
+        """Keep only non-sensitive provider metadata for persistence."""
+        if not isinstance(data, dict):
+            return {}
+
+        safe = {}
+
+        messages = data.get("messages")
+        if isinstance(messages, list) and messages:
+            message_id = messages[0].get("id") if isinstance(messages[0], dict) else None
+            if message_id:
+                safe["message_id"] = message_id
+
+        error = data.get("error")
+        if isinstance(error, dict):
+            for key in ("type", "code", "error_subcode"):
+                value = error.get(key)
+                if value is not None:
+                    safe[key] = value
+
+        return safe
 
     def send(
         self,
@@ -21,10 +42,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
         message="",
         provider,
     ):
-        """
-        Send WhatsApp message through Meta Cloud API.
-        """
-
         recipient = (
             str(recipient)
             .replace("+", "")
@@ -32,7 +49,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
             .replace(" ", "")
         )
 
-        # Convert Pakistani local number to E.164
         if recipient.startswith("0"):
             recipient = "92" + recipient[1:]
 
@@ -61,9 +77,7 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
             "messaging_product": "whatsapp",
             "to": recipient,
             "type": "text",
-            "text": {
-                "body": message,
-            },
+            "text": {"body": message},
         }
 
         try:
@@ -76,10 +90,10 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
 
             try:
                 data = response.json()
-            except Exception:
-                data = {
-                    "raw": response.text,
-                }
+            except ValueError:
+                data = {}
+
+            safe_response = self._safe_response(data)
 
             if not response.ok:
                 error_data = data.get("error", {})
@@ -98,24 +112,20 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                     "success": False,
                     "provider_message_id": "",
                     "status_code": response.status_code,
-                    "retryable": response.status_code in {
-                        429,
-                        500,
-                        502,
-                        503,
-                        504,
-                    },
-                    "response": data,
+                    "retryable": response.status_code in {429, 500, 502, 503, 504},
+                    "response": safe_response,
                     "error": error_message,
                 }
 
             message_id = None
-
-            if data.get("messages"):
-                message_id = data["messages"][0].get("id")
+            messages = data.get("messages")
+            if isinstance(messages, list) and messages:
+                first_message = messages[0]
+                if isinstance(first_message, dict):
+                    message_id = first_message.get("id")
 
             logger.info(
-                "WhatsApp message sent successfully with provider status %s",
+                "WhatsApp message accepted by provider with status %s",
                 response.status_code,
             )
 
@@ -124,21 +134,17 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 "provider_message_id": message_id,
                 "status_code": response.status_code,
                 "retryable": False,
-                "response": data,
+                "response": safe_response,
                 "error": "",
             }
 
-        except Exception as exc:
-            logger.exception(
-                "WhatsApp provider request failed unexpectedly: %s",
-                exc,
-            )
-
+        except requests.RequestException:
+            logger.exception("WhatsApp provider request failed unexpectedly.")
             return {
                 "success": False,
                 "provider_message_id": "",
                 "status_code": None,
                 "retryable": True,
                 "response": {},
-                "error": str(exc),
+                "error": "WhatsApp provider request failed.",
             }
