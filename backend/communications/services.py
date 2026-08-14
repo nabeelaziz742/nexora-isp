@@ -1,4 +1,3 @@
-from django.db.models import Count, Q
 from django.utils import timezone
 
 from .models import (
@@ -87,9 +86,7 @@ def get_logs(organization):
 
 
 def get_provider_status(organization):
-    return CommunicationProvider.objects.filter(
-        organization=organization,
-    )
+    return CommunicationProvider.objects.filter(organization=organization)
 
 
 def get_schedules(organization):
