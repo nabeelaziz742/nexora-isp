@@ -11,13 +11,16 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY environment variable is required.")
 
-DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-
 
 def _csv_env(name, default=""):
     return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
 
 
+def _bool_env(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+DEBUG = _bool_env("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
 
 INSTALLED_APPS = [
@@ -80,3 +83,14 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS")
+
+# Production security is opt-in through environment variables so local development remains HTTP-friendly.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = _bool_env("SECURE_SSL_REDIRECT", False)
+SESSION_COOKIE_SECURE = _bool_env("SESSION_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = _bool_env("CSRF_COOKIE_SECURE", not DEBUG)
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _bool_env("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+SECURE_HSTS_PRELOAD = _bool_env("SECURE_HSTS_PRELOAD", False)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
