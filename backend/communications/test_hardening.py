@@ -142,7 +142,7 @@ class CommunicationAutomationSecurityTests(TestCase):
         self.automation.refresh_from_db()
         self.assertEqual(self.automation.last_execution_status, "SKIPPED")
 
-    def test_queued_automation_is_not_reported_as_success(self):
+    def test_automation_without_recipient_is_skipped(self):
         self.provider.is_connected = True
         self.provider.save(update_fields=["is_connected"])
 
