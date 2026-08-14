@@ -28,6 +28,7 @@ class CopilotRateThrottleTests(SimpleTestCase):
             {"pk": 12345, "is_authenticated": True},
         )()
 
+        self.throttle.get_rate = lambda: "10/minute"
         allowed = [
             self.throttle.allow_request(request, self.view)
             for _ in range(10)
