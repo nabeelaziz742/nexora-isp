@@ -203,3 +203,19 @@ class CollectionAutomationTests(TestCase):
                 final_warning_days=7,
                 suspension_days=15,
             )
+
+    def test_collection_runner_rejects_inactive_organization(self):
+        self.organization.is_active = False
+        self.organization.save(update_fields=["is_active"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Organization is not active.",
+        ):
+            run_collection_automation(
+                organization=self.organization,
+                as_of_date=date(2026, 8, 16),
+                overdue_reminder_days=1,
+                final_warning_days=7,
+                suspension_days=15,
+            )
