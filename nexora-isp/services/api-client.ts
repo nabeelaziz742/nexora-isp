@@ -180,9 +180,6 @@ export async function apiRequest<T>(
   }
 
   const payload = await parseResponseBody(response);
-  console.log("Status:", response.status);
-  console.log("Payload:", payload);
-
 
   if (!response.ok) {
     throw new ApiError(
