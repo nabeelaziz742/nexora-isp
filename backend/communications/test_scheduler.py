@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -14,7 +15,7 @@ class CommunicationScheduleServiceTests(TestCase):
         self.assertEqual(result.date().isoformat(), "2026-02-28")
 
     def test_process_schedule_skips_missing_schedule(self):
-        self.assertFalse(CommunicationScheduleService.process_schedule("missing"))
+        self.assertFalse(CommunicationScheduleService.process_schedule(uuid4()))
 
     def test_process_due_has_a_safe_batch_limit(self):
         with patch.object(
