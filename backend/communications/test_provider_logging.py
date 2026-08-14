@@ -10,11 +10,14 @@ from .providers.whatsapp import WhatsAppCloudProvider
 
 class WhatsAppProviderLoggingTests(SimpleTestCase):
     @patch("communications.providers.whatsapp.requests.post")
-    def test_send_does_not_print_message_payload(self, mock_post):
+    def test_send_does_not_print_or_persist_message_payload(self, mock_post):
         mock_post.return_value = SimpleNamespace(
             ok=True,
             status_code=200,
-            json=lambda: {"messages": [{"id": "wamid.test"}]},
+            json=lambda: {
+                "messages": [{"id": "wamid.test"}],
+                "contacts": [{"wa_id": "03001234567"}],
+            },
             text='{"messages":[{"id":"wamid.test"}]}',
         )
         provider = SimpleNamespace(
@@ -35,8 +38,12 @@ class WhatsAppProviderLoggingTests(SimpleTestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["provider_message_id"], "wamid.test")
+        self.assertEqual(result["response"], {"message_id": "wamid.test"})
         self.assertEqual(stdout.getvalue(), "")
+
         output = "\n".join(logs.output)
         self.assertNotIn("Sensitive customer message", output)
         self.assertNotIn("03001234567", output)
         self.assertNotIn("secret-token", output)
+        self.assertNotIn("Sensitive customer message", str(result["response"]))
+        self.assertNotIn("03001234567", str(result["response"]))
