@@ -154,15 +154,19 @@ class Command(BaseCommand):
                 )
             )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                (
-                    "Collections automation complete. "
-                    f"as_of={as_of_date.isoformat()}, "
-                    f"reminders={total_reminders}, "
-                    f"warnings={total_warnings}, "
-                    f"suspensions={total_suspensions}, "
-                    f"failed={total_failed}"
-                )
-            )
+        summary = (
+            "Collections automation complete. "
+            f"as_of={as_of_date.isoformat()}, "
+            f"reminders={total_reminders}, "
+            f"warnings={total_warnings}, "
+            f"suspensions={total_suspensions}, "
+            f"failed={total_failed}"
         )
+
+        if total_failed:
+            self.stderr.write(self.style.ERROR(summary))
+            raise CommandError(
+                f"Collections automation completed with {total_failed} failure(s)."
+            )
+
+        self.stdout.write(self.style.SUCCESS(summary))
