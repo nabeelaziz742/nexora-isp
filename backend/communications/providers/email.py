@@ -1,10 +1,6 @@
-import logging
-
 from django.core.mail import EmailMessage
 
 from .base import BaseCommunicationProvider
-
-logger = logging.getLogger(__name__)
 
 
 class EmailProvider(BaseCommunicationProvider):
@@ -22,31 +18,27 @@ class EmailProvider(BaseCommunicationProvider):
         provider,
     ):
         try:
-
             email = EmailMessage(
                 subject=subject,
                 body=message,
                 to=[recipient],
             )
-
             email.send(fail_silently=False)
 
             return {
                 "success": True,
                 "provider_message_id": "",
-                "response": {
-                    "status": "sent",
-                },
+                "status_code": None,
+                "retryable": False,
+                "response": {"status": "accepted"},
                 "error": "",
             }
-
-        except Exception as exc:
-
-            logger.exception(exc)
-
+        except Exception:
             return {
                 "success": False,
                 "provider_message_id": "",
+                "status_code": None,
+                "retryable": True,
                 "response": {},
-                "error": str(exc),
+                "error": "Email provider request failed.",
             }
