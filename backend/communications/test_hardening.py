@@ -2,12 +2,14 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
-from rest_framework.exceptions import ValidationError
 
-from communications.models import CommunicationProvider, CommunicationTemplate
+from communications.models import CommunicationProvider
 from communications.providers.sms import SMSProvider
 from communications.providers.whatsapp import WhatsAppCloudProvider
-from communications.serializers import CommunicationProviderSerializer
+from communications.serializers import (
+    CommunicationProviderSerializer,
+    CommunicationTemplateSerializer,
+)
 from tenancy.models import Organization
 
 
@@ -47,12 +49,17 @@ class CommunicationProviderSecurityTests(TestCase):
             provider_type=CommunicationProvider.ProviderType.WHATSAPP,
         )
 
-        serializer = CommunicationProviderSerializer(
-            provider,
+        serializer = CommunicationTemplateSerializer(
+            data={
+                "name": "Cross Tenant Template",
+                "body": "Hello",
+                "communication_provider": str(provider.id),
+            },
             context=self.serializer_context(),
         )
 
-        self.assertEqual(serializer.data["name"], "Other WhatsApp")
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("communication_provider", serializer.errors)
 
 
 class CommunicationProviderBehaviorTests(SimpleTestCase):
