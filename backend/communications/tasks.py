@@ -7,8 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 def process_pending_communications():
-    """Process communication queue items ready for delivery."""
+    """Process ready communication queue items until the queue is drained."""
     processed = 0
+
     while True:
         result = CommunicationDispatcher.dispatch_next()
         if result is None:
@@ -19,8 +20,8 @@ def process_pending_communications():
     return processed
 
 
-def process_due_communication_schedules(limit=100):
-    """Materialize due schedules into tenant-scoped communication queues."""
+def process_due_communication_schedules(*, limit=100):
+    """Queue all due communication schedules for their tenant's active customers."""
     processed = CommunicationScheduleService.process_due(limit=limit)
-    logger.info("Processed %s communication schedule(s).", processed)
+    logger.info("Queued %s communication schedule(s).", processed)
     return processed
