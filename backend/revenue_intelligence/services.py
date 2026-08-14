@@ -72,7 +72,7 @@ def get_collections_by_period(
     allocated_collections = (
         PaymentAllocation.objects
         .for_organization(organization)
-        .annotate(period=TruncMonth("created_at"))
+        .annotate(period=TruncMonth("payment__paid_at"))
         .values("period")
         .annotate(
             amount=Sum("amount"),
