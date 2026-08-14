@@ -81,6 +81,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_THROTTLE_RATES": {
         "login": os.getenv("LOGIN_THROTTLE_RATE", "5/minute"),
+        "copilot": os.getenv("COPILOT_THROTTLE_RATE", "10/minute"),
     },
 }
 
