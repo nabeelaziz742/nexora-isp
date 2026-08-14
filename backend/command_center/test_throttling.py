@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory
@@ -19,10 +17,6 @@ class CopilotRateThrottleTests(SimpleTestCase):
         cache.clear()
         self.factory = APIRequestFactory()
         self.throttle = CopilotRateThrottle()
-        self.user = SimpleNamespace(
-            pk=12345,
-            is_authenticated=True,
-        )
 
     def tearDown(self):
         cache.clear()
@@ -33,7 +27,11 @@ class CopilotRateThrottleTests(SimpleTestCase):
             {"question": "What needs attention?"},
             format="json",
         )
-        request.user = self.user
+        request.user = type(
+            "AuthenticatedUser",
+            (),
+            {"pk": 12345, "is_authenticated": True},
+        )()
 
         allowed = [
             self.throttle.allow_request(request, None)
