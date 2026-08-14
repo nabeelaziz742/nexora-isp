@@ -1,22 +1,18 @@
 from django.core.cache import cache
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory
 
 from command_center.throttles import CopilotRateThrottle
 
 
-@override_settings(
-    REST_FRAMEWORK={
-        "DEFAULT_THROTTLE_RATES": {
-            "copilot": "10/minute",
-        },
-    }
-)
 class CopilotRateThrottleTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
         self.factory = APIRequestFactory()
         self.throttle = CopilotRateThrottle()
+        self.throttle.rate = "10/minute"
+        self.throttle.num_requests = 10
+        self.throttle.duration = 60
 
     def tearDown(self):
         cache.clear()
