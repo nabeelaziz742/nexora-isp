@@ -18,7 +18,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
             return {}
 
         safe = {}
-
         messages = data.get("messages")
         if isinstance(messages, list) and messages:
             message_id = messages[0].get("id") if isinstance(messages[0], dict) else None
@@ -31,24 +30,47 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 value = error.get(key)
                 if value is not None:
                     safe[key] = value
-
         return safe
 
-    def send(
-        self,
-        *,
-        recipient,
-        subject="",
-        message="",
-        provider,
-    ):
+    def health_check(self, *, provider):
+        if not provider.phone_number_id or not provider.access_token:
+            return {
+                "success": False,
+                "message": "WhatsApp phone number ID and access token are required.",
+            }
+
+        url = (
+            f"https://graph.facebook.com/{settings.WHATSAPP_API_VERSION}/"
+            f"{provider.phone_number_id}"
+        )
+
+        try:
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {provider.access_token}"},
+                params={"fields": "id,display_phone_number,verified_name"},
+                timeout=15,
+            )
+            if not response.ok:
+                return {
+                    "success": False,
+                    "message": "WhatsApp provider authentication failed.",
+                }
+            return {"success": True, "message": "WhatsApp provider is reachable."}
+        except requests.RequestException:
+            logger.exception("WhatsApp provider health check failed.")
+            return {
+                "success": False,
+                "message": "WhatsApp provider is unreachable.",
+            }
+
+    def send(self, *, recipient, subject="", message="", provider):
         recipient = (
             str(recipient)
             .replace("+", "")
             .replace("-", "")
             .replace(" ", "")
         )
-
         if recipient.startswith("0"):
             recipient = "92" + recipient[1:]
 
@@ -63,16 +85,13 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
             }
 
         url = (
-            f"https://graph.facebook.com/"
-            f"{settings.WHATSAPP_API_VERSION}/"
+            f"https://graph.facebook.com/{settings.WHATSAPP_API_VERSION}/"
             f"{provider.phone_number_id}/messages"
         )
-
         headers = {
             "Authorization": f"Bearer {provider.access_token}",
             "Content-Type": "application/json",
         }
-
         payload = {
             "messaging_product": "whatsapp",
             "to": recipient,
@@ -87,7 +106,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 json=payload,
                 timeout=30,
             )
-
             try:
                 data = response.json()
             except ValueError:
@@ -102,12 +120,10 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                     if isinstance(error_data, dict)
                     else None
                 ) or "WhatsApp provider request failed."
-
                 logger.warning(
                     "WhatsApp provider request failed with status %s",
                     response.status_code,
                 )
-
                 return {
                     "success": False,
                     "provider_message_id": "",
@@ -128,7 +144,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 "WhatsApp message accepted by provider with status %s",
                 response.status_code,
             )
-
             return {
                 "success": True,
                 "provider_message_id": message_id,
@@ -137,7 +152,6 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 "response": safe_response,
                 "error": "",
             }
-
         except requests.RequestException:
             logger.exception("WhatsApp provider request failed unexpectedly.")
             return {
