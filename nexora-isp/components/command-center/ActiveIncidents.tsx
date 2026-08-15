@@ -6,11 +6,13 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 
-import { commandCenterService } from "@/services/command-center-service";
-import { CommandCenterAlert } from "@/types/command-center";
+import {
+  commandCenterService,
+  type OperationalAlert,
+} from "@/services/command-center-service";
 
 export default function ActiveIncidents() {
-  const [alerts, setAlerts] = useState<CommandCenterAlert[]>([]);
+  const [alerts, setAlerts] = useState<OperationalAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +95,7 @@ export default function ActiveIncidents() {
         <div className="divide-y divide-[var(--border)]">
           {alerts.map((alert) => (
             <div
-              key={alert.id}
+              key={alert.resource_id}
               className="px-5 py-4"
             >
               <div className="flex items-start justify-between gap-4">
@@ -115,7 +117,7 @@ export default function ActiveIncidents() {
 
                     <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
                       {new Date(
-                        alert.created_at,
+                        alert.occurred_at,
                       ).toLocaleString()}
                     </p>
                   </div>
@@ -126,7 +128,7 @@ export default function ActiveIncidents() {
 
               <div className="mt-4 flex items-center pl-11">
                 <span className="ml-auto text-[9px] font-medium text-[var(--text-muted)]">
-                  {alert.id}
+                  {alert.resource_id}
                 </span>
               </div>
             </div>
