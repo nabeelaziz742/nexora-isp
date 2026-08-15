@@ -11,7 +11,15 @@ import TemplateForm, {
   Provider,
 } from "@/components/communications/template-form";
 
-import { communicationsService } from "@/services/communications.service";
+import {
+  communicationsService,
+  type CommunicationTemplate,
+} from "@/services/communications.service";
+
+type TemplateFormState = Pick<
+  CommunicationTemplate,
+  "name" | "subject" | "body" | "status" | "communication_provider"
+>;
 
 export default function EditCommunicationTemplatePage() {
   const router = useRouter();
@@ -26,7 +34,7 @@ export default function EditCommunicationTemplatePage() {
 
   const [providers, setProviders] = useState<Provider[]>([]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TemplateFormState>({
     name: "",
     subject: "",
     body: "",
@@ -70,7 +78,7 @@ export default function EditCommunicationTemplatePage() {
   }
 
   function handleChange(
-    field: string,
+    field: keyof TemplateFormState,
     value: string,
   ) {
     setForm((prev) => ({
@@ -80,27 +88,27 @@ export default function EditCommunicationTemplatePage() {
   }
 
   async function handleSave() {
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    await communicationsService.updateTemplate(
-      id,
-      form,
-    );
+      await communicationsService.updateTemplate(
+        id,
+        form,
+      );
 
-    toast.success("Template updated successfully.");
+      toast.success("Template updated successfully.");
 
-    router.push(
-      "/communications/templates",
-    );
-  } catch (err) {
-    console.error(err);
+      router.push(
+        "/communications/templates",
+      );
+    } catch (err) {
+      console.error(err);
 
-    toast.error("Unable to update template.");
-  } finally {
-    setSaving(false);
+      toast.error("Unable to update template.");
+    } finally {
+      setSaving(false);
+    }
   }
-}
 
   async function handlePreview() {
     try {
