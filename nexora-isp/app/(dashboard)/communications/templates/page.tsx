@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { communicationsService } from "@/services/communications.service";
+import {
+  communicationsService,
+  type CommunicationTemplate,
+} from "@/services/communications.service";
 
 import {
   Dialog,
@@ -29,7 +32,7 @@ import {
 } from "lucide-react";
 
 export default function CommunicationTemplatesPage() {
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [providerFilter, setProviderFilter] = useState("ALL");
@@ -45,7 +48,7 @@ export default function CommunicationTemplatesPage() {
     useState(false);
 
   const [previewData, setPreviewData] =
-    useState<any>(null);
+    useState<{ subject: string; body: string } | null>(null);
 
   useEffect(() => {
     loadTemplates();
@@ -72,24 +75,22 @@ export default function CommunicationTemplatesPage() {
               : providerFilter,
         });
 
-      const items = Array.isArray(response)
-        ? response
-        : response.results ?? [];
+      const items: CommunicationTemplate[] = response;
 
       setTemplates(items);
 
       setStats({
         total: items.length,
         whatsapp: items.filter(
-          (t: any) =>
+          (t) =>
             t.communication_provider_type === "WHATSAPP",
         ).length,
         sms: items.filter(
-          (t: any) =>
+          (t) =>
             t.communication_provider_type === "SMS",
         ).length,
         email: items.filter(
-          (t: any) =>
+          (t) =>
             t.communication_provider_type === "EMAIL",
         ).length,
       });
@@ -144,7 +145,7 @@ export default function CommunicationTemplatesPage() {
     }
   }
 
-  async function toggleStatus(template: any) {
+  async function toggleStatus(template: CommunicationTemplate) {
     try {
       if (template.status === "ACTIVE") {
         await communicationsService.disableTemplate(
