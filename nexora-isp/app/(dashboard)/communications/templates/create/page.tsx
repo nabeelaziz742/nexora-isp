@@ -7,13 +7,21 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import TemplateForm from "@/components/communications/template-form";
-import { communicationsService } from "@/services/communications.service";
+import {
+  communicationsService,
+  type CommunicationTemplate,
+} from "@/services/communications.service";
 
 interface Provider {
   id: string;
   name: string;
   provider_type: "WHATSAPP" | "SMS" | "EMAIL";
 }
+
+type TemplateFormState = Pick<
+  CommunicationTemplate,
+  "name" | "subject" | "body" | "status" | "communication_provider"
+>;
 
 export default function CreateCommunicationTemplatePage() {
   const router = useRouter();
@@ -22,7 +30,7 @@ export default function CreateCommunicationTemplatePage() {
 
   const [providers, setProviders] = useState<Provider[]>([]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TemplateFormState>({
     name: "",
     subject: "",
     body: "",
@@ -46,33 +54,39 @@ export default function CreateCommunicationTemplatePage() {
   }
 
   function handleChange(
-  field: string,
-  value: string,
-) {
-  console.log("HANDLE CHANGE:", field, value);
+    field: string,
+    value: string,
+  ) {
+    if (
+      field === "status" &&
+      value !== "DRAFT" &&
+      value !== "ACTIVE" &&
+      value !== "ARCHIVED"
+    ) {
+      return;
+    }
 
-  setForm((prev) => ({
-    ...prev,
-    [field]: value,
-  }));
-}
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
 
   async function handleSave() {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    console.log("FORM DATA:", JSON.stringify(form, null, 2));
+      await communicationsService.createTemplate(form);
 
-    await communicationsService.createTemplate(form);
-
-    router.push("/communications/templates");
-  } catch (err) {
-    console.error(err);
-    alert("Unable to create template.");
-  } finally {
-    setLoading(false);
+      toast.success("Template created successfully.");
+      router.push("/communications/templates");
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to create template.");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   async function handlePreview() {
     console.log(form);
@@ -80,9 +94,7 @@ export default function CreateCommunicationTemplatePage() {
 
   return (
     <div className="space-y-6 p-6">
-
       <div>
-
         <Link
           href="/communications/templates"
           className="mb-4 inline-flex items-center gap-2 text-sm text-cyan-400"
@@ -98,7 +110,6 @@ export default function CreateCommunicationTemplatePage() {
         <p className="mt-2 text-sm text-[#64748B]">
           Create reusable communication templates.
         </p>
-
       </div>
 
       <TemplateForm
@@ -110,7 +121,6 @@ export default function CreateCommunicationTemplatePage() {
         onPreview={handlePreview}
         saveLabel="Create Template"
       />
-
     </div>
   );
 }
