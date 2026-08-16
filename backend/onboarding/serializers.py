@@ -29,6 +29,11 @@ class ISPRegistrationSerializer(serializers.Serializer):
 class ReceiptUploadSerializer(serializers.Serializer):
     receipt = serializers.ImageField()
 
+    def validate_receipt(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Receipt image must be 5 MB or smaller.")
+        return value
+
 
 class RejectRegistrationSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=1000, required=False, allow_blank=True)
@@ -37,16 +42,7 @@ class RejectRegistrationSerializer(serializers.Serializer):
 class PaymentSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentSettings
-        fields = (
-            "id",
-            "bank_name",
-            "account_title",
-            "account_number",
-            "iban",
-            "amount",
-            "instructions",
-            "is_active",
-        )
+        fields = ("id", "bank_name", "account_title", "account_number", "iban", "amount", "instructions", "is_active")
         read_only_fields = ("id",)
 
 
@@ -59,20 +55,7 @@ class RegistrationListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ISPRegistration
-        fields = (
-            "id",
-            "company_name",
-            "organization_code",
-            "owner_email",
-            "owner_name",
-            "amount_due",
-            "status",
-            "receipt_url",
-            "rejection_reason",
-            "submitted_at",
-            "verified_at",
-            "created_at",
-        )
+        fields = ("id", "company_name", "organization_code", "owner_email", "owner_name", "amount_due", "status", "receipt_url", "rejection_reason", "submitted_at", "verified_at", "created_at")
 
     def get_owner_name(self, obj):
         return f"{obj.owner.first_name} {obj.owner.last_name}".strip()
