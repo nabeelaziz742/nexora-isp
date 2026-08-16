@@ -27,6 +27,10 @@ class User(AbstractUser):
         default=True,
     )
 
+    email_verified = models.BooleanField(
+        default=True,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )

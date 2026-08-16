@@ -26,7 +26,7 @@ ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "corsheaders", "rest_framework", "accounts", "tenancy", "customers", "network",
+    "corsheaders", "rest_framework", "accounts", "tenancy", "onboarding", "customers", "network",
     "inventory", "billing", "support", "field_operations", "notifications",
     "command_center", "revenue_intelligence", "reports", "communications",
 ]
@@ -74,6 +74,8 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
@@ -91,6 +93,8 @@ TEST_RUNNER = "config.test_runner.NexoraTestRunner"
 CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS")
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@nexora.local")
 
 # Production security is opt-in through environment variables so local development remains HTTP-friendly.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

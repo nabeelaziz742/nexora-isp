@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
 
 
@@ -10,6 +12,10 @@ urlpatterns = [
     path(
         "api/v1/auth/",
         include("accounts.api.urls"),
+    ),
+    path(
+        "api/v1/onboarding/",
+        include("onboarding.urls"),
     ),
     path(
         "api/v1/tenant/",
@@ -51,14 +57,15 @@ urlpatterns = [
         "api/v1/revenue-intelligence/",
         include("revenue_intelligence.urls"),
     ),
-
     path(
         "api/v1/reports/",
         include("reports.urls"),
     ),
-
     path(
-    "api/v1/communications/",
-    include("communications.urls"),
+        "api/v1/communications/",
+        include("communications.urls"),
     ),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
