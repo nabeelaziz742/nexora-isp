@@ -24,6 +24,7 @@ export type Registration = {
   submitted_at: string | null;
   verified_at: string | null;
   created_at: string;
+  payment: PaymentSettings | null;
 };
 
 export type RegistrationCreateResponse = {
@@ -57,38 +58,25 @@ export async function getRegistration(accessToken: string): Promise<Registration
   });
 }
 
-export async function uploadRegistrationReceipt(
-  accessToken: string,
-  file: File,
-): Promise<{ status: Registration["status"] }> {
+export async function uploadRegistrationReceipt(accessToken: string, file: File): Promise<{ status: Registration["status"] }> {
   const form = new FormData();
   form.append("receipt", file);
-
-  return apiRequest<{ status: Registration["status"] }>(
-    `/onboarding/registration/${accessToken}/receipt/`,
-    {
-      method: "POST",
-      body: form,
-      skipAuth: true,
-    },
-  );
+  return apiRequest<{ status: Registration["status"] }>(`/onboarding/registration/${accessToken}/receipt/`, {
+    method: "POST",
+    body: form,
+    skipAuth: true,
+  });
 }
 
 export async function superAdminLogin(email: string, password: string) {
   return apiRequest<{ access: string; refresh: string; user: { id: string; email: string; first_name: string; last_name: string } }>(
     "/onboarding/superadmin/login/",
-    {
-      method: "POST",
-      body: { email, password },
-      skipAuth: true,
-    },
+    { method: "POST", body: { email, password }, skipAuth: true },
   );
 }
 
 function adminHeaders(token: string) {
-  return {
-    Authorization: `Bearer ${token}`,
-  };
+  return { Authorization: `Bearer ${token}` };
 }
 
 export async function getAdminRegistrations(token: string, status?: Registration["status"]) {
