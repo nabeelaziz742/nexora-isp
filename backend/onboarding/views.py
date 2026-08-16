@@ -1,9 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import status
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -59,7 +57,10 @@ class RegistrationStatusAPIView(APIView):
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(RegistrationListSerializer(registration, context={"request": request}).data)
+        payment = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
+        payload = RegistrationListSerializer(registration, context={"request": request}).data
+        payload["payment"] = PaymentSettingsSerializer(payment).data if payment else None
+        return Response(payload)
 
 
 class RegistrationReceiptAPIView(APIView):
@@ -113,10 +114,7 @@ class SuperAdminPaymentSettingsAPIView(APIView):
         settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
         serializer = PaymentSettingsSerializer(instance=settings, data=request.data) if settings else PaymentSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        if settings:
-            settings = serializer.save()
-        else:
-            settings = serializer.save(is_active=True)
+        settings = serializer.save(is_active=True)
         return Response(PaymentSettingsSerializer(settings).data)
 
 
@@ -147,19 +145,16 @@ class SuperAdminRegistrationDetailAPIView(APIView):
 
         if action == "approve":
             registration = approve_registration(registration=registration, admin_user=request.user)
-            try:
-                send_mail(
-                    subject="Nexora ISP account activated",
-                    message=(
-                        f"Your Nexora ISP account for {registration.organization.name} has been activated. "
-                        f"Your organization code is {registration.organization.code}."
-                    ),
-                    from_email=None,
-                    recipient_list=[registration.owner.email],
-                    fail_silently=True,
-                )
-            except Exception:
-                pass
+            send_mail(
+                subject="Nexora ISP account activated",
+                message=(
+                    f"Your Nexora ISP account for {registration.organization.name} has been activated. "
+                    f"Your organization code is {registration.organization.code}."
+                ),
+                from_email=None,
+                recipient_list=[registration.owner.email],
+                fail_silently=True,
+            )
         elif action == "reject":
             serializer = RejectRegistrationSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
