@@ -29,7 +29,7 @@ class ISPOnboardingFlowTests(TestCase):
         Image.new("RGB", (20, 20), "white").save(buffer, format="PNG")
         return SimpleUploadedFile("receipt.png", buffer.getvalue(), content_type="image/png")
 
-    def register(self):
+    def register(self, email="ali@example.com"):
         response = self.client.post(
             reverse("isp-register"),
             {
@@ -37,13 +37,32 @@ class ISPOnboardingFlowTests(TestCase):
                 "city": "Lahore",
                 "first_name": "Ali",
                 "last_name": "Ahmed",
-                "email": "ali@example.com",
+                "email": email,
                 "password": "StrongPassword!123",
             },
             format="json",
         )
         self.assertEqual(response.status_code, 201)
         return response.json()
+
+    def submit_receipt(self, access_token):
+        return self.client.post(
+            reverse("registration-receipt", kwargs={"access_token": access_token}),
+            {"receipt": self.make_receipt()},
+            format="multipart",
+        )
+
+    def approve(self, registration_id):
+        admin = User.objects.create_superuser(
+            username="admin@example.com",
+            email="admin@example.com",
+            password="AdminPassword!123",
+        )
+        self.client.force_authenticate(admin)
+        return self.client.post(
+            reverse("superadmin-registration-action", kwargs={"registration_id": registration_id, "action": "approve"}),
+            format="json",
+        )
 
     def test_registration_starts_pending_and_login_is_blocked(self):
         data = self.register()
@@ -56,33 +75,23 @@ class ISPOnboardingFlowTests(TestCase):
             OrganizationMembership.objects.get(user=registration.owner, organization=registration.organization).is_active
         )
 
+        login = self.client.post(
+            reverse("tenant-login"),
+            {"email": "ali@example.com", "password": "StrongPassword!123", "organization_code": registration.organization.code},
+            format="json",
+        )
+        self.assertEqual(login.status_code, 400)
+
     def test_receipt_moves_registration_to_pending_verification(self):
         data = self.register()
-        response = self.client.post(
-            reverse("registration-receipt", kwargs={"access_token": data["access_token"]}),
-            {"receipt": self.make_receipt()},
-            format="multipart",
-        )
+        response = self.submit_receipt(data["access_token"])
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], ISPRegistration.Status.PENDING_VERIFICATION)
 
-    def test_admin_can_approve_and_activate_owner(self):
+    def test_admin_can_approve_and_owner_can_login(self):
         data = self.register()
-        self.client.post(
-            reverse("registration-receipt", kwargs={"access_token": data["access_token"]}),
-            {"receipt": self.make_receipt()},
-            format="multipart",
-        )
-        admin = User.objects.create_superuser(
-            username="admin@example.com",
-            email="admin@example.com",
-            password="AdminPassword!123",
-        )
-        self.client.force_authenticate(admin)
-        response = self.client.post(
-            reverse("superadmin-registration-action", kwargs={"registration_id": data["registration_id"], "action": "approve"}),
-            format="json",
-        )
+        self.assertEqual(self.submit_receipt(data["access_token"]).status_code, 200)
+        response = self.approve(data["registration_id"])
         self.assertEqual(response.status_code, 200)
 
         registration = ISPRegistration.objects.get(id=data["registration_id"])
@@ -96,13 +105,19 @@ class ISPOnboardingFlowTests(TestCase):
         self.assertTrue(registration.organization.is_active)
         self.assertTrue(membership.is_active)
 
+        self.client.force_authenticate(user=None)
+        login = self.client.post(
+            reverse("tenant-login"),
+            {"email": "ali@example.com", "password": "StrongPassword!123", "organization_code": registration.organization.code},
+            format="json",
+        )
+        self.assertEqual(login.status_code, 200)
+        self.assertIn("access", login.json())
+
     def test_admin_reject_keeps_login_blocked_and_allows_resubmission(self):
         data = self.register()
-        self.client.post(
-            reverse("registration-receipt", kwargs={"access_token": data["access_token"]}),
-            {"receipt": self.make_receipt()},
-            format="multipart",
-        )
+        self.assertEqual(self.submit_receipt(data["access_token"]).status_code, 200)
+
         admin = User.objects.create_superuser(
             username="admin@example.com",
             email="admin@example.com",
@@ -121,10 +136,25 @@ class ISPOnboardingFlowTests(TestCase):
         self.assertEqual(registration.status, ISPRegistration.Status.REJECTED)
         self.assertFalse(registration.owner.is_active)
 
-        resubmit = self.client.post(
-            reverse("registration-receipt", kwargs={"access_token": data["access_token"]}),
-            {"receipt": self.make_receipt()},
-            format="multipart",
+        self.client.force_authenticate(user=None)
+        login = self.client.post(
+            reverse("tenant-login"),
+            {"email": "ali@example.com", "password": "StrongPassword!123", "organization_code": registration.organization.code},
+            format="json",
         )
+        self.assertEqual(login.status_code, 400)
+
+        resubmit = self.submit_receipt(data["access_token"])
         self.assertEqual(resubmit.status_code, 200)
         self.assertEqual(resubmit.json()["status"], ISPRegistration.Status.PENDING_VERIFICATION)
+
+    def test_non_superuser_cannot_access_superadmin_api(self):
+        staff = User.objects.create_user(
+            username="staff@example.com",
+            email="staff@example.com",
+            password="StaffPassword!123",
+            is_staff=True,
+        )
+        self.client.force_authenticate(staff)
+        response = self.client.get(reverse("superadmin-registrations"))
+        self.assertEqual(response.status_code, 403)
