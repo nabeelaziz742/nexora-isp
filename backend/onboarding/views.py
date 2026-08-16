@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
+from django.http import FileResponse
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
@@ -16,12 +17,7 @@ from onboarding.serializers import (
     RegistrationListSerializer,
     RejectRegistrationSerializer,
 )
-from onboarding.services import (
-    approve_registration,
-    create_registration,
-    reject_registration,
-    submit_receipt,
-)
+from onboarding.services import approve_registration, create_registration, reject_registration, submit_receipt
 
 
 User = get_user_model()
@@ -35,17 +31,14 @@ class ISPRegistrationAPIView(APIView):
         serializer = ISPRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         registration, settings = create_registration(validated_data=serializer.validated_data)
-        return Response(
-            {
-                "registration_id": str(registration.id),
-                "access_token": str(registration.access_token),
-                "status": registration.status,
-                "organization_code": registration.organization.code,
-                "amount_due": registration.amount_due,
-                "payment": PaymentSettingsSerializer(settings).data,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response({
+            "registration_id": str(registration.id),
+            "access_token": str(registration.access_token),
+            "status": registration.status,
+            "organization_code": registration.organization.code,
+            "amount_due": registration.amount_due,
+            "payment": PaymentSettingsSerializer(settings).data,
+        }, status=status.HTTP_201_CREATED)
 
 
 class RegistrationStatusAPIView(APIView):
@@ -56,7 +49,6 @@ class RegistrationStatusAPIView(APIView):
         registration = ISPRegistration.objects.select_related("organization", "owner").filter(access_token=access_token).first()
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
-
         payment = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
         payload = RegistrationListSerializer(registration, context={"request": request}).data
         payload["payment"] = PaymentSettingsSerializer(payment).data if payment else None
@@ -71,7 +63,6 @@ class RegistrationReceiptAPIView(APIView):
         registration = ISPRegistration.objects.filter(access_token=access_token).first()
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
-
         serializer = ReceiptUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         registration = submit_receipt(registration=registration, receipt=serializer.validated_data["receipt"])
@@ -86,18 +77,14 @@ class SuperAdminLoginAPIView(APIView):
         email = str(request.data.get("email", "")).strip().lower()
         password = request.data.get("password", "")
         user = authenticate(request=request, email=email, password=password)
-
         if user is None or not user.is_active or not user.is_staff:
             return Response({"detail": "Invalid administrator credentials."}, status=status.HTTP_401_UNAUTHORIZED)
-
         refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user": {"id": str(user.id), "email": user.email, "first_name": user.first_name, "last_name": user.last_name},
-            }
-        )
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {"id": str(user.id), "email": user.email, "first_name": user.first_name, "last_name": user.last_name},
+        })
 
 
 class SuperAdminPaymentSettingsAPIView(APIView):
@@ -106,9 +93,7 @@ class SuperAdminPaymentSettingsAPIView(APIView):
 
     def get(self, request):
         settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
-        if settings is None:
-            return Response(None)
-        return Response(PaymentSettingsSerializer(settings).data)
+        return Response(PaymentSettingsSerializer(settings).data if settings else None)
 
     def put(self, request):
         settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
@@ -130,6 +115,17 @@ class SuperAdminRegistrationListAPIView(APIView):
         return Response(RegistrationListSerializer(queryset, many=True, context={"request": request}).data)
 
 
+class SuperAdminReceiptAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, registration_id):
+        registration = ISPRegistration.objects.filter(id=registration_id).first()
+        if registration is None or not registration.receipt:
+            return Response({"detail": "Receipt not found."}, status=status.HTTP_404_NOT_FOUND)
+        return FileResponse(registration.receipt.open("rb"), content_type="image/*")
+
+
 class SuperAdminRegistrationDetailAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
@@ -142,15 +138,12 @@ class SuperAdminRegistrationDetailAPIView(APIView):
         registration = self.get_object(registration_id)
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
-
         if action == "approve":
             registration = approve_registration(registration=registration, admin_user=request.user)
             send_mail(
                 subject="Nexora ISP account activated",
-                message=(
-                    f"Your Nexora ISP account for {registration.organization.name} has been activated. "
-                    f"Your organization code is {registration.organization.code}."
-                ),
+                message=(f"Your Nexora ISP account for {registration.organization.name} has been activated. "
+                         f"Your organization code is {registration.organization.code}."),
                 from_email=None,
                 recipient_list=[registration.owner.email],
                 fail_silently=True,
@@ -158,11 +151,7 @@ class SuperAdminRegistrationDetailAPIView(APIView):
         elif action == "reject":
             serializer = RejectRegistrationSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            registration = reject_registration(
-                registration=registration,
-                reason=serializer.validated_data.get("reason", ""),
-            )
+            registration = reject_registration(registration=registration, reason=serializer.validated_data.get("reason", ""))
         else:
             return Response({"detail": "Unsupported action."}, status=status.HTTP_400_BAD_REQUEST)
-
         return Response(RegistrationListSerializer(registration, context={"request": request}).data)
