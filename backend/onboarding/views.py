@@ -2,8 +2,8 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import FileResponse
-from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework import permissions, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -21,6 +21,13 @@ from onboarding.services import approve_registration, create_registration, rejec
 
 
 User = get_user_model()
+
+
+class IsSuperAdmin(permissions.BasePermission):
+    message = "Super administrator access is required."
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 
 
 class ISPRegistrationAPIView(APIView):
@@ -77,7 +84,7 @@ class SuperAdminLoginAPIView(APIView):
         email = str(request.data.get("email", "")).strip().lower()
         password = request.data.get("password", "")
         user = authenticate(request=request, email=email, password=password)
-        if user is None or not user.is_active or not user.is_staff:
+        if user is None or not user.is_active or not user.is_superuser:
             return Response({"detail": "Invalid administrator credentials."}, status=status.HTTP_401_UNAUTHORIZED)
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -89,7 +96,7 @@ class SuperAdminLoginAPIView(APIView):
 
 class SuperAdminPaymentSettingsAPIView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSuperAdmin]
 
     def get(self, request):
         settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
@@ -105,7 +112,7 @@ class SuperAdminPaymentSettingsAPIView(APIView):
 
 class SuperAdminRegistrationListAPIView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSuperAdmin]
 
     def get(self, request):
         status_filter = request.query_params.get("status")
@@ -117,7 +124,7 @@ class SuperAdminRegistrationListAPIView(APIView):
 
 class SuperAdminReceiptAPIView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSuperAdmin]
 
     def get(self, request, registration_id):
         registration = ISPRegistration.objects.filter(id=registration_id).first()
@@ -128,14 +135,11 @@ class SuperAdminReceiptAPIView(APIView):
 
 class SuperAdminRegistrationDetailAPIView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAdminUser]
-
-    def get_object(self, registration_id):
-        return ISPRegistration.objects.select_related("organization", "owner", "verified_by").filter(id=registration_id).first()
+    permission_classes = [IsSuperAdmin]
 
     @transaction.atomic
     def post(self, request, registration_id, action):
-        registration = self.get_object(registration_id)
+        registration = ISPRegistration.objects.select_related("organization", "owner", "verified_by").filter(id=registration_id).first()
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
         if action == "approve":
