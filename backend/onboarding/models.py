@@ -28,6 +28,7 @@ class ISPRegistration(models.Model):
         REJECTED = "REJECTED", "Rejected"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    access_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     organization = models.OneToOneField("tenancy.Organization", on_delete=models.CASCADE, related_name="registration")
     owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="isp_registration")
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING_PAYMENT, db_index=True)
