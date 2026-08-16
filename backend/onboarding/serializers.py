@@ -80,6 +80,4 @@ class RegistrationListSerializer(serializers.ModelSerializer):
     def get_receipt_url(self, obj):
         if not obj.receipt:
             return None
-        request = self.context.get("request")
-        url = obj.receipt.url
-        return request.build_absolute_uri(url) if request else url
+        return f"/onboarding/superadmin/registrations/{obj.id}/receipt/"
