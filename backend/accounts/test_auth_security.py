@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.cache import cache
 from django.test import TestCase
 from rest_framework import status
@@ -38,4 +40,32 @@ class LoginThrottleTests(TestCase):
         self.assertEqual(
             responses[5].status_code,
             status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    @patch("accounts.api.views.TenantLoginSerializer")
+    def test_successful_login_resets_own_throttle_bucket(
+        self,
+        serializer_class,
+    ):
+        serializer_class.return_value.validated_data = {
+            "access": "access-token",
+            "refresh": "refresh-token",
+        }
+
+        responses = [
+            self.client.post(
+                "/api/v1/auth/login/",
+                {
+                    "email": "valid@example.com",
+                    "password": "valid-password",
+                    "organization_code": "ORG",
+                },
+                format="json",
+            )
+            for _ in range(6)
+        ]
+
+        self.assertEqual(
+            [response.status_code for response in responses],
+            [status.HTTP_200_OK] * 6,
         )
