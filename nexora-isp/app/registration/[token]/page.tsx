@@ -55,6 +55,7 @@ export default function RegistrationStatusPage({ params }: { params: Promise<{ t
   }
 
   const pendingPayment = registration.status === "PENDING_PAYMENT" || registration.status === "REJECTED";
+  const payment = registration.payment;
 
   return (
     <main className="min-h-screen bg-[#070A0F] px-6 py-12 text-white">
@@ -81,10 +82,18 @@ export default function RegistrationStatusPage({ params }: { params: Promise<{ t
               <h2 className="font-semibold">Complete Your Payment</h2>
               <p className="mt-1 text-sm text-slate-400">Transfer the required amount and upload the payment receipt below.</p>
             </div>
-            <div className="grid gap-3 text-sm text-slate-300 md:grid-cols-2">
-              <p><span className="text-slate-500">Amount:</span> Rs. {registration.amount_due}</p>
-              <p><span className="text-slate-500">Status:</span> {registration.status.replaceAll("_", " ")}</p>
-            </div>
+
+            {payment && (
+              <div className="grid gap-3 rounded-lg border border-[#263142] bg-[#0D1117] p-4 text-sm text-slate-300">
+                <p><span className="text-slate-500">Bank:</span> {payment.bank_name}</p>
+                <p><span className="text-slate-500">Account Title:</span> {payment.account_title}</p>
+                <p><span className="text-slate-500">Account Number:</span> {payment.account_number}</p>
+                {payment.iban && <p><span className="text-slate-500">IBAN:</span> {payment.iban}</p>}
+                <p><span className="text-slate-500">Amount:</span> Rs. {registration.amount_due}</p>
+                {payment.instructions && <p className="text-slate-400">{payment.instructions}</p>}
+              </div>
+            )}
+
             {registration.rejection_reason && <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{registration.rejection_reason}</div>}
             <div>
               <label className="mb-2 block text-sm text-slate-300">Payment Receipt</label>
