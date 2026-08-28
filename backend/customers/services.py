@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
+from billing.services import BillingDomainError, generate_service_invoice
 from customers.models import (
     BillingProfile,
     Customer,
@@ -82,6 +83,31 @@ def _build_service_number(*, organization: Organization) -> str:
     )
 
     return f"{prefix}-SRV-{sequence:06d}"
+
+
+def _first_month_billing_dates(*, activated_at, due_day: int) -> tuple[date, date]:
+    """Create the first invoice in the customer's activation month.
+
+    The first invoice is generated immediately for the activation month. The
+    next monthly billing run then starts the normal calendar-month cycle.
+    The due date cannot be earlier than the activation date.
+    """
+    activation_date = timezone.localtime(activated_at).date()
+    last_day = __import__("calendar").monthrange(
+        activation_date.year,
+        activation_date.month,
+    )[1]
+    safe_due_day = min(due_day, last_day)
+    due_date = date(
+        activation_date.year,
+        activation_date.month,
+        safe_due_day,
+    )
+
+    if due_date < activation_date:
+        due_date = activation_date
+
+    return activation_date, due_date
 
 
 @transaction.atomic
@@ -240,6 +266,35 @@ def activate_customer_service(
         whatsapp_enabled=whatsapp_enabled,
     )
 
+    # Business rule: an activated customer receives the bill for the same
+    # calendar month immediately. The regular monthly billing command will
+    # generate the following month and later months. The unique billing-period
+    # constraint prevents the first invoice from being generated twice.
+    activation_date, first_due_date = _first_month_billing_dates(
+        activated_at=service_account.activated_at,
+        due_day=due_day,
+    )
+
+    try:
+        generate_service_invoice(
+            organization=organization,
+            actor=actor,
+            service_account_id=service_account.id,
+            billing_period_start=activation_date.replace(day=1),
+            billing_period_end=activation_date.replace(
+                day=__import__("calendar").monthrange(
+                    activation_date.year,
+                    activation_date.month,
+                )[1]
+            ),
+            issue_date=activation_date,
+            due_date=first_due_date,
+        )
+    except BillingDomainError as exc:
+        raise CustomerActivationError(
+            f"Customer was not activated because the first monthly invoice could not be generated: {exc}"
+        ) from exc
+
     record_audit_log(
         organization=organization,
         actor=actor,
@@ -267,7 +322,8 @@ def activate_customer_service(
                 if device_assignment
                 else None
             ),
-            "activation_date": date.today().isoformat(),
+            "activation_date": activation_date.isoformat(),
+            "first_invoice_month": activation_date.strftime("%Y-%m"),
             **(activation_metadata or {}),
         },
     )
