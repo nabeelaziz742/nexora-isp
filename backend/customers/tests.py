@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from billing.models import Invoice
 from inventory.models import (
     DeviceAssignment,
     InventoryDevice,
@@ -178,7 +179,8 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(NotificationPreference.objects.count(), 1)
         self.assertEqual(NetworkAssignment.objects.count(), 1)
         self.assertEqual(ProvisioningRequest.objects.count(), 1)
-        self.assertEqual(AuditLog.objects.count(), 2)
+        self.assertEqual(Invoice.objects.count(), 1)
+        self.assertEqual(AuditLog.objects.count(), 3)
 
         self.assertTrue(
             AuditLog.objects.filter(
@@ -191,6 +193,13 @@ class CustomerActivationTests(APITestCase):
             AuditLog.objects.filter(
                 organization=self.organization,
                 action="CUSTOMER_SERVICE_ACTIVATED",
+            ).exists()
+        )
+
+        self.assertTrue(
+            AuditLog.objects.filter(
+                organization=self.organization,
+                action="BILLING_INVOICE_GENERATED",
             ).exists()
         )
 
@@ -240,6 +249,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(ProvisioningRequest.objects.count(), 0)
         self.assertEqual(BillingProfile.objects.count(), 0)
         self.assertEqual(NotificationPreference.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
         self.assertEqual(AuditLog.objects.count(), 0)
 
     def test_duplicate_phone_is_rejected_per_organization(self):
@@ -281,6 +291,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(ProvisioningRequest.objects.count(), 0)
         self.assertEqual(BillingProfile.objects.count(), 0)
         self.assertEqual(NotificationPreference.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
         self.assertEqual(AuditLog.objects.count(), 0)
 
     @patch(
@@ -307,6 +318,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(ProvisioningRequest.objects.count(), 0)
         self.assertEqual(BillingProfile.objects.count(), 0)
         self.assertEqual(NotificationPreference.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
         self.assertEqual(AuditLog.objects.count(), 0)
 
     def test_owner_can_activate_customer_through_api(self):
@@ -340,6 +352,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(ServiceAccount.objects.count(), 1)
         self.assertEqual(NetworkAssignment.objects.count(), 1)
         self.assertEqual(ProvisioningRequest.objects.count(), 1)
+        self.assertEqual(Invoice.objects.count(), 1)
 
         self.assertEqual(
             response.data["provisioning_request"]["status"],
@@ -391,6 +404,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(ServiceAccount.objects.count(), 0)
         self.assertEqual(NetworkAssignment.objects.count(), 0)
         self.assertEqual(ProvisioningRequest.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
 
     def test_customer_list_returns_only_current_tenant_customers(self):
         activate_customer_service(
@@ -558,6 +572,7 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(DeviceAssignment.objects.count(), 0)
         self.assertEqual(BillingProfile.objects.count(), 0)
         self.assertEqual(NotificationPreference.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
         self.assertEqual(AuditLog.objects.count(), 0)
 
         self.device.refresh_from_db()
