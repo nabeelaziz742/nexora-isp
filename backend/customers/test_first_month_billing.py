@@ -1,5 +1,6 @@
 import calendar
 from datetime import date
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -73,10 +74,8 @@ class FirstMonthBillingTests(TestCase):
         self.assertEqual(current_month_invoices.count(), 1)
         first_invoice = current_month_invoices.get()
         self.assertEqual(first_invoice.issue_date, activation_date)
-        self.assertEqual(first_invoice.total_amount, self.package.monthly_price)
+        self.assertEqual(first_invoice.total_amount, Decimal("5000.00"))
 
-        # Running the monthly command again for the activation month must not
-        # create a duplicate first-month invoice.
         same_month_result = generate_monthly_invoices(
             organization=self.organization,
             actor=self.owner,
@@ -119,4 +118,4 @@ class FirstMonthBillingTests(TestCase):
             billing_period_start=next_month,
         )
         self.assertEqual(next_invoice.issue_date.day, 1)
-        self.assertEqual(next_invoice.total_amount, self.package.monthly_price)
+        self.assertEqual(next_invoice.total_amount, Decimal("5000.00"))
