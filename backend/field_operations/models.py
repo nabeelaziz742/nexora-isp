@@ -16,6 +16,9 @@ class WorkOrder(TenantScopedModel):
         DISPATCHED = "DISPATCHED", "Dispatched"
         ONSITE = "ONSITE", "Onsite"
         COMPLETED = "COMPLETED", "Completed"
+        SCHEDULED = "SCHEDULED", "Scheduled"
+        STARTED = "STARTED", "Started"
+        RESTORED = "RESTORED", "Restored"
 
     class Priority(models.TextChoices):
         LOW = "LOW", "Low"
@@ -43,9 +46,7 @@ class WorkOrder(TenantScopedModel):
         editable=False,
     )
 
-    work_order_number = models.CharField(
-        max_length=50,
-    )
+    work_order_number = models.CharField(max_length=50)
 
     customer = models.ForeignKey(
         Customer,
@@ -95,40 +96,24 @@ class WorkOrder(TenantScopedModel):
         related_name="assigned_work_orders",
     )
 
-    work_type = models.CharField(
-        max_length=40,
-        choices=WorkType.choices,
-    )
-
+    work_type = models.CharField(max_length=40, choices=WorkType.choices)
     priority = models.CharField(
         max_length=20,
         choices=Priority.choices,
         default=Priority.MEDIUM,
     )
-
     status = models.CharField(
         max_length=30,
         choices=Status.choices,
         default=Status.CREATED,
     )
-
-    title = models.CharField(
-        max_length=255,
-    )
-
+    title = models.CharField(max_length=255)
     description = models.TextField()
 
-    dispatch_notes = models.TextField(
-        blank=True,
-    )
-
-    onsite_notes = models.TextField(
-        blank=True,
-    )
-
-    completion_notes = models.TextField(
-        blank=True,
-    )
+    dispatch_notes = models.TextField(blank=True)
+    onsite_notes = models.TextField(blank=True)
+    completion_notes = models.TextField(blank=True)
+    maintenance_notes = models.TextField(blank=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -138,48 +123,26 @@ class WorkOrder(TenantScopedModel):
         related_name="created_work_orders",
     )
 
-    assigned_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    onsite_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    restored_at = models.DateTimeField(null=True, blank=True)
 
-    dispatched_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-
-    onsite_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-
-    completed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True,
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "field_operations_work_order"
         ordering = ["-created_at"]
-
         constraints = [
             models.UniqueConstraint(
-                fields=[
-                    "organization",
-                    "work_order_number",
-                ],
+                fields=["organization", "work_order_number"],
                 name="unique_work_order_number_per_org",
             ),
         ]
-
         indexes = [
             models.Index(
                 fields=["organization", "status"],
@@ -190,10 +153,7 @@ class WorkOrder(TenantScopedModel):
                 name="work_order_org_priority_idx",
             ),
             models.Index(
-                fields=[
-                    "organization",
-                    "assigned_technician",
-                ],
+                fields=["organization", "assigned_technician"],
                 name="work_order_org_tech_idx",
             ),
             models.Index(
@@ -207,7 +167,4 @@ class WorkOrder(TenantScopedModel):
         ]
 
     def __str__(self):
-        return (
-            f"{self.work_order_number} - "
-            f"{self.title}"
-        )
+        return f"{self.work_order_number} - {self.title}"
