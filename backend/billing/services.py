@@ -8,6 +8,7 @@ from communications.automation_service import CommunicationAutomationService
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from billing.models import (
@@ -187,8 +188,6 @@ def generate_service_invoice(
     if not organization.is_active:
         raise BillingDomainError("Organization is inactive.")
 
-    # Lock the tenant row before calculating tenant-local sequence numbers.
-    # All billing number allocation in this service uses the same lock order.
     organization = _lock_organization_for_numbering(organization=organization)
 
     if billing_period_end < billing_period_start:
@@ -316,6 +315,10 @@ def generate_monthly_invoices(
             is_active=True,
             service_account__status__in=["ACTIVE", "GRACE_PERIOD"],
         )
+        .filter(
+            Q(service_account__activated_at__isnull=True)
+            | Q(service_account__activated_at__date__lte=billing_period_end)
+        )
         .select_related("service_account", "service_account__internet_package")
         .order_by("service_account__service_number")
     )
@@ -407,7 +410,6 @@ def record_invoice_payment(
     if not organization.is_active:
         raise BillingDomainError("Organization is inactive.")
 
-    # Use the same tenant lock before invoice/payment sequence allocation.
     organization = _lock_organization_for_numbering(organization=organization)
 
     normalized_amount = _normalize_amount(
