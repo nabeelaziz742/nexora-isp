@@ -48,10 +48,16 @@ class CustomerActivationResult:
     device_assignment: DeviceAssignment | None = None
 
 
-def _build_customer_number(
-    *,
-    organization: Organization,
-) -> str:
+def _lock_organization_for_numbering(*, organization: Organization) -> Organization:
+    """Serialize tenant-local customer/service number allocation."""
+    return (
+        Organization.objects
+        .select_for_update()
+        .get(id=organization.id)
+    )
+
+
+def _build_customer_number(*, organization: Organization) -> str:
     prefix = organization.code.upper()[:12]
 
     last_customer = (
@@ -60,10 +66,7 @@ def _build_customer_number(
         .first()
     )
 
-    sequence = (
-        Customer.objects.for_organization(organization).count()
-        + 1
-    )
+    sequence = Customer.objects.for_organization(organization).count() + 1
 
     if last_customer is not None:
         sequence = max(sequence, 1)
@@ -71,15 +74,11 @@ def _build_customer_number(
     return f"{prefix}-CUST-{sequence:06d}"
 
 
-def _build_service_number(
-    *,
-    organization: Organization,
-) -> str:
+def _build_service_number(*, organization: Organization) -> str:
     prefix = organization.code.upper()[:12]
 
     sequence = (
-        ServiceAccount.objects.for_organization(organization).count()
-        + 1
+        ServiceAccount.objects.for_organization(organization).count() + 1
     )
 
     return f"{prefix}-SRV-{sequence:06d}"
@@ -112,9 +111,12 @@ def activate_customer_service(
     activation_metadata: dict[str, Any] | None = None,
 ) -> CustomerActivationResult:
     if not organization.is_active:
-        raise CustomerActivationError(
-            "Organization is inactive."
-        )
+        raise CustomerActivationError("Organization is inactive.")
+
+    # Lock the tenant before allocating customer/service numbers.
+    # Billing uses the same organization-first lock order, preventing races
+    # between concurrent activations and billing operations.
+    organization = _lock_organization_for_numbering(organization=organization)
 
     first_name = first_name.strip()
     last_name = last_name.strip()
@@ -127,48 +129,32 @@ def activate_customer_service(
     device_assignment_notes = device_assignment_notes.strip()
 
     if not first_name:
-        raise CustomerActivationError(
-            "Customer first name is required."
-        )
+        raise CustomerActivationError("Customer first name is required.")
 
     if not phone:
-        raise CustomerActivationError(
-            "Customer phone is required."
-        )
+        raise CustomerActivationError("Customer phone is required.")
 
     if not address_line:
-        raise CustomerActivationError(
-            "Service address is required."
-        )
+        raise CustomerActivationError("Service address is required.")
 
     if not city:
-        raise CustomerActivationError(
-            "Customer city is required."
-        )
+        raise CustomerActivationError("Customer city is required.")
 
     if billing_day < 1 or billing_day > 28:
-        raise CustomerActivationError(
-            "Billing day must be between 1 and 28."
-        )
+        raise CustomerActivationError("Billing day must be between 1 and 28.")
 
     if due_day < 1 or due_day > 28:
-        raise CustomerActivationError(
-            "Due day must be between 1 and 28."
-        )
+        raise CustomerActivationError("Due day must be between 1 and 28.")
 
     try:
         internet_package = (
             InternetPackage.objects
             .for_organization(organization)
-            .get(
-                id=internet_package_id,
-                is_active=True,
-            )
+            .get(id=internet_package_id, is_active=True)
         )
     except InternetPackage.DoesNotExist as exc:
         raise CustomerActivationError(
-            "Active internet package was not found "
-            "for this organization."
+            "Active internet package was not found for this organization."
         ) from exc
 
     duplicate_phone_exists = (
@@ -180,15 +166,12 @@ def activate_customer_service(
 
     if duplicate_phone_exists:
         raise CustomerActivationError(
-            "A customer with this phone already exists "
-            "in this organization."
+            "A customer with this phone already exists in this organization."
         )
 
     customer = Customer.objects.create(
         organization=organization,
-        customer_number=_build_customer_number(
-            organization=organization,
-        ),
+        customer_number=_build_customer_number(organization=organization),
         first_name=first_name,
         last_name=last_name,
         phone=phone,
@@ -201,9 +184,7 @@ def activate_customer_service(
 
     service_account = ServiceAccount.objects.create(
         organization=organization,
-        service_number=_build_service_number(
-            organization=organization,
-        ),
+        service_number=_build_service_number(organization=organization),
         customer=customer,
         internet_package=internet_package,
         status=ServiceAccount.Status.ACTIVE,
@@ -252,13 +233,11 @@ def activate_customer_service(
         due_day=due_day,
     )
 
-    notification_preference = (
-        NotificationPreference.objects.create(
-            organization=organization,
-            customer=customer,
-            sms_enabled=sms_enabled,
-            whatsapp_enabled=whatsapp_enabled,
-        )
+    notification_preference = NotificationPreference.objects.create(
+        organization=organization,
+        customer=customer,
+        sms_enabled=sms_enabled,
+        whatsapp_enabled=whatsapp_enabled,
     )
 
     record_audit_log(
@@ -273,9 +252,7 @@ def activate_customer_service(
             "service_number": service_account.service_number,
             "internet_package_id": str(internet_package.id),
             "network_assignment_id": (
-                str(network_assignment.id)
-                if network_assignment
-                else None
+                str(network_assignment.id) if network_assignment else None
             ),
             "provisioning_request_id": (
                 str(provisioning_request.id)
@@ -283,9 +260,7 @@ def activate_customer_service(
                 else None
             ),
             "device_assignment_id": (
-                str(device_assignment.id)
-                if device_assignment
-                else None
+                str(device_assignment.id) if device_assignment else None
             ),
             "device_id": (
                 str(device_assignment.device_id)
