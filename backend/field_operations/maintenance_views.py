@@ -20,6 +20,19 @@ from tenancy.models import OrganizationMembership
 from tenancy.permissions import HasActiveTenantContext
 
 
+def maintenance_data(work_order):
+    data = dict(WorkOrderDetailSerializer(work_order).data)
+    data.update(
+        {
+            "maintenance_notes": work_order.maintenance_notes,
+            "scheduled_at": work_order.scheduled_at,
+            "started_at": work_order.started_at,
+            "restored_at": work_order.restored_at,
+        }
+    )
+    return data
+
+
 class MaintenanceAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveTenantContext]
 
@@ -65,7 +78,7 @@ class MaintenanceScheduleAPIView(MaintenanceAPIView):
             )
         except MaintenanceDomainError as exc:
             return self.error(exc)
-        return Response(WorkOrderDetailSerializer(result.work_order).data)
+        return Response(maintenance_data(result.work_order))
 
 
 class MaintenanceStartAPIView(MaintenanceAPIView):
@@ -82,7 +95,7 @@ class MaintenanceStartAPIView(MaintenanceAPIView):
             )
         except MaintenanceDomainError as exc:
             return self.error(exc)
-        return Response(WorkOrderDetailSerializer(result.work_order).data)
+        return Response(maintenance_data(result.work_order))
 
 
 class MaintenanceCompletionAPIView(MaintenanceAPIView):
@@ -102,7 +115,7 @@ class MaintenanceCompletionAPIView(MaintenanceAPIView):
             )
         except MaintenanceDomainError as exc:
             return self.error(exc)
-        return Response(WorkOrderDetailSerializer(result.work_order).data)
+        return Response(maintenance_data(result.work_order))
 
 
 class MaintenanceRestoreAPIView(MaintenanceAPIView):
@@ -119,4 +132,4 @@ class MaintenanceRestoreAPIView(MaintenanceAPIView):
             )
         except MaintenanceDomainError as exc:
             return self.error(exc)
-        return Response(WorkOrderDetailSerializer(result.work_order).data)
+        return Response(maintenance_data(result.work_order))
