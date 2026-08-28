@@ -29,61 +29,38 @@ function buildUrl(path: string): string {
     return path;
   }
 
-  const normalizedPath = path.startsWith("/")
-    ? path
-    : `/${path}`;
-
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
 }
 
-async function parseResponseBody(
-  response: Response,
-): Promise<unknown> {
-  if (response.status === 204) {
-    return null;
-  }
+async function parseResponseBody(response: Response): Promise<unknown> {
+  if (response.status === 204) return null;
 
-  const contentType =
-    response.headers.get("content-type") ?? "";
-
-  if (contentType.includes("application/json")) {
-    return response.json();
-  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) return response.json();
 
   const text = await response.text();
-
   return text || null;
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  if (refreshPromise) {
-    return refreshPromise;
-  }
+  if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     const refreshToken = getRefreshToken();
-
     if (!refreshToken) {
       clearAuthTokens();
       return null;
     }
 
     try {
-      const response = await fetch(
-        buildUrl(TOKEN_REFRESH_PATH),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            refresh: refreshToken,
-          }),
-        },
-      );
+      const response = await fetch(buildUrl(TOKEN_REFRESH_PATH), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
 
       const payload = await parseResponseBody(response);
-
       if (!response.ok) {
         clearAuthTokens();
         return null;
@@ -100,7 +77,6 @@ async function refreshAccessToken(): Promise<string | null> {
       }
 
       setAccessToken(payload.access);
-
       return payload.access;
     } catch {
       clearAuthTokens();
@@ -129,24 +105,14 @@ export async function apiRequest<T>(
 
   const requestHeaders = new Headers(headers);
 
-  if (
-    body !== undefined &&
-    !(body instanceof FormData)
-  ) {
-    requestHeaders.set(
-      "Content-Type",
-      "application/json",
-    );
+  if (body !== undefined && !(body instanceof FormData)) {
+    requestHeaders.set("Content-Type", "application/json");
   }
 
   if (!skipAuth) {
     const accessToken = getAccessToken();
-
     if (accessToken) {
-      requestHeaders.set(
-        "Authorization",
-        `Bearer ${accessToken}`,
-      );
+      requestHeaders.set("Authorization", `Bearer ${accessToken}`);
     }
   }
 
@@ -161,21 +127,14 @@ export async function apiRequest<T>(
           : JSON.stringify(body),
   });
 
-  if (
-    response.status === 401 &&
-    !skipAuth &&
-    retryOnUnauthorized
-  ) {
-    const refreshedAccessToken =
-      await refreshAccessToken();
-
+  if (response.status === 401 && !skipAuth && retryOnUnauthorized) {
+    const refreshedAccessToken = await refreshAccessToken();
     if (refreshedAccessToken) {
       return apiRequest<T>(path, {
         ...options,
         retryOnUnauthorized: false,
       });
     }
-
     clearAuthTokens();
   }
 
@@ -197,44 +156,18 @@ export async function apiRequest<T>(
 
 export const apiClient = {
   get<T>(path: string): Promise<T> {
-    return apiRequest<T>(path, {
-      method: "GET",
-    });
+    return apiRequest<T>(path, { method: "GET" });
   },
-
-  post<T>(
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    return apiRequest<T>(path, {
-      method: "POST",
-      body,
-    });
+  post<T>(path: string, body?: unknown): Promise<T> {
+    return apiRequest<T>(path, { method: "POST", body });
   },
-
-  put<T>(
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    return apiRequest<T>(path, {
-      method: "PUT",
-      body,
-    });
+  put<T>(path: string, body?: unknown): Promise<T> {
+    return apiRequest<T>(path, { method: "PUT", body });
   },
-
-  patch<T>(
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    return apiRequest<T>(path, {
-      method: "PATCH",
-      body,
-    });
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return apiRequest<T>(path, { method: "PATCH", body });
   },
-
   delete<T>(path: string): Promise<T> {
-    return apiRequest<T>(path, {
-      method: "DELETE",
-    });
+    return apiRequest<T>(path, { method: "DELETE" });
   },
 };
