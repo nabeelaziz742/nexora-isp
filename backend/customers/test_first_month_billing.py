@@ -75,6 +75,23 @@ class FirstMonthBillingTests(TestCase):
         self.assertEqual(first_invoice.issue_date, activation_date)
         self.assertEqual(first_invoice.total_amount, self.package.monthly_price)
 
+        # Running the monthly command again for the activation month must not
+        # create a duplicate first-month invoice.
+        same_month_result = generate_monthly_invoices(
+            organization=self.organization,
+            actor=self.owner,
+            billing_year=activation_date.year,
+            billing_month=activation_date.month,
+        )
+        self.assertEqual(same_month_result.generated_invoices, 0)
+        self.assertEqual(
+            Invoice.objects.filter(
+                organization=self.organization,
+                service_account=result.service_account,
+            ).count(),
+            1,
+        )
+
         next_month = (
             date(activation_date.year + 1, 1, 1)
             if activation_date.month == 12
