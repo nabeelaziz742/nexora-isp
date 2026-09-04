@@ -2,12 +2,19 @@ import { apiRequest } from "@/services/api-client";
 
 import type {
   BillingSummary,
+  CustomInvoicePayload,
+  FinancialLedger,
   Invoice,
   InvoiceDetail,
   InvoiceFilters,
+  MonthlyBillingRunPayload,
+  MonthlyBillingRunResult,
   Payment,
   PaymentFilters,
+  PaymentReceipt,
+  PaymentReversalPayload,
   RecordInvoicePaymentPayload,
+  RecordPaymentWithAllocationsPayload,
 } from "@/types/billing";
 
 function buildQuery(
@@ -33,7 +40,7 @@ export const billingService = {
     );
   },
 
-  getInvoices(
+  async getInvoices(
     filters: InvoiceFilters = {},
   ): Promise<Invoice[]> {
     const query = buildQuery({
@@ -46,9 +53,10 @@ export const billingService = {
       customer_id: filters.customer_id,
     });
 
-    return apiRequest<Invoice[]>(
+    const res = await apiRequest<any>(
       `/billing/invoices/${query}`,
     );
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
 
   getInvoice(
@@ -59,7 +67,44 @@ export const billingService = {
     );
   },
 
-  getPayments(
+  cancelInvoice(
+    invoiceId: string,
+    cancellationReason: string,
+  ): Promise<Invoice> {
+    return apiRequest<Invoice>(
+      `/billing/invoices/${invoiceId}/cancel/`,
+      {
+        method: "POST",
+        body: { cancellation_reason: cancellationReason },
+      },
+    );
+  },
+
+  createCustomInvoice(
+    payload: CustomInvoicePayload,
+  ): Promise<InvoiceDetail> {
+    return apiRequest<InvoiceDetail>(
+      "/billing/invoices/custom/",
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+  },
+
+  runMonthlyBilling(
+    payload: MonthlyBillingRunPayload,
+  ): Promise<MonthlyBillingRunResult> {
+    return apiRequest<MonthlyBillingRunResult>(
+      "/billing/invoices/monthly-run/",
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+  },
+
+  async getPayments(
     filters: PaymentFilters = {},
   ): Promise<Payment[]> {
     const query = buildQuery({
@@ -70,9 +115,10 @@ export const billingService = {
       customer_id: filters.customer_id,
     });
 
-    return apiRequest<Payment[]>(
+    const res = await apiRequest<any>(
       `/billing/payments/${query}`,
     );
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
 
   recordInvoicePayment(
@@ -85,6 +131,51 @@ export const billingService = {
         method: "POST",
         body: payload,
       },
+    );
+  },
+
+  recordPaymentWithAllocations(
+    payload: RecordPaymentWithAllocationsPayload,
+  ): Promise<Payment> {
+    return apiRequest<Payment>(
+      "/billing/payments/record/",
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+  },
+
+  reversePayment(
+    paymentId: string,
+    payload: PaymentReversalPayload,
+  ): Promise<Payment> {
+    return apiRequest<Payment>(
+      `/billing/payments/${paymentId}/reverse/`,
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+  },
+
+  getReceipt(
+    paymentId: string,
+  ): Promise<PaymentReceipt> {
+    return apiRequest<PaymentReceipt>(
+      `/billing/payments/${paymentId}/receipt/`,
+    );
+  },
+
+  getLedger(params: {
+    customer_id?: string;
+    service_account_id?: string;
+    start_date?: string;
+    end_date?: string;
+  } = {}): Promise<FinancialLedger> {
+    const query = buildQuery(params);
+    return apiRequest<FinancialLedger>(
+      `/billing/ledger/${query}`,
     );
   },
 
@@ -101,4 +192,4 @@ export const billingService = {
       },
     );
   },
-};
+};

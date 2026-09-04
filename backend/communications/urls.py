@@ -1,6 +1,9 @@
 from rest_framework.routers import DefaultRouter
 from .dashboard import CommunicationDashboardAPIView
-from .views import WhatsAppWebhookAPIView
+from .views import (
+    CustomerCommunicationHistoryView,
+    WhatsAppWebhookAPIView,
+)
 
 from django.urls import path
 from .views import (
@@ -73,6 +76,12 @@ urlpatterns = [
     "logs/<uuid:pk>/retry/",
     RetryCommunicationAPIView.as_view(),
     name="communication-log-retry",
+    ),
+
+    path(
+        "customer/<uuid:customer_id>/history/",
+        CustomerCommunicationHistoryView.as_view(),
+        name="customer-communication-history",
     ),
 
     path(

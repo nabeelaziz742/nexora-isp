@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 import AppSidebar from "@/components/layout/AppSidebar";
 import TopCommandBar from "@/components/layout/TopCommandBar";
+import PageLoader from "@/components/ui/PageLoader";
 
 import { getCurrentSession } from "@/services/auth.service";
 import {
@@ -20,8 +20,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [sessionReady, setSessionReady] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     let active = true;
@@ -43,11 +50,7 @@ export default function DashboardLayout({
           setSessionReady(true);
         }
       } catch (error) {
-        console.error(
-          "Failed to restore authenticated session:",
-          error,
-        );
-
+        console.error("Failed to restore authenticated session:", error);
         clearAuthTokens();
 
         if (active) {
@@ -65,26 +68,29 @@ export default function DashboardLayout({
 
   if (!sessionReady) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="size-5 animate-spin text-blue-400" />
-
-          <p className="text-[11px] text-[var(--text-muted)]">
-            Restoring secure session...
-          </p>
-        </div>
-      </div>
+      <PageLoader
+        message="Restoring secure operator session..."
+        subtext="Validating tenant cryptographic context and telemetry permissions"
+        fullscreen={true}
+      />
     );
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--background)]">
-      <AppSidebar />
+      {/* Navigation Sidebar */}
+      <AppSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
+      {/* Main Workspace Area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopCommandBar />
+        <TopCommandBar
+          onMenuClick={() => setSidebarOpen((prev) => !prev)}
+        />
 
-        <main className="nexora-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <main className="nexora-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#070A0F]">
           {children}
         </main>
       </div>

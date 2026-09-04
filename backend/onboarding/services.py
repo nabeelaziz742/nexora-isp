@@ -24,11 +24,24 @@ def generate_organization_code(company_name):
     raise ValidationError({"detail": "Could not generate a unique organization code."})
 
 
-@transaction.atomic
-def create_registration(*, validated_data):
+def get_or_create_payment_settings():
     settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
     if settings is None:
-        raise ValidationError({"detail": "Payment instructions are not configured yet."})
+        settings = PaymentSettings.objects.create(
+            bank_name="HBL",
+            account_title="Muhammad Nabeel",
+            account_number="17877900894403",
+            iban="",
+            amount=5000.00,
+            instructions="Please deposit the ISP registration setup fee to the designated account and upload your payment receipt.",
+            is_active=True,
+        )
+    return settings
+
+
+@transaction.atomic
+def create_registration(*, validated_data):
+    settings = get_or_create_payment_settings()
 
     company_name = validated_data["company_name"].strip()
     email = validated_data["email"].lower()

@@ -16,6 +16,7 @@ import NetworkEvents from "@/components/network/NetworkEvents";
 import NetworkMetricCard from "@/components/network/NetworkMetricCard";
 import NetworkNodesTable from "@/components/network/NetworkNodesTable";
 import NetworkTopology from "@/components/network/NetworkTopology";
+import PopsTable from "@/components/network/PopsTable";
 import ProvisioningRequestsTable from "@/components/network/ProvisioningRequestsTable";
 
 import { networkService } from "@/services/network.service";
@@ -24,10 +25,12 @@ import type {
   NetworkAssignment,
   NetworkMetric,
   NetworkNode,
+  PointOfPresence,
   ProvisioningRequest,
 } from "@/types/network";
 
 export default function NetworkPage() {
+  const [pops, setPops] = useState<PointOfPresence[]>([]);
   const [nodes, setNodes] = useState<NetworkNode[]>([]);
   const [assignments, setAssignments] = useState<
     NetworkAssignment[]
@@ -56,15 +59,18 @@ export default function NetworkPage() {
         setError(null);
 
         const [
+          popsData,
           nodesData,
           assignmentsData,
           provisioningData,
         ] = await Promise.all([
+          networkService.getPops(),
           networkService.getNodes(),
           networkService.getAssignments(),
           networkService.getProvisioningRequests(),
         ]);
 
+        setPops(popsData);
         setNodes(nodesData);
         setAssignments(assignmentsData);
         setProvisioningRequests(provisioningData);
@@ -278,6 +284,21 @@ export default function NetworkPage() {
             metric={metric}
           />
         ))}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-[#202938] pb-2">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-[#F8FAFC]">
+              Point of Presence (POP) Infrastructure
+            </h2>
+            <p className="text-[11px] text-[#64748B]">
+              Core distribution nodes, towers, and street cabinet facilities.
+            </p>
+          </div>
+        </div>
+
+        <PopsTable pops={pops} onRefresh={() => void loadNetworkData(true)} />
       </div>
 
       <NetworkTopology nodes={nodes} />

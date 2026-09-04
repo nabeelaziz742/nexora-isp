@@ -737,9 +737,25 @@ export default function FieldOperationsPage() {
                     </td>
 
                     <td className="px-5 py-4">
-                      <p className="text-xs text-slate-300">
-                        {workOrder.customer_name ?? "—"}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-slate-300 font-medium">
+                          {workOrder.customer_name ?? "—"}
+                        </p>
+                        {workOrder.customer_name && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                              `${workOrder.customer_name} ${workOrder.network_node_name || ""}`.trim()
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-medium text-blue-400 hover:bg-blue-500/20 transition"
+                            title="Open in Google Maps"
+                          >
+                            <MapPin className="h-2.5 w-2.5" />
+                            Maps
+                          </a>
+                        )}
+                      </div>
 
                       <p className="mt-1 text-[11px] text-slate-600">
                         {workOrder.service_number

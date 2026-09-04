@@ -478,6 +478,10 @@ class CommunicationQueue(TenantScopedModel):
                 fields=["next_retry_at"],
                 name="comm_queue_next_retry_idx",
             ),
+            models.Index(
+                fields=["status", "scheduled_at", "priority", "created_at"],
+                name="comm_q_sched_prio_idx",
+            ),
         ]
 
     def __str__(self):

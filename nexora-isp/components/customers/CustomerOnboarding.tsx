@@ -24,6 +24,17 @@ import {
   networkService,
   type NetworkNode,
 } from "@/services/network.service";
+import {
+  geoService,
+  type Area,
+  type City,
+  type Country,
+} from "@/services/geo.service";
+import {
+  inventoryService,
+  type InventoryDevice,
+} from "@/services/inventory.service";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 const steps = [
   { id: 1, title: "Personal Information", icon: UserRound },
@@ -90,6 +101,15 @@ export default function CustomerOnboarding() {
   const [form, setForm] = useState<OnboardingForm>(initialForm);
   const [packages, setPackages] = useState<InternetPackage[]>([]);
   const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([]);
+  const [availableDevices, setAvailableDevices] = useState<InventoryDevice[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [selectedCountryId, setSelectedCountryId] = useState<string>("");
+  const [selectedCityId, setSelectedCityId] = useState<string>("");
+  const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [isManualGeo, setIsManualGeo] = useState<boolean>(false);
+  const [loadingAreas, setLoadingAreas] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,12 +122,16 @@ export default function CustomerOnboarding() {
         setLoadingOptions(true);
         setError(null);
 
-        const [packageData, nodeData] = await Promise.all([
-          customersService.getInternetPackages(),
-          networkService.getNodes({
-            active: true,
-          }),
-        ]);
+        const [packageData, nodeData, countryData, cityData, devicesData] =
+          await Promise.all([
+            customersService.getInternetPackages(),
+            networkService.getNodes({
+              active: true,
+            }),
+            geoService.getCountries({ status: "active" }),
+            geoService.getCities({ status: "active" }),
+            inventoryService.getDevices().catch(() => [] as InventoryDevice[]),
+          ]);
 
         if (!active) {
           return;
@@ -115,6 +139,11 @@ export default function CustomerOnboarding() {
 
         setPackages(packageData);
         setNetworkNodes(nodeData);
+        setCountries(countryData);
+        setCities(cityData);
+        setAvailableDevices(
+          devicesData.filter((d) => d.status === "AVAILABLE")
+        );
       } catch (requestError) {
         console.error(
           "Failed to load customer activation options:",
@@ -123,7 +152,7 @@ export default function CustomerOnboarding() {
 
         if (active) {
           setError(
-            "Unable to load packages and network nodes.",
+            "Unable to load packages, network nodes, and geographic areas.",
           );
         }
       } finally {
@@ -139,6 +168,65 @@ export default function CustomerOnboarding() {
       active = false;
     };
   }, []);
+
+
+  async function handleCountryChange(countryId: string) {
+    setSelectedCountryId(countryId);
+    setSelectedCityId("");
+    setSelectedAreaId("");
+    setAreas([]);
+    updateField("city", "");
+    updateField("area", "");
+
+    try {
+      const cityData = await geoService.getCities({
+        country: countryId || undefined,
+        status: "active",
+      });
+      setCities(cityData);
+    } catch {
+      // Keep existing cities on error
+    }
+  }
+
+  async function handleCityChange(cityId: string) {
+    setSelectedCityId(cityId);
+    setSelectedAreaId("");
+    setAreas([]);
+    updateField("area", "");
+
+    const matchedCity = cities.find((c) => c.id === cityId);
+    if (matchedCity) {
+      updateField("city", matchedCity.name);
+    } else {
+      updateField("city", "");
+    }
+
+    if (!cityId) return;
+
+    try {
+      setLoadingAreas(true);
+      const areaData = await geoService.getAreas({
+        city: cityId,
+        status: "active",
+      });
+      setAreas(areaData);
+    } catch {
+      setAreas([]);
+    } finally {
+      setLoadingAreas(false);
+    }
+  }
+
+  function handleAreaChange(areaId: string) {
+    setSelectedAreaId(areaId);
+    const matchedArea = areas.find((a) => a.id === areaId);
+    if (matchedArea) {
+      updateField("area", matchedArea.name);
+    } else {
+      updateField("area", "");
+    }
+  }
 
   function updateField<K extends keyof OnboardingForm>(
     field: K,
@@ -469,33 +557,129 @@ export default function CustomerOnboarding() {
           )}
 
           {currentStep === 2 && (
-            <div className="grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
-              <Field
-                label="Service Area"
-                placeholder="Area / block"
-                value={form.area}
-                onChange={(value) =>
-                  updateField("area", value)
-                }
-              />
+            <div className="space-y-4 max-w-3xl">
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Installation & Geographic Location
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsManualGeo(!isManualGeo)}
+                  className="text-[11px] text-blue-400 hover:text-blue-300 underline"
+                >
+                  {isManualGeo
+                    ? "Select from registered Areas & Cities"
+                    : "Enter custom / unlisted location manually"}
+                </button>
+              </div>
 
-              <Field
-                label="City"
-                placeholder="Lahore"
-                value={form.city}
-                onChange={(value) =>
-                  updateField("city", value)
-                }
-              />
+              {isManualGeo || (cities.length === 0 && !loadingOptions) ? (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <Field
+                    label="Operational City *"
+                    placeholder="e.g. Islamabad, Lahore"
+                    value={form.city}
+                    onChange={(value) => updateField("city", value)}
+                  />
 
-              <div className="md:col-span-2">
+                  <Field
+                    label="Service Area / Sector"
+                    placeholder="e.g. Sector F-10/2, Johar Town"
+                    value={form.area}
+                    onChange={(value) => updateField("area", value)}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                  {/* Country Selector */}
+                  <div>
+                    <label className={labelClass}>Country (Optional)</label>
+                    <select
+                      value={selectedCountryId}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">All Countries</option>
+                      {countries.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* City Selector */}
+                  <div>
+                    <label className={labelClass}>Operating City *</label>
+                    <select
+                      value={selectedCityId}
+                      onChange={(e) => handleCityChange(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Select City...</option>
+                      {cities.map((city) => (
+                        <option key={city.id} value={city.id}>
+                          {city.name}{" "}
+                          {city.country_name ? `(${city.country_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Area Selector */}
+                  <div>
+                    <label className={labelClass}>
+                      Sublocality / Area
+                      {loadingAreas && (
+                        <span className="ml-2 inline-block">
+                          <LoadingSpinner size="xs" tone="primary" />
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      disabled={!selectedCityId || loadingAreas}
+                      value={selectedAreaId}
+                      onChange={(e) => handleAreaChange(e.target.value)}
+                      className={`${inputClass} disabled:opacity-50`}
+                    >
+                      <option value="">
+                        {!selectedCityId
+                          ? "Select City First..."
+                          : areas.length === 0
+                          ? "No areas in city (Optional)"
+                          : "Select Area / Sublocality..."}
+                      </option>
+                      {areas.map((area) => (
+                        <option key={area.id} value={area.id}>
+                          {area.name} {area.code ? `[${area.code}]` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Selected Location Summary Badge */}
+              {form.city && (
+                <div className="rounded-md border border-[#202938] bg-[#0D1117] p-3 text-xs text-slate-300">
+                  <span className="text-slate-500">Selected Region: </span>
+                  <strong className="text-white">{form.city}</strong>
+                  {form.area && (
+                    <>
+                      <span className="text-slate-500"> → Area: </span>
+                      <strong className="text-blue-400">{form.area}</strong>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Installation Address */}
+              <div>
                 <Field
-                  label="Installation Address"
-                  placeholder="House, street, block and area"
+                  label="Full Installation Address *"
+                  placeholder="House / Flat No., Street, Building, Landmark"
                   value={form.addressLine}
-                  onChange={(value) =>
-                    updateField("addressLine", value)
-                  }
+                  onChange={(value) => updateField("addressLine", value)}
                 />
               </div>
             </div>
@@ -615,22 +799,48 @@ export default function CustomerOnboarding() {
           )}
 
           {currentStep === 5 && (
-            <div className="max-w-3xl">
+            <div className="max-w-3xl space-y-4">
               <div className="border border-[var(--border)] bg-[var(--background)] p-5">
-                <p className="text-[12px] font-semibold text-white">
-                  Device assignment is optional
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[12px] font-semibold text-white">
+                      Customer Premises Equipment (CPE) Assignment
+                    </p>
+                    <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                      Optionally assign an available serialized ONU, ONT, or router to this service connection.
+                    </p>
+                  </div>
+                  <span className="border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[9px] font-semibold text-blue-400">
+                    Optional
+                  </span>
+                </div>
 
-                <p className="mt-2 text-[10px] leading-5 text-[var(--text-muted)]">
-                  Inventory device selection will be connected to the real
-                  available-device endpoint during Inventory integration.
-                  Customer activation can continue without a device.
-                </p>
+                <div className="mt-4">
+                  <label className={labelClass}>Select Available Hardware Device</label>
+                  {availableDevices.length === 0 ? (
+                    <div className="border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-amber-400">
+                      No AVAILABLE devices found in Inventory. Activation can proceed without a device, or one can be assigned later.
+                    </div>
+                  ) : (
+                    <select
+                      value={form.deviceId}
+                      onChange={(e) => updateField("deviceId", e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">No device assigned (Skip for now)</option>
+                      {availableDevices.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.asset_tag} — {d.device_type} ({d.manufacturer} {d.model_name}) [SN: {d.serial_number}]
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
 
-                <div className="mt-5">
+                <div className="mt-4">
                   <Field
-                    label="Assignment Notes"
-                    placeholder="Optional device assignment notes"
+                    label="Custody Assignment Notes"
+                    placeholder="e.g. Installed in living room / Wall mounted"
                     value={form.deviceAssignmentNotes}
                     onChange={(value) =>
                       updateField(

@@ -109,6 +109,10 @@ function getStatusStyles(
     return "border-amber-500/20 bg-amber-500/10 text-amber-400";
   }
 
+  if (status === "CANCELLED") {
+    return "border-zinc-500/20 bg-zinc-500/10 text-zinc-400";
+  }
+
   return "border-red-500/20 bg-red-500/10 text-red-400";
 }
 
@@ -121,6 +125,10 @@ function getStatusLabel(
 
   if (status === "UNPAID") {
     return "Unpaid";
+  }
+
+  if (status === "CANCELLED") {
+    return "Cancelled";
   }
 
   return "Paid";

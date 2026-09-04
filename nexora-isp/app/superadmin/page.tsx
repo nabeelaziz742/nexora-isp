@@ -16,13 +16,22 @@ import {
   type Registration,
 } from "@/services/onboarding.service";
 
-const emptySettings = { bank_name: "", account_title: "", account_number: "", iban: "", amount: "0", instructions: "", is_active: true };
+const defaultSettings = {
+  bank_name: "HBL",
+  account_title: "Muhammad Nabeel",
+  account_number: "17877900894403",
+  iban: "",
+  amount: "5000.00",
+  instructions:
+    "Please deposit the ISP registration setup fee to the designated account and upload your payment receipt.",
+  is_active: true,
+};
 
 export default function SuperAdminPage() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [settings, setSettings] = useState<Omit<PaymentSettings, "id">>(emptySettings);
+  const [settings, setSettings] = useState<Omit<PaymentSettings, "id">>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState("");

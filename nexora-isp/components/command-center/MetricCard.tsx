@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import type { CommandMetric } from "@/types/command-center";
 
 const toneStyles: Record<string, string> = {
@@ -13,14 +15,21 @@ interface MetricCardProps {
 }
 
 export default function MetricCard({ metric }: MetricCardProps) {
-  return (
-    <div className="border border-[var(--border)] bg-[var(--surface)] p-4">
-      <p className="text-[11px] font-medium text-[var(--text-secondary)]">
-        {metric.label}
-      </p>
+  const content = (
+    <div className={`group relative rounded-lg border border-[#202938] bg-[#0D1117] p-4 transition-all ${
+      metric.href ? "hover:border-blue-500/40 hover:bg-[#121821] hover:shadow-lg hover:shadow-black/40 cursor-pointer" : ""
+    }`}>
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-medium text-[var(--text-secondary)]">
+          {metric.label}
+        </p>
+        {metric.href && (
+          <ArrowUpRight className="h-3.5 w-3.5 text-slate-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-blue-400" />
+        )}
+      </div>
 
       <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="text-2xl font-semibold tracking-tight text-white">
+        <p className="text-2xl font-semibold tracking-tight text-white font-mono">
           {metric.value}
         </p>
 
@@ -33,9 +42,19 @@ export default function MetricCard({ metric }: MetricCardProps) {
         )}
       </div>
 
-      <p className="mt-2 text-[10px] text-[var(--text-muted)]">
+      <p className="mt-2 text-[10px] text-[var(--text-muted)] truncate">
         {metric.helper}
       </p>
     </div>
   );
+
+  if (metric.href) {
+    return (
+      <Link href={metric.href} className="block">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

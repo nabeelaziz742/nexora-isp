@@ -34,8 +34,16 @@ urlpatterns = [
         include("inventory.urls"),
     ),
     path(
+        "api/v1/pos/",
+        include("inventory.pos_urls"),
+    ),
+    path(
         "api/v1/billing/",
         include("billing.urls"),
+    ),
+    path(
+        "api/v1/accounting/",
+        include("accounting.urls"),
     ),
     path(
         "api/v1/support/",

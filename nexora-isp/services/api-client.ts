@@ -20,6 +20,7 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   skipAuth?: boolean;
   retryOnUnauthorized?: boolean;
+  timeoutMs?: number;
 };
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -37,10 +38,20 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   if (response.status === 204) return null;
 
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) return response.json();
+  if (contentType.includes("application/json")) {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
 
-  const text = await response.text();
-  return text || null;
+  try {
+    const text = await response.text();
+    return text || null;
+  } catch {
+    return null;
+  }
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -100,6 +111,7 @@ export async function apiRequest<T>(
     headers,
     skipAuth = false,
     retryOnUnauthorized = true,
+    timeoutMs = 30000,
     ...requestOptions
   } = options;
 
@@ -116,16 +128,40 @@ export async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(buildUrl(path), {
-    ...requestOptions,
-    headers: requestHeaders,
-    body:
-      body === undefined
-        ? undefined
-        : body instanceof FormData
-          ? body
-          : JSON.stringify(body),
-  });
+  // Timeout controller
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      ...requestOptions,
+      headers: requestHeaders,
+      signal: controller.signal,
+      body:
+        body === undefined
+          ? undefined
+          : body instanceof FormData
+            ? body
+            : JSON.stringify(body),
+    });
+  } catch (networkError: unknown) {
+    clearTimeout(timeoutId);
+    if (networkError instanceof Error && networkError.name === "AbortError") {
+      throw new ApiError(
+        "Request timed out. The server took too long to respond.",
+        408,
+        null,
+      );
+    }
+    throw new ApiError(
+      "Unable to connect to the NEXORA server. Please verify your network connection.",
+      0,
+      null,
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (response.status === 401 && !skipAuth && retryOnUnauthorized) {
     const refreshedAccessToken = await refreshAccessToken();
@@ -136,38 +172,39 @@ export async function apiRequest<T>(
       });
     }
     clearAuthTokens();
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }
 
   const payload = await parseResponseBody(response);
 
   if (!response.ok) {
-    throw new ApiError(
-      normalizeApiErrorMessage(
-        payload,
-        `API request failed with status ${response.status}.`,
-      ),
-      response.status,
+    const normalizedMessage = normalizeApiErrorMessage(
       payload,
+      `API request failed with status ${response.status}.`,
     );
+
+    throw new ApiError(normalizedMessage, response.status, payload);
   }
 
   return payload as T;
 }
 
 export const apiClient = {
-  get<T>(path: string): Promise<T> {
-    return apiRequest<T>(path, { method: "GET" });
+  get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
+    return apiRequest<T>(path, { ...options, method: "GET" });
   },
-  post<T>(path: string, body?: unknown): Promise<T> {
-    return apiRequest<T>(path, { method: "POST", body });
+  post<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return apiRequest<T>(path, { ...options, method: "POST", body });
   },
-  put<T>(path: string, body?: unknown): Promise<T> {
-    return apiRequest<T>(path, { method: "PUT", body });
+  put<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return apiRequest<T>(path, { ...options, method: "PUT", body });
   },
-  patch<T>(path: string, body?: unknown): Promise<T> {
-    return apiRequest<T>(path, { method: "PATCH", body });
+  patch<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return apiRequest<T>(path, { ...options, method: "PATCH", body });
   },
-  delete<T>(path: string): Promise<T> {
-    return apiRequest<T>(path, { method: "DELETE" });
+  delete<T>(path: string, options?: ApiRequestOptions): Promise<T> {
+    return apiRequest<T>(path, { ...options, method: "DELETE" });
   },
 };

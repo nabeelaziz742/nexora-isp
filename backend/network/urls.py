@@ -4,6 +4,8 @@ from network.views import (
     NetworkAssignmentListView,
     NetworkNodeDetailView,
     NetworkNodeListView,
+    PopSiteDetailView,
+    PopSiteListCreateView,
     ProvisioningRequestListView,
     ServicePackageChangeRequestView,
     ServiceRestoreRequestView,
@@ -12,6 +14,16 @@ from network.views import (
 
 
 urlpatterns = [
+    path(
+        "pops/",
+        PopSiteListCreateView.as_view(),
+        name="network-pop-list",
+    ),
+    path(
+        "pops/<uuid:pop_id>/",
+        PopSiteDetailView.as_view(),
+        name="network-pop-detail",
+    ),
     path(
         "nodes/",
         NetworkNodeListView.as_view(),

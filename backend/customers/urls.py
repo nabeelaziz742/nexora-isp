@@ -1,14 +1,81 @@
 from django.urls import path
 
 from customers.views import (
+    AreaDetailView,
+    AreaListCreateView,
+    AreaStatusToggleView,
+    CityDetailView,
+    CityListCreateView,
+    CityStatusToggleView,
+    CountryDetailView,
+    CountryListCreateView,
+    CountryStatusToggleView,
     CustomerActivationView,
     CustomerDetailView,
     CustomerListView,
+    CustomerStatusToggleView,
+    Dealer360View,
+    DealerDetailView,
+    DealerListCreateView,
+    DealerStatusToggleView,
+    FeasibilityAssessmentDetailView,
+    FeasibilityAssessmentListCreateView,
+    InquiryConvertView,
+    InquiryDetailView,
+    InquiryListCreateView,
+    InquiryStatusTransitionView,
+    InternetPackageDetailView,
     InternetPackageListView,
+    InternetPackageStatusToggleView,
+)
+from customers.suspension_views import (
+    AutomatedSuspensionRunView,
+    ManualServiceRestoreView,
+    ManualServiceSuspendView,
+    SuspensionDashboardView,
+    SuspensionEligibilityListView,
+    SuspensionHistoryListView,
+    SuspensionPolicyView,
 )
 
-
 urlpatterns = [
+    # Suspensions & Restorations (Batch 8)
+    path(
+        "suspensions/dashboard/",
+        SuspensionDashboardView.as_view(),
+        name="suspension-dashboard",
+    ),
+    path(
+        "suspensions/eligibility/",
+        SuspensionEligibilityListView.as_view(),
+        name="suspension-eligibility",
+    ),
+    path(
+        "suspensions/history/",
+        SuspensionHistoryListView.as_view(),
+        name="suspension-history",
+    ),
+    path(
+        "suspensions/policy/",
+        SuspensionPolicyView.as_view(),
+        name="suspension-policy",
+    ),
+    path(
+        "suspensions/run/",
+        AutomatedSuspensionRunView.as_view(),
+        name="suspension-run",
+    ),
+    path(
+        "services/<uuid:pk>/suspend/",
+        ManualServiceSuspendView.as_view(),
+        name="service-manual-suspend",
+    ),
+    path(
+        "services/<uuid:pk>/restore/",
+        ManualServiceRestoreView.as_view(),
+        name="service-manual-restore",
+    ),
+
     path(
         "",
         CustomerListView.as_view(),
@@ -19,14 +86,132 @@ urlpatterns = [
         CustomerActivationView.as_view(),
         name="customer-activate",
     ),
+    # Geographic: Countries
+    path(
+        "countries/",
+        CountryListCreateView.as_view(),
+        name="country-list-create",
+    ),
+    path(
+        "countries/<uuid:country_id>/",
+        CountryDetailView.as_view(),
+        name="country-detail",
+    ),
+    path(
+        "countries/<uuid:country_id>/status/",
+        CountryStatusToggleView.as_view(),
+        name="country-status-toggle",
+    ),
+    # Geographic: Cities
+    path(
+        "cities/",
+        CityListCreateView.as_view(),
+        name="city-list-create",
+    ),
+    path(
+        "cities/<uuid:city_id>/",
+        CityDetailView.as_view(),
+        name="city-detail",
+    ),
+    path(
+        "cities/<uuid:city_id>/status/",
+        CityStatusToggleView.as_view(),
+        name="city-status-toggle",
+    ),
+    # Geographic: Areas
+    path(
+        "areas/",
+        AreaListCreateView.as_view(),
+        name="area-list-create",
+    ),
+    path(
+        "areas/<uuid:area_id>/",
+        AreaDetailView.as_view(),
+        name="area-detail",
+    ),
+    path(
+        "areas/<uuid:area_id>/status/",
+        AreaStatusToggleView.as_view(),
+        name="area-status-toggle",
+    ),
+    # Packages / Plans
     path(
         "packages/",
         InternetPackageListView.as_view(),
         name="internet-package-list",
     ),
     path(
+        "packages/<uuid:package_id>/",
+        InternetPackageDetailView.as_view(),
+        name="internet-package-detail",
+    ),
+    path(
+        "packages/<uuid:package_id>/status/",
+        InternetPackageStatusToggleView.as_view(),
+        name="internet-package-status-toggle",
+    ),
+    # Inquiries / Leads
+    path(
+        "inquiries/",
+        InquiryListCreateView.as_view(),
+        name="inquiry-list-create",
+    ),
+    path(
+        "inquiries/<uuid:inquiry_id>/",
+        InquiryDetailView.as_view(),
+        name="inquiry-detail",
+    ),
+    path(
+        "inquiries/<uuid:inquiry_id>/status-transitions/",
+        InquiryStatusTransitionView.as_view(),
+        name="inquiry-status-transition",
+    ),
+    path(
+        "inquiries/<uuid:inquiry_id>/convert/",
+        InquiryConvertView.as_view(),
+        name="inquiry-convert",
+    ),
+    # Feasibilities
+    path(
+        "feasibilities/",
+        FeasibilityAssessmentListCreateView.as_view(),
+        name="feasibility-list-create",
+    ),
+    path(
+        "feasibilities/<uuid:assessment_id>/",
+        FeasibilityAssessmentDetailView.as_view(),
+        name="feasibility-detail",
+    ),
+    # Dealers / Sub-ISPs
+    path(
+        "dealers/",
+        DealerListCreateView.as_view(),
+        name="dealer-list-create",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/",
+        DealerDetailView.as_view(),
+        name="dealer-detail",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/status/",
+        DealerStatusToggleView.as_view(),
+        name="dealer-status-toggle",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/360/",
+        Dealer360View.as_view(),
+        name="dealer-360",
+    ),
+    # Customer Detail & Status Toggle
+    path(
         "<uuid:customer_id>/",
         CustomerDetailView.as_view(),
         name="customer-detail",
+    ),
+    path(
+        "<uuid:customer_id>/status/",
+        CustomerStatusToggleView.as_view(),
+        name="customer-status-toggle",
     ),
 ]

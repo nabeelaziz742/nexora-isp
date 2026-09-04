@@ -10,6 +10,9 @@ from billing.services import BillingDomainError, generate_service_invoice
 from customers.models import (
     BillingProfile,
     Customer,
+    Dealer,
+    FeasibilityAssessment,
+    Inquiry,
     InternetPackage,
     NotificationPreference,
     ServiceAccount,
@@ -38,6 +41,18 @@ class CustomerActivationError(Exception):
     pass
 
 
+class InquiryDomainError(Exception):
+    pass
+
+
+class FeasibilityDomainError(Exception):
+    pass
+
+
+class DealerDomainError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class CustomerActivationResult:
     customer: Customer
@@ -56,6 +71,24 @@ def _lock_organization_for_numbering(*, organization: Organization) -> Organizat
         .select_for_update()
         .get(id=organization.id)
     )
+
+
+def generate_inquiry_number(*, organization: Organization) -> str:
+    prefix = organization.code.upper()[:12]
+    sequence = Inquiry.objects.for_organization(organization).count() + 1
+    return f"{prefix}-INQ-{sequence:05d}"
+
+
+def generate_feasibility_number(*, organization: Organization) -> str:
+    prefix = organization.code.upper()[:12]
+    sequence = FeasibilityAssessment.objects.for_organization(organization).count() + 1
+    return f"{prefix}-FSB-{sequence:05d}"
+
+
+def generate_dealer_code(*, organization: Organization) -> str:
+    prefix = organization.code.upper()[:12]
+    sequence = Dealer.objects.for_organization(organization).count() + 1
+    return f"{prefix}-DLR-{sequence:04d}"
 
 
 def _build_customer_number(*, organization: Organization) -> str:
@@ -83,6 +116,7 @@ def _build_service_number(*, organization: Organization) -> str:
     )
 
     return f"{prefix}-SRV-{sequence:06d}"
+
 
 
 def _first_month_billing_dates(*, activated_at, due_day: int) -> tuple[date, date]:
@@ -116,6 +150,7 @@ def activate_customer_service(
     organization: Organization,
     actor: User,
     internet_package_id,
+    dealer_id=None,
     first_name: str,
     last_name: str = "",
     phone: str,
@@ -172,6 +207,13 @@ def activate_customer_service(
     if due_day < 1 or due_day > 28:
         raise CustomerActivationError("Due day must be between 1 and 28.")
 
+    dealer = None
+    if dealer_id:
+        try:
+            dealer = Dealer.objects.for_organization(organization).get(id=dealer_id)
+        except Dealer.DoesNotExist as exc:
+            raise CustomerActivationError("Dealer was not found for this organization.") from exc
+
     try:
         internet_package = (
             InternetPackage.objects
@@ -198,6 +240,7 @@ def activate_customer_service(
     customer = Customer.objects.create(
         organization=organization,
         customer_number=_build_customer_number(organization=organization),
+        dealer=dealer,
         first_name=first_name,
         last_name=last_name,
         phone=phone,
@@ -206,6 +249,7 @@ def activate_customer_service(
         address_line=address_line,
         area=area,
         city=city,
+        is_active=True,
     )
 
     service_account = ServiceAccount.objects.create(
@@ -337,3 +381,89 @@ def activate_customer_service(
         provisioning_request=provisioning_request,
         device_assignment=device_assignment,
     )
+
+
+@transaction.atomic
+def convert_inquiry_to_customer(
+    *,
+    inquiry_id,
+    organization: Organization,
+    actor: User,
+    internet_package_id=None,
+    billing_day: int = 1,
+    due_day: int = 10,
+    sms_enabled: bool = True,
+    whatsapp_enabled: bool = True,
+    network_node_id=None,
+    network_username: str = "",
+    network_ip_address: str | None = None,
+    device_id=None,
+    device_assignment_notes: str = "",
+) -> CustomerActivationResult:
+    try:
+        inquiry = (
+            Inquiry.objects.for_organization(organization)
+            .select_for_update()
+            .get(id=inquiry_id)
+        )
+    except Inquiry.DoesNotExist as exc:
+        raise InquiryDomainError("Inquiry was not found for this organization.") from exc
+
+    if inquiry.status == Inquiry.Status.CONVERTED:
+        raise InquiryDomainError("This inquiry has already been converted to a customer.")
+
+    if inquiry.status == Inquiry.Status.CANCELLED:
+        raise InquiryDomainError("Cannot convert a cancelled inquiry.")
+
+    name_parts = inquiry.full_name.strip().split(" ", 1)
+    first_name = name_parts[0]
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+    pkg_id = internet_package_id or (inquiry.preferred_package_id if inquiry.preferred_package else None)
+    if not pkg_id:
+        raise InquiryDomainError("An internet package must be selected for conversion.")
+
+    result = activate_customer_service(
+        organization=organization,
+        actor=actor,
+        internet_package_id=pkg_id,
+        dealer_id=inquiry.dealer_id if inquiry.dealer else None,
+        first_name=first_name,
+        last_name=last_name,
+        phone=inquiry.phone,
+        alternate_phone=inquiry.alternate_phone,
+        email=inquiry.email,
+        address_line=inquiry.address_line,
+        area=inquiry.area,
+        city=inquiry.city,
+        billing_day=billing_day,
+        due_day=due_day,
+        sms_enabled=sms_enabled,
+        whatsapp_enabled=whatsapp_enabled,
+        network_node_id=network_node_id,
+        network_username=network_username,
+        network_ip_address=network_ip_address,
+        device_id=device_id,
+        device_assignment_notes=device_assignment_notes,
+    )
+
+    inquiry.converted_customer = result.customer
+    inquiry.converted_at = timezone.now()
+    inquiry.status = Inquiry.Status.CONVERTED
+    inquiry.save(update_fields=["converted_customer", "converted_at", "status", "updated_at"])
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="INQUIRY_CONVERTED",
+        resource_type="Inquiry",
+        resource_id=str(inquiry.id),
+        metadata={
+            "customer_id": str(result.customer.id),
+            "customer_number": result.customer.customer_number,
+            "service_number": result.service_account.service_number,
+        },
+    )
+
+    return result
+

@@ -1,15 +1,28 @@
 import {
+  AlertTriangle,
   BellRing,
   Boxes,
   BrainCircuit,
+  Building2,
+  CircleAlert,
   CircleDollarSign,
+  ClipboardList,
+  Clock,
   CreditCard,
+  FileSpreadsheet,
   Headphones,
+  History,
+  Landmark,
   LayoutDashboard,
+  MapPin,
   MessageSquareText,
   Network,
   Package,
+  Receipt,
   Settings,
+  Shield,
+  ShoppingCart,
+  UserCheck,
   UserCog,
   Users,
   Wrench,
@@ -49,9 +62,39 @@ export const navigation: NavigationGroup[] = [
     label: "OPERATIONS",
     items: [
       {
+        title: "Inquiries & Leads",
+        href: "/inquiries",
+        icon: ClipboardList,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
         title: "Customers",
         href: "/customers",
         icon: Users,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Operators & Recovery",
+        href: "/operators",
+        icon: UserCheck,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Dealers / Sub-ISPs",
+        href: "/dealers",
+        icon: Building2,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Packages & Plans",
+        href: "/packages",
+        icon: Package,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Areas & Hierarchy",
+        href: "/areas",
+        icon: MapPin,
         roles: ["OWNER", "STAFF"],
       },
       {
@@ -85,17 +128,62 @@ export const navigation: NavigationGroup[] = [
     label: "FINANCE",
     items: [
       {
-        title: "Billing & Payments",
+        title: "Billing Overview",
         href: "/billing",
         icon: CreditCard,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Invoices Management",
+        href: "/invoices",
+        icon: FileSpreadsheet,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Collections & Receipts",
+        href: "/collections",
+        icon: CircleDollarSign,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Defaulter Accounts",
+        href: "/defaulters",
+        icon: CircleAlert,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Recovery Allocations",
+        href: "/allocations",
+        icon: UserCheck,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Promises to Pay",
+        href: "/promises",
+        icon: Clock,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Suspensions & Policy",
+        href: "/suspensions",
+        icon: AlertTriangle,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Accounting & Ledger",
+        href: "/accounting",
+        icon: Landmark,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Expenses",
+        href: "/expenses",
+        icon: Receipt,
         roles: ["OWNER", "STAFF"],
       },
     ],
   },
 
-  // ===========================
-  // NEW COMMUNICATION CENTER
-  // ===========================
   {
     label: "COMMUNICATIONS",
     items: [
@@ -109,12 +197,24 @@ export const navigation: NavigationGroup[] = [
   },
 
   {
-    label: "RESOURCES",
+    label: "RESOURCES & POS",
     items: [
       {
         title: "Inventory",
         href: "/inventory",
         icon: Boxes,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "POS Terminal",
+        href: "/pos",
+        icon: ShoppingCart,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Sales Register",
+        href: "/pos/sales",
+        icon: History,
         roles: ["OWNER", "STAFF"],
       },
     ],
@@ -138,7 +238,7 @@ export const navigation: NavigationGroup[] = [
       {
         title: "Reports",
         href: "/reports",
-        icon: Package,
+        icon: FileSpreadsheet,
         roles: ["OWNER", "STAFF"],
       },
     ],
@@ -157,7 +257,13 @@ export const navigation: NavigationGroup[] = [
         title: "Staff Management",
         href: "/staff",
         icon: UserCog,
-        roles: ["OWNER"],
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Audit Trail",
+        href: "/audit-logs",
+        icon: Shield,
+        roles: ["OWNER", "STAFF"],
       },
       {
         title: "Settings",

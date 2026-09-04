@@ -52,6 +52,7 @@ export interface CommandMetric {
   change?: string;
   tone: MetricTone;
   helper?: string;
+  href?: string;
 }
 
 export type DailyBriefingSeverity =

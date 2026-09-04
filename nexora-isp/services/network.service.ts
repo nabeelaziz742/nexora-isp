@@ -3,6 +3,7 @@ import { apiRequest } from "@/services/api-client";
 import type {
   NetworkAssignment,
   NetworkNode,
+  PointOfPresence,
   ProvisioningAction,
   ProvisioningRequest,
   ProvisioningStatus,
@@ -142,6 +143,52 @@ export const networkService = {
       },
     );
   },
+
+  getPops(
+    params: {
+      pop_type?: string;
+      status?: string;
+      area_id?: string;
+      search?: string;
+    } = {},
+  ): Promise<PointOfPresence[]> {
+    const queryString = buildQueryString({
+      pop_type: params.pop_type,
+      status: params.status,
+      area_id: params.area_id,
+      search: params.search,
+    });
+
+    return apiRequest<PointOfPresence[]>(
+      `/network/pops/${queryString}`,
+    );
+  },
+
+  getPop(popId: string): Promise<PointOfPresence> {
+    return apiRequest<PointOfPresence>(
+      `/network/pops/${popId}/`,
+    );
+  },
+
+  createPop(data: Partial<PointOfPresence>): Promise<PointOfPresence> {
+    return apiRequest<PointOfPresence>(
+      `/network/pops/`,
+      {
+        method: "POST",
+        body: data,
+      },
+    );
+  },
+
+  updatePop(popId: string, data: Partial<PointOfPresence>): Promise<PointOfPresence> {
+    return apiRequest<PointOfPresence>(
+      `/network/pops/${popId}/`,
+      {
+        method: "PATCH",
+        body: data,
+      },
+    );
+  },
 };
 
-export type { NetworkNode } from "@/types/network";
+export type { NetworkNode, PointOfPresence, PopType, PopStatus } from "@/types/network";

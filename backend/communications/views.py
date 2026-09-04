@@ -415,7 +415,18 @@ class WhatsAppWebhookAPIView(APIView):
                     phone_number_id = value.get("metadata", {}).get("phone_number_id")
                     if not phone_number_id:
                         continue
-                    provider = CommunicationProvider.objects.filter(phone_number_id=phone_number_id, provider_type=CommunicationProvider.ProviderType.WHATSAPP, status=CommunicationProvider.Status.ACTIVE).first()
+                    providers = CommunicationProvider.objects.filter(
+                        phone_number_id=phone_number_id,
+                        provider_type=CommunicationProvider.ProviderType.WHATSAPP,
+                        status=CommunicationProvider.Status.ACTIVE,
+                    )
+                    if providers.count() > 1:
+                        logger.error(
+                            "Ambiguous webhook routing rejected: multiple active providers match phone_number_id %s",
+                            phone_number_id,
+                        )
+                        continue
+                    provider = providers.first()
                     if not provider:
                         continue
                     for item in value.get("statuses", []):
@@ -424,7 +435,11 @@ class WhatsAppWebhookAPIView(APIView):
                         if not message_id:
                             continue
                         try:
-                            log = CommunicationLog.objects.select_related("queue").get(provider_message_id=message_id, queue__provider=provider)
+                            log = CommunicationLog.objects.select_related("queue").get(
+                                provider_message_id=message_id,
+                                organization=provider.organization,
+                                queue__provider=provider,
+                            )
                         except CommunicationLog.DoesNotExist:
                             continue
                         if status_name == "sent":
@@ -448,3 +463,37 @@ class WhatsAppWebhookAPIView(APIView):
         except Exception:
             logger.exception("WhatsApp webhook processing failed.")
             return Response({"success": False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CustomerCommunicationHistoryView(APIView):
+    permission_classes = [HasActiveTenantContext]
+
+    def get(self, request, customer_id):
+        items = (
+            CommunicationQueue.objects.filter(
+                organization=request.organization,
+                customer_id=customer_id,
+            )
+            .select_related("provider", "template", "log")
+            .order_by("-created_at")[:50]
+        )
+
+        results = []
+        for q in items:
+            log_status = q.log.status if hasattr(q, "log") and q.log else q.status
+            results.append({
+                "id": str(q.id),
+                "channel": q.provider.provider_type if q.provider else "UNKNOWN",
+                "provider_name": q.provider.name if q.provider else "Default",
+                "template_name": q.template.name if q.template else "Direct",
+                "recipient": q.recipient,
+                "subject": q.rendered_subject,
+                "body": q.rendered_body,
+                "status": log_status,
+                "error_message": q.last_error or (q.log.error_message if hasattr(q, "log") and q.log else ""),
+                "sent_at": q.sent_at.isoformat() if q.sent_at else None,
+                "created_at": q.created_at.isoformat(),
+            })
+
+        return Response({"results": results}, status=status.HTTP_200_OK)
+

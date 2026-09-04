@@ -25,6 +25,20 @@ class Organization(models.Model):
         blank=True,
     )
 
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+    )
+
+    address = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
     timezone = models.CharField(
         max_length=100,
         default="UTC",
@@ -124,6 +138,153 @@ class OrganizationMembership(models.Model):
             f"{self.organization.code} - "
             f"{self.role}"
         )
+
+
+class StaffProfile(models.Model):
+    class Role(models.TextChoices):
+        OWNER = "OWNER", "Owner"
+        ADMIN = "ADMIN", "Admin"
+        MANAGER = "MANAGER", "Manager"
+        ACCOUNTANT = "ACCOUNTANT", "Accountant"
+        OPERATOR = "OPERATOR", "Operator"
+        RECOVERY_OFFICER = "RECOVERY_OFFICER", "Recovery Officer"
+        TECHNICIAN = "TECHNICIAN", "Technician"
+        SUPPORT_OFFICER = "SUPPORT_OFFICER", "Support Officer"
+        FIELD_OFFICER = "FIELD_OFFICER", "Field Officer"
+        STAFF = "STAFF", "Staff"
+
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        INACTIVE = "INACTIVE", "Inactive"
+        SUSPENDED = "SUSPENDED", "Suspended"
+        TERMINATED = "TERMINATED", "Terminated"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="staff_profiles",
+    )
+
+    membership = models.OneToOneField(
+        OrganizationMembership,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="staff_profiles",
+    )
+
+    staff_code = models.CharField(
+        max_length=50,
+    )
+
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    alternate_phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    cnic = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    department = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    designation = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    role = models.CharField(
+        max_length=30,
+        choices=Role.choices,
+        default=Role.STAFF,
+    )
+
+    assigned_area = models.ForeignKey(
+        "customers.Area",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_staff",
+    )
+
+    supervisor = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="subordinates",
+    )
+
+    joining_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "tenancy_staff_profile"
+        ordering = ["-created_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "staff_code"],
+                name="unique_staff_code_per_org",
+            ),
+        ]
+
+        indexes = [
+            models.Index(
+                fields=["organization", "status"],
+                name="staff_org_status_idx",
+            ),
+            models.Index(
+                fields=["organization", "role"],
+                name="staff_org_role_idx",
+            ),
+            models.Index(
+                fields=["organization", "department"],
+                name="staff_org_dept_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.staff_code} - {self.user.get_full_name() or self.user.email}"
 
 
 class AuditLog(models.Model):

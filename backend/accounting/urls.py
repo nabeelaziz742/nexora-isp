@@ -1,0 +1,41 @@
+from django.urls import path
+
+from accounting.views import (
+    AccountDetailView,
+    AccountInitDefaultView,
+    AccountListCreateView,
+    AccountingOverviewView,
+    DealerAccrualCreateView,
+    DealerSettlementListCreateView,
+    DirectIncomeListCreateView,
+    ExpenseListCreateView,
+    FinancialPeriodCloseView,
+    FinancialPeriodListCreateView,
+    FinancialPeriodReopenView,
+    FundTransferListCreateView,
+    GeneralLedgerView,
+    JournalEntryDetailView,
+    JournalEntryListCreateView,
+    JournalEntryReverseView,
+    TrialBalanceView,
+)
+
+urlpatterns = [
+    path("overview/", AccountingOverviewView.as_view(), name="accounting-overview"),
+    path("accounts/", AccountListCreateView.as_view(), name="account-list-create"),
+    path("accounts/init-default/", AccountInitDefaultView.as_view(), name="account-init-default"),
+    path("accounts/<uuid:account_id>/", AccountDetailView.as_view(), name="account-detail"),
+    path("journals/", JournalEntryListCreateView.as_view(), name="journal-list-create"),
+    path("journals/<uuid:entry_id>/", JournalEntryDetailView.as_view(), name="journal-detail"),
+    path("journals/<uuid:entry_id>/reverse/", JournalEntryReverseView.as_view(), name="journal-reverse"),
+    path("ledger/", GeneralLedgerView.as_view(), name="general-ledger"),
+    path("trial-balance/", TrialBalanceView.as_view(), name="trial-balance"),
+    path("expenses/", ExpenseListCreateView.as_view(), name="expense-list-create"),
+    path("income/", DirectIncomeListCreateView.as_view(), name="income-list-create"),
+    path("transfers/", FundTransferListCreateView.as_view(), name="transfer-list-create"),
+    path("dealer-settlements/", DealerSettlementListCreateView.as_view(), name="dealer-settlement-list-create"),
+    path("dealer-accruals/", DealerAccrualCreateView.as_view(), name="dealer-accrual-create"),
+    path("periods/", FinancialPeriodListCreateView.as_view(), name="period-list-create"),
+    path("periods/<uuid:period_id>/close/", FinancialPeriodCloseView.as_view(), name="period-close"),
+    path("periods/<uuid:period_id>/reopen/", FinancialPeriodReopenView.as_view(), name="period-reopen"),
+]

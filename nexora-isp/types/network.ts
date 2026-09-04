@@ -13,11 +13,54 @@ export interface NetworkMetric {
   status: NetworkMetricStatus;
 }
 
+export type PopType =
+  | "CORE"
+  | "AGGREGATION"
+  | "DISTRIBUTION"
+  | "TOWER"
+  | "CABINET"
+  | "CENTRAL_OFFICE"
+  | "OTHER";
+
+export type PopStatus =
+  | "ACTIVE"
+  | "MAINTENANCE"
+  | "DEGRADED"
+  | "OFFLINE";
+
+export interface PointOfPresence {
+  id: string;
+  code: string;
+  name: string;
+  pop_type: PopType;
+  area: string | null;
+  area_name?: string;
+  area_city?: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  rack_capacity_units: number;
+  power_backup_type: string;
+  status: PopStatus;
+  supervisor: string | null;
+  supervisor_name?: string | null;
+  notes: string;
+  is_active: boolean;
+  nodes_count: number;
+  active_subscribers_count: number;
+  created_at: string;
+  updated_at: string;
+  nodes?: NetworkNode[];
+}
+
 export interface NetworkNode {
   id: string;
   name: string;
   code: string;
   node_type: string;
+  pop_site?: string | null;
+  pop_site_name?: string | null;
+  pop_site_code?: string | null;
   management_ip: string | null;
   location: string;
   is_active: boolean;

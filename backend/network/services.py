@@ -4,12 +4,14 @@ from typing import Any
 from django.db import transaction
 
 from customers.models import (
+    Area,
     InternetPackage,
     ServiceAccount,
 )
 from network.models import (
     NetworkAssignment,
     NetworkNode,
+    PointOfPresence,
     ProvisioningRequest,
 )
 from tenancy.models import Organization
@@ -424,3 +426,227 @@ def request_package_change(
         service_account=service_account,
         provisioning_request=provisioning_request,
     )
+
+
+# ==============================================================================
+# POINT OF PRESENCE (POP) INFRASTRUCTURE SERVICES (BATCH 13)
+# ==============================================================================
+
+class PopDomainError(Exception):
+    pass
+
+
+@transaction.atomic
+def create_pop_site(
+    *,
+    organization: Organization,
+    actor,
+    code: str,
+    name: str,
+    pop_type: str = PointOfPresence.PopType.DISTRIBUTION,
+    area_id=None,
+    address: str = "",
+    latitude=None,
+    longitude=None,
+    rack_capacity_units: int = 42,
+    power_backup_type: str = "UPS_GENERATOR",
+    status: str = PointOfPresence.Status.ACTIVE,
+    supervisor_id=None,
+    notes: str = "",
+) -> PointOfPresence:
+    code_clean = str(code).strip().upper()
+    name_clean = str(name).strip()
+
+    if not code_clean:
+        raise PopDomainError("POP code is required.")
+    if not name_clean:
+        raise PopDomainError("POP name is required.")
+    if rack_capacity_units < 0:
+        raise PopDomainError("Rack capacity units cannot be negative.")
+
+    if PointOfPresence.objects.for_organization(organization).filter(code=code_clean).exists():
+        raise PopDomainError(f"A POP site with code '{code_clean}' already exists in this organization.")
+
+    area = None
+    if area_id:
+        try:
+            area = Area.objects.for_organization(organization).get(id=area_id)
+        except Area.DoesNotExist as exc:
+            raise PopDomainError("The specified Area was not found in this organization.") from exc
+
+    supervisor = None
+    if supervisor_id:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            supervisor = User.objects.get(id=supervisor_id)
+        except User.DoesNotExist as exc:
+            raise PopDomainError("The specified supervisor was not found.") from exc
+
+    pop = PointOfPresence.objects.create(
+        organization=organization,
+        code=code_clean,
+        name=name_clean,
+        pop_type=pop_type,
+        area=area,
+        address=address.strip(),
+        latitude=latitude,
+        longitude=longitude,
+        rack_capacity_units=rack_capacity_units,
+        power_backup_type=power_backup_type.strip(),
+        status=status,
+        supervisor=supervisor,
+        notes=notes.strip(),
+    )
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="POP_SITE_CREATED",
+        resource_type="PointOfPresence",
+        resource_id=pop.id,
+        metadata={
+            "code": pop.code,
+            "name": pop.name,
+            "pop_type": pop.pop_type,
+            "area_id": str(area.id) if area else None,
+            "status": pop.status,
+            "rack_capacity_units": pop.rack_capacity_units,
+        },
+    )
+
+    return pop
+
+
+@transaction.atomic
+def update_pop_site(
+    *,
+    organization: Organization,
+    actor,
+    pop_id,
+    **kwargs,
+) -> PointOfPresence:
+    try:
+        pop = (
+            PointOfPresence.objects
+            .select_for_update()
+            .for_organization(organization)
+            .get(id=pop_id)
+        )
+    except PointOfPresence.DoesNotExist as exc:
+        raise PopDomainError("POP site was not found in this organization.") from exc
+
+    old_status = pop.status
+
+    if "code" in kwargs:
+        new_code = str(kwargs["code"]).strip().upper()
+        if not new_code:
+            raise PopDomainError("POP code cannot be empty.")
+        if (
+            PointOfPresence.objects.for_organization(organization)
+            .filter(code=new_code)
+            .exclude(id=pop.id)
+            .exists()
+        ):
+            raise PopDomainError(f"A POP site with code '{new_code}' already exists in this organization.")
+        pop.code = new_code
+
+    if "name" in kwargs:
+        new_name = str(kwargs["name"]).strip()
+        if not new_name:
+            raise PopDomainError("POP name cannot be empty.")
+        pop.name = new_name
+
+    if "pop_type" in kwargs:
+        pop.pop_type = kwargs["pop_type"]
+
+    if "area_id" in kwargs:
+        area_id = kwargs["area_id"]
+        if area_id:
+            try:
+                pop.area = Area.objects.for_organization(organization).get(id=area_id)
+            except Area.DoesNotExist as exc:
+                raise PopDomainError("The specified Area was not found in this organization.") from exc
+        else:
+            pop.area = None
+
+    if "address" in kwargs:
+        pop.address = str(kwargs["address"]).strip()
+
+    if "latitude" in kwargs:
+        pop.latitude = kwargs["latitude"]
+
+    if "longitude" in kwargs:
+        pop.longitude = kwargs["longitude"]
+
+    if "rack_capacity_units" in kwargs:
+        cap = int(kwargs["rack_capacity_units"])
+        if cap < 0:
+            raise PopDomainError("Rack capacity units cannot be negative.")
+        pop.rack_capacity_units = cap
+
+    if "power_backup_type" in kwargs:
+        pop.power_backup_type = str(kwargs["power_backup_type"]).strip()
+
+    if "status" in kwargs:
+        pop.status = kwargs["status"]
+
+    if "supervisor_id" in kwargs:
+        sup_id = kwargs["supervisor_id"]
+        if sup_id:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                pop.supervisor = User.objects.get(id=sup_id)
+            except User.DoesNotExist as exc:
+                raise PopDomainError("The specified supervisor was not found.") from exc
+        else:
+            pop.supervisor = None
+
+    if "notes" in kwargs:
+        pop.notes = str(kwargs["notes"]).strip()
+
+    if "is_active" in kwargs:
+        pop.is_active = bool(kwargs["is_active"])
+
+    pop.save()
+
+    audit_action = "POP_SITE_STATUS_CHANGED" if old_status != pop.status else "POP_SITE_UPDATED"
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action=audit_action,
+        resource_type="PointOfPresence",
+        resource_id=pop.id,
+        metadata={
+            "code": pop.code,
+            "name": pop.name,
+            "status": pop.status,
+            "old_status": old_status,
+        },
+    )
+
+    return pop
+
+
+def get_pop_statistics(*, organization: Organization, pop: PointOfPresence) -> dict:
+    """Aggregates real-time subscriber and hardware node counts for a POP site."""
+    node_ids = list(pop.nodes.values_list("id", flat=True))
+    active_assignments_count = (
+        NetworkAssignment.objects
+        .for_organization(organization)
+        .filter(network_node_id__in=node_ids, is_active=True)
+        .count()
+    )
+    total_assignments_count = (
+        NetworkAssignment.objects
+        .for_organization(organization)
+        .filter(network_node_id__in=node_ids)
+        .count()
+    )
+
+    return {
+        "nodes_count": len(node_ids),
+        "active_subscribers_count": active_assignments_count,
+        "total_subscribers_count": total_assignments_count,
+    }

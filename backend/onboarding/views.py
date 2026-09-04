@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
@@ -17,10 +19,17 @@ from onboarding.serializers import (
     RegistrationListSerializer,
     RejectRegistrationSerializer,
 )
-from onboarding.services import approve_registration, create_registration, reject_registration, submit_receipt
+from onboarding.services import (
+    approve_registration,
+    create_registration,
+    get_or_create_payment_settings,
+    reject_registration,
+    submit_receipt,
+)
 
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class IsSuperAdmin(permissions.BasePermission):
@@ -56,9 +65,9 @@ class RegistrationStatusAPIView(APIView):
         registration = ISPRegistration.objects.select_related("organization", "owner").filter(access_token=access_token).first()
         if registration is None:
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
-        payment = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
+        payment = get_or_create_payment_settings()
         payload = RegistrationListSerializer(registration, context={"request": request}).data
-        payload["payment"] = PaymentSettingsSerializer(payment).data if payment else None
+        payload["payment"] = PaymentSettingsSerializer(payment).data
         return Response(payload)
 
 
@@ -99,12 +108,12 @@ class SuperAdminPaymentSettingsAPIView(APIView):
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
-        settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
-        return Response(PaymentSettingsSerializer(settings).data if settings else None)
+        settings = get_or_create_payment_settings()
+        return Response(PaymentSettingsSerializer(settings).data)
 
     def put(self, request):
-        settings = PaymentSettings.objects.filter(is_active=True).order_by("-updated_at").first()
-        serializer = PaymentSettingsSerializer(instance=settings, data=request.data) if settings else PaymentSettingsSerializer(data=request.data)
+        settings = get_or_create_payment_settings()
+        serializer = PaymentSettingsSerializer(instance=settings, data=request.data)
         serializer.is_valid(raise_exception=True)
         settings = serializer.save(is_active=True)
         return Response(PaymentSettingsSerializer(settings).data)
@@ -144,14 +153,22 @@ class SuperAdminRegistrationDetailAPIView(APIView):
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
         if action == "approve":
             registration = approve_registration(registration=registration, admin_user=request.user)
-            send_mail(
-                subject="Nexora ISP account activated",
-                message=(f"Your Nexora ISP account for {registration.organization.name} has been activated. "
-                         f"Your organization code is {registration.organization.code}."),
-                from_email=None,
-                recipient_list=[registration.owner.email],
-                fail_silently=True,
-            )
+            try:
+                send_mail(
+                    subject="Nexora ISP account activated",
+                    message=(f"Your Nexora ISP account for {registration.organization.name} has been activated. "
+                             f"Your organization code is {registration.organization.code}."),
+                    from_email=None,
+                    recipient_list=[registration.owner.email],
+                    fail_silently=False,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to deliver activation email for registration %s to %s: %s",
+                    registration.id,
+                    registration.owner.email,
+                    exc,
+                )
         elif action == "reject":
             serializer = RejectRegistrationSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)

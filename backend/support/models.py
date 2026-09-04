@@ -11,9 +11,17 @@ from tenancy.base_models import TenantScopedModel
 class Complaint(TenantScopedModel):
     class Status(models.TextChoices):
         OPEN = "OPEN", "Open"
+        NEW = "NEW", "New"
+        ACKNOWLEDGED = "ACKNOWLEDGED", "Acknowledged"
+        ASSIGNED = "ASSIGNED", "Assigned"
         IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        WAITING_CUSTOMER = "WAITING_CUSTOMER", "Waiting for Customer"
+        WAITING_PARTS = "WAITING_PARTS", "Waiting for Parts"
+        ESCALATED = "ESCALATED", "Escalated"
         RESOLVED = "RESOLVED", "Resolved"
+        CUSTOMER_CONFIRMED = "CUSTOMER_CONFIRMED", "Customer Confirmed"
         CLOSED = "CLOSED", "Closed"
+        CANCELLED = "CANCELLED", "Cancelled"
 
     class Priority(models.TextChoices):
         LOW = "LOW", "Low"
@@ -27,7 +35,34 @@ class Complaint(TenantScopedModel):
         BILLING = "BILLING", "Billing"
         DEVICE = "DEVICE", "Device"
         INSTALLATION = "INSTALLATION", "Installation"
+        ROUTER_ISSUE = "ROUTER_ISSUE", "Router Issue"
+        ONU_ISSUE = "ONU_ISSUE", "ONU / Optical Issue"
+        FIBER_CABLE_DAMAGE = "FIBER_CABLE_DAMAGE", "Fiber / Cable Damage"
+        POWER_ISSUE = "POWER_ISSUE", "Power / Adapter Issue"
+        PAYMENT_RELATED = "PAYMENT_RELATED", "Payment Related"
+        CONFIGURATION = "CONFIGURATION", "Configuration"
         OTHER = "OTHER", "Other"
+
+    class Source(models.TextChoices):
+        CUSTOMER_PORTAL = "CUSTOMER_PORTAL", "Customer Portal"
+        PHONE = "PHONE", "Phone Call"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        SMS = "SMS", "SMS"
+        WALK_IN = "WALK_IN", "Walk-in Desk"
+        STAFF = "STAFF", "Staff Registered"
+        SYSTEM = "SYSTEM", "System Automated"
+        OTHER = "OTHER", "Other"
+
+    class SLAStatus(models.TextChoices):
+        ON_TRACK = "ON_TRACK", "On Track"
+        DUE_SOON = "DUE_SOON", "Due Soon"
+        BREACHED = "BREACHED", "SLA Breached"
+        RESOLVED = "RESOLVED", "Resolved"
+
+    class CustomerConfirmation(models.TextChoices):
+        PENDING = "PENDING", "Pending Confirmation"
+        CONFIRMED = "CONFIRMED", "Customer Confirmed"
+        REJECTED = "REJECTED", "Reopened / Rejected by Customer"
 
     id = models.UUIDField(
         primary_key=True,
@@ -54,14 +89,21 @@ class Complaint(TenantScopedModel):
     )
 
     category = models.CharField(
-        max_length=30,
+        max_length=40,
         choices=Category.choices,
+        default=Category.CONNECTIVITY,
     )
 
     priority = models.CharField(
         max_length=20,
         choices=Priority.choices,
         default=Priority.MEDIUM,
+    )
+
+    source = models.CharField(
+        max_length=30,
+        choices=Source.choices,
+        default=Source.STAFF,
     )
 
     status = models.CharField(
@@ -76,16 +118,108 @@ class Complaint(TenantScopedModel):
 
     description = models.TextField()
 
-    resolution_notes = models.TextField(
-        blank=True,
-    )
-
-    created_by = models.ForeignKey(
+    # Assignment Tracking
+    assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="created_support_complaints",
+        related_name="assigned_support_complaints",
+    )
+
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_by_support_complaints",
+    )
+
+    assigned_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    reassignment_reason = models.TextField(
+        blank=True,
+    )
+
+    # SLA Tracking
+    first_response_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    response_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    resolution_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    is_response_sla_breached = models.BooleanField(
+        default=False,
+    )
+
+    is_resolution_sla_breached = models.BooleanField(
+        default=False,
+    )
+
+    sla_status = models.CharField(
+        max_length=20,
+        choices=SLAStatus.choices,
+        default=SLAStatus.ON_TRACK,
+    )
+
+    # Escalation
+    is_escalated = models.BooleanField(
+        default=False,
+    )
+
+    escalation_level = models.PositiveSmallIntegerField(
+        default=0,
+    )
+
+    escalation_reason = models.TextField(
+        blank=True,
+    )
+
+    escalated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalated_support_complaints",
+    )
+
+    escalated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    escalated_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalated_to_support_complaints",
+    )
+
+    # Diagnosis & Resolution
+    diagnosis_category = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    resolution_summary = models.TextField(
+        blank=True,
+    )
+
+    resolution_notes = models.TextField(
+        blank=True,
     )
 
     resolved_by = models.ForeignKey(
@@ -96,22 +230,60 @@ class Complaint(TenantScopedModel):
         related_name="resolved_support_complaints",
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True,
-    )
-
     resolved_at = models.DateTimeField(
         null=True,
+        blank=True,
+    )
+
+    # Customer Confirmation & Closure
+    customer_confirmation = models.CharField(
+        max_length=20,
+        choices=CustomerConfirmation.choices,
+        default=CustomerConfirmation.PENDING,
+    )
+
+    customer_confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    customer_feedback_rating = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    customer_feedback_notes = models.TextField(
         blank=True,
     )
 
     closed_at = models.DateTimeField(
         null=True,
         blank=True,
+    )
+
+    # Linked Outage / Incident
+    linked_incident = models.ForeignKey(
+        "support.Incident",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_complaints",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_support_complaints",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
     )
 
     class Meta:
@@ -138,6 +310,14 @@ class Complaint(TenantScopedModel):
                 name="complaint_org_priority_idx",
             ),
             models.Index(
+                fields=["organization", "assigned_to"],
+                name="complaint_org_assigned_idx",
+            ),
+            models.Index(
+                fields=["organization", "sla_status"],
+                name="complaint_org_sla_idx",
+            ),
+            models.Index(
                 fields=["organization", "customer"],
                 name="complaint_org_customer_idx",
             ),
@@ -148,10 +328,222 @@ class Complaint(TenantScopedModel):
         ]
 
     def __str__(self):
-        return (
-            f"{self.complaint_number} - "
-            f"{self.subject}"
-        )
+        return f"{self.complaint_number} - {self.subject}"
+
+
+class ComplaintTimeline(TenantScopedModel):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        related_name="timeline_events",
+    )
+
+    event_type = models.CharField(
+        max_length=50,
+    )
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaint_timeline_events",
+    )
+
+    previous_value = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    new_value = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    summary = models.CharField(
+        max_length=255,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "support_complaint_timeline"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["organization", "complaint"],
+                name="complaint_time_org_cmp_idx",
+            ),
+            models.Index(
+                fields=["organization", "created_at"],
+                name="complaint_time_org_dt_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.complaint.complaint_number} - {self.event_type} at {self.created_at}"
+
+
+class ComplaintInternalNote(TenantScopedModel):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        related_name="internal_notes_list",
+    )
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaint_internal_notes",
+    )
+
+    note = models.TextField()
+
+    is_internal = models.BooleanField(
+        default=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "support_complaint_internal_note"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["organization", "complaint"],
+                name="complaint_note_org_cmp_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Note on {self.complaint.complaint_number} by {self.author} at {self.created_at}"
+
+
+class ComplaintSLAPolicy(TenantScopedModel):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    priority = models.CharField(
+        max_length=20,
+        choices=Complaint.Priority.choices,
+    )
+
+    response_target_minutes = models.PositiveIntegerField(
+        default=60,
+    )
+
+    resolution_target_hours = models.PositiveIntegerField(
+        default=24,
+    )
+
+    escalation_threshold_hours = models.PositiveIntegerField(
+        default=12,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "support_complaint_sla_policy"
+        ordering = ["priority"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "priority"],
+                name="unique_sla_policy_per_priority_org",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.priority} SLA"
+
+
+class ComplaintAttachment(TenantScopedModel):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        related_name="attachments_list",
+    )
+
+    file_name = models.CharField(
+        max_length=255,
+    )
+
+    file_url = models.CharField(
+        max_length=500,
+    )
+
+    file_size_bytes = models.PositiveIntegerField(
+        default=0,
+    )
+
+    mime_type = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_complaint_attachments",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "support_complaint_attachment"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.complaint.complaint_number} - {self.file_name}"
 
 
 class Incident(TenantScopedModel):
@@ -272,10 +664,7 @@ class Incident(TenantScopedModel):
         ]
 
     def __str__(self):
-        return (
-            f"{self.incident_number} - "
-            f"{self.title}"
-        )
+        return f"{self.incident_number} - {self.title}"
 
 
 class IncidentAffectedService(TenantScopedModel):
@@ -327,7 +716,4 @@ class IncidentAffectedService(TenantScopedModel):
         ]
 
     def __str__(self):
-        return (
-            f"{self.incident.incident_number} - "
-            f"{self.service_account.service_number}"
-        )
+        return f"{self.incident.incident_number} - {self.service_account.service_number}"

@@ -3,14 +3,63 @@ from rest_framework import serializers
 from network.models import (
     NetworkAssignment,
     NetworkNode,
+    PointOfPresence,
     ProvisioningRequest,
 )
+
+
+class PointOfPresenceSerializer(serializers.ModelSerializer):
+    area_name = serializers.CharField(source="area.name", read_only=True)
+    area_city = serializers.CharField(source="area.city.name", read_only=True)
+    supervisor_name = serializers.SerializerMethodField()
+    nodes_count = serializers.IntegerField(read_only=True, default=0)
+    active_subscribers_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = PointOfPresence
+        fields = [
+            "id",
+            "code",
+            "name",
+            "pop_type",
+            "area",
+            "area_name",
+            "area_city",
+            "address",
+            "latitude",
+            "longitude",
+            "rack_capacity_units",
+            "power_backup_type",
+            "status",
+            "supervisor",
+            "supervisor_name",
+            "notes",
+            "is_active",
+            "nodes_count",
+            "active_subscribers_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_supervisor_name(self, obj):
+        if not obj.supervisor:
+            return None
+        full = f"{obj.supervisor.first_name} {obj.supervisor.last_name}".strip()
+        return full or obj.supervisor.email
 
 
 class NetworkNodeSerializer(serializers.ModelSerializer):
     assignment_count = serializers.IntegerField(
         read_only=True,
         default=0,
+    )
+    pop_site_name = serializers.CharField(
+        source="pop_site.name",
+        read_only=True,
+    )
+    pop_site_code = serializers.CharField(
+        source="pop_site.code",
+        read_only=True,
     )
 
     class Meta:
@@ -20,6 +69,9 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
             "name",
             "code",
             "node_type",
+            "pop_site",
+            "pop_site_name",
+            "pop_site_code",
             "management_ip",
             "location",
             "is_active",
@@ -27,6 +79,13 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class PointOfPresenceDetailSerializer(PointOfPresenceSerializer):
+    nodes = NetworkNodeSerializer(many=True, read_only=True)
+
+    class Meta(PointOfPresenceSerializer.Meta):
+        fields = PointOfPresenceSerializer.Meta.fields + ["nodes"]
 
 
 class NetworkAssignmentSerializer(serializers.ModelSerializer):

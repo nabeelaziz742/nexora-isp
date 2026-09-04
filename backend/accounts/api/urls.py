@@ -1,12 +1,10 @@
 from django.urls import path
 
-from rest_framework_simplejwt.views import (
-    TokenRefreshView,
-)
-
 from accounts.api.views import (
     CurrentSessionAPIView,
+    LogoutAPIView,
     TenantLoginAPIView,
+    TenantTokenRefreshAPIView,
 )
 
 
@@ -17,8 +15,13 @@ urlpatterns = [
         name="tenant-login",
     ),
     path(
+        "logout/",
+        LogoutAPIView.as_view(),
+        name="tenant-logout",
+    ),
+    path(
         "token/refresh/",
-        TokenRefreshView.as_view(),
+        TenantTokenRefreshAPIView.as_view(),
         name="token-refresh",
     ),
     path(

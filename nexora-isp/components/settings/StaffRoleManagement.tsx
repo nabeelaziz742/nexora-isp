@@ -21,6 +21,8 @@ import {
   staffService,
 } from "@/services/staff-service";
 
+import { toast } from "sonner";
+
 const initialForm: CreateStaffPayload = {
   first_name: "",
   last_name: "",
@@ -73,16 +75,15 @@ export default function StaffRoleManagement() {
 
       await staffService.createStaff(form);
 
+      toast.success("Staff profile created successfully");
       setForm(initialForm);
       setShowForm(false);
 
       await loadStaff();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to create staff account.",
-      );
+      const errMsg = err instanceof Error ? err.message : "Unable to create staff account.";
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setCreating(false);
     }
@@ -99,13 +100,17 @@ export default function StaffRoleManagement() {
         !member.is_active,
       );
 
+      toast.success(
+        !member.is_active
+          ? "Staff member activated"
+          : "Staff member deactivated"
+      );
+
       await loadStaff();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to update staff account.",
-      );
+      const errMsg = err instanceof Error ? err.message : "Unable to update staff account.";
+      setError(errMsg);
+      toast.error(errMsg);
     }
   }
 

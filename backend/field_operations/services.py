@@ -209,6 +209,22 @@ def create_work_order(
         created_by=created_by,
     )
 
+    if complaint is not None:
+        from support.models import ComplaintTimeline
+        ComplaintTimeline.objects.create(
+            organization=organization,
+            complaint=complaint,
+            event_type="WORK_ORDER_LINKED",
+            actor=created_by,
+            summary=f"Work Order {work_order.work_order_number} created ({work_type})",
+            notes=description,
+            metadata={
+                "work_order_id": str(work_order.id),
+                "work_order_number": work_order.work_order_number,
+                "work_type": work_type,
+            },
+        )
+
     record_audit_log(
         organization=organization,
         actor=created_by,

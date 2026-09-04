@@ -1,13 +1,31 @@
 from django.urls import path
 
+from billing.recovery_views import (
+    DefaulterListView,
+    RecoveryAllocationDetailView,
+    RecoveryAllocationListCreateView,
+    RecoveryAllocationReassignView,
+    RecoveryAllocationStatusTransitionView,
+    RecoveryDashboardView,
+)
 from billing.views import (
     BillingSummaryView,
+    CancelInvoiceView,
+    CustomInvoiceCreateView,
+    FinancialLedgerView,
+    GenerateInvoiceView,
     InvoiceDetailView,
     InvoiceListView,
+    MonthlyBillingRunView,
     PaymentListView,
+    PaymentReceiptView,
+    PaymentReversalView,
+    PromiseToPayDetailView,
+    PromiseToPayListCreateView,
+    PromiseToPayStatusTransitionView,
     RecordInvoicePaymentView,
+    RecordPaymentWithAllocationsView,
     RevenueIntelligenceView,
-    GenerateInvoiceView,
 )
 
 
@@ -16,6 +34,21 @@ urlpatterns = [
         "invoices/",
         InvoiceListView.as_view(),
         name="billing-invoice-list",
+    ),
+    path(
+        "invoices/generate/",
+        GenerateInvoiceView.as_view(),
+        name="billing-generate-invoice",
+    ),
+    path(
+        "invoices/custom/",
+        CustomInvoiceCreateView.as_view(),
+        name="billing-custom-invoice-create",
+    ),
+    path(
+        "invoices/monthly-run/",
+        MonthlyBillingRunView.as_view(),
+        name="billing-monthly-run",
     ),
     path(
         "invoices/<uuid:invoice_id>/",
@@ -28,9 +61,79 @@ urlpatterns = [
         name="billing-invoice-payment-record",
     ),
     path(
+        "invoices/<uuid:invoice_id>/cancel/",
+        CancelInvoiceView.as_view(),
+        name="billing-invoice-cancel",
+    ),
+    path(
         "payments/",
         PaymentListView.as_view(),
         name="billing-payment-list",
+    ),
+    path(
+        "payments/record/",
+        RecordPaymentWithAllocationsView.as_view(),
+        name="billing-payment-record-with-allocations",
+    ),
+    path(
+        "payments/<uuid:payment_id>/reverse/",
+        PaymentReversalView.as_view(),
+        name="billing-payment-reverse",
+    ),
+    path(
+        "payments/<uuid:payment_id>/receipt/",
+        PaymentReceiptView.as_view(),
+        name="billing-payment-receipt",
+    ),
+    path(
+        "ledger/",
+        FinancialLedgerView.as_view(),
+        name="billing-financial-ledger",
+    ),
+    path(
+        "promises/",
+        PromiseToPayListCreateView.as_view(),
+        name="billing-promise-list-create",
+    ),
+    path(
+        "promises/<uuid:promise_id>/",
+        PromiseToPayDetailView.as_view(),
+        name="billing-promise-detail",
+    ),
+    path(
+        "promises/<uuid:promise_id>/status-transitions/",
+        PromiseToPayStatusTransitionView.as_view(),
+        name="billing-promise-status-transition",
+    ),
+    path(
+        "defaulters/",
+        DefaulterListView.as_view(),
+        name="billing-defaulter-list",
+    ),
+    path(
+        "allocations/",
+        RecoveryAllocationListCreateView.as_view(),
+        name="billing-allocation-list-create",
+    ),
+    path(
+        "allocations/<uuid:allocation_id>/",
+        RecoveryAllocationDetailView.as_view(),
+        name="billing-allocation-detail",
+    ),
+    path(
+        "allocations/<uuid:allocation_id>/reassign/",
+        RecoveryAllocationReassignView.as_view(),
+        name="billing-allocation-reassign",
+    ),
+    path(
+        "allocations/<uuid:allocation_id>/status-transitions/",
+        RecoveryAllocationStatusTransitionView.as_view(),
+        name="billing-allocation-status-transition",
+    ),
+    path(
+        "recovery-dashboard/",
+        RecoveryDashboardView.as_view(),
+        name="billing-recovery-dashboard",
     ),
     path(
         "summary/",
@@ -42,10 +145,4 @@ urlpatterns = [
         RevenueIntelligenceView.as_view(),
         name="billing-revenue-intelligence",
     ),
-
-    path(
-    "invoices/generate/",
-    GenerateInvoiceView.as_view(),
-    name="billing-generate-invoice",
-    )
 ]
