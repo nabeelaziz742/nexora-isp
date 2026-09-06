@@ -318,8 +318,8 @@ export default function CommunicationLogsPage() {
     }
   }
     return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-end justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.20em] text-green-400">
             Communication
@@ -334,7 +334,7 @@ export default function CommunicationLogsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => loadLogs(true)}
             disabled={refreshing}
@@ -583,7 +583,7 @@ export default function CommunicationLogsPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <button
                             onClick={() =>
                               openDetails(log)
@@ -638,7 +638,7 @@ export default function CommunicationLogsPage() {
             logs
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               disabled={page === 1}
               onClick={() =>

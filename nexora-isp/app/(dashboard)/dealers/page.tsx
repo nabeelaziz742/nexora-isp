@@ -228,7 +228,7 @@ export default function DealersPage() {
             Manage authorized franchise partners, sub-operators, assigned territory boundaries, and revenue commission structures.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => fetchDealers()}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
@@ -287,7 +287,7 @@ export default function DealersPage() {
               className="w-full rounded-lg border border-slate-700 bg-slate-950/80 pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </form>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
@@ -464,7 +464,7 @@ export default function DealersPage() {
                         </span>
                       </td>
                       <td className="py-4 pl-3 pr-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <button
                             onClick={() => handleToggleStatus(item.id)}
                             disabled={togglingId === item.id}
@@ -668,7 +668,7 @@ export default function DealersPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}

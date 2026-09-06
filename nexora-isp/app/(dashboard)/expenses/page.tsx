@@ -149,7 +149,7 @@ export default function ExpensesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => loadData(false)}
             disabled={refreshing}
@@ -341,7 +341,7 @@ export default function ExpensesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Receipt className="h-5 w-5 text-emerald-400" />
                 <h3 className="text-base font-semibold text-slate-100">Record Operational Expense</h3>
               </div>
@@ -452,7 +452,7 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}

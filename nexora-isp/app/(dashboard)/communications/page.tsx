@@ -397,7 +397,7 @@ export default function CommunicationsPage() {
   const providerStatus = getProviderStatus(dashboard);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
 
       <div className="flex flex-wrap items-end justify-between gap-4">
 
@@ -419,7 +419,7 @@ export default function CommunicationsPage() {
 
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
 
           <button
             type="button"

@@ -174,7 +174,7 @@ export default function DefaultersManagementPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={loadDefaulters}
             className="flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-4 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
@@ -555,7 +555,7 @@ export default function DefaultersManagementPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setSelectedDefaulter(null)}

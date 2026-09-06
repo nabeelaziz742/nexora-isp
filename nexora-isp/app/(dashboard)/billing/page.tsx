@@ -505,60 +505,54 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-[#F8FAFC]">
+          <h1 className="text-xl font-bold tracking-tight text-[#F8FAFC] sm:text-2xl">
             Billing & Payments
           </h1>
 
-          <p className="mt-1 text-sm text-[#64748B]">
-            Monitor invoices, outstanding balances,
-            overdue exposure and payment operations.
+          <p className="mt-0.5 text-xs sm:text-sm text-[#64748B]">
+            Monitor invoices, outstanding balances, overdue exposure and payment operations.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap h-8.5 items-center gap-2 rounded-md border border-[#202938] bg-[#0D1117] px-3">
+            <Banknote className="h-3.5 w-3.5 text-[#22C55E]" />
+            <span className="text-xs text-[#94A3B8]">
+              Billing Engine Operational
+            </span>
+          </div>
 
-  <div className="flex h-10 items-center gap-2 border border-[#202938] bg-[#0D1117] px-3">
-    <Banknote className="h-3.5 w-3.5 text-[#22C55E]" />
+          <button
+            type="button"
+            onClick={openGenerateInvoiceModal}
+            disabled={generatingInvoice}
+            className="flex h-8.5 items-center gap-1.5 rounded-md bg-emerald-600 px-3.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {generatingInvoice ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+            Generate Invoice
+          </button>
 
-    <span className="text-xs text-[#94A3B8]">
-      Billing Engine Operational
-    </span>
-  </div>
-
-  <button
-    type="button"
-    onClick={openGenerateInvoiceModal}
-    disabled={generatingInvoice}
-    className="flex h-10 items-center gap-2 bg-emerald-600 px-4 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-  >
-    {generatingInvoice ? (
-      <Loader2 className="h-4 w-4 animate-spin" />
-    ) : (
-      <Plus className="h-4 w-4" />
-    )}
-
-    Generate Invoice
-  </button>
-
-  <button
-    type="button"
-    onClick={() => void loadBillingData(true)}
-    disabled={refreshing}
-    className="flex h-10 items-center gap-2 border border-[#202938] bg-[#111827] px-4 text-xs font-medium text-[#CBD5E1] transition-colors hover:bg-[#182131] disabled:cursor-not-allowed disabled:opacity-60"
-  >
-    <RefreshCw
-      className={`h-4 w-4 ${
-        refreshing ? "animate-spin" : ""
-      }`}
-    />
-
-    Refresh
-  </button>
-
-</div>
+          <button
+            type="button"
+            onClick={() => void loadBillingData(true)}
+            disabled={refreshing}
+            className="flex h-8.5 items-center gap-1.5 rounded-md border border-[#202938] bg-[#111827] px-3 text-xs font-medium text-[#CBD5E1] transition-colors hover:bg-[#182131] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${
+                refreshing ? "animate-spin" : ""
+              }`}
+            />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -996,7 +990,7 @@ export default function BillingPage() {
                 />
               </label>
 
-              <div className="flex justify-end gap-3 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-3 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={closePayment}
@@ -1199,7 +1193,7 @@ export default function BillingPage() {
 
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-[#202938] pt-5">
+              <div className="flex flex-wrap justify-end gap-3 border-t border-[#202938] pt-5">
 
                 <button
                   type="button"

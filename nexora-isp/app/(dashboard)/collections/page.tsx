@@ -280,7 +280,7 @@ export default function CollectionsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)] pb-5">
         <div>
@@ -511,7 +511,7 @@ export default function CollectionsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => void handleViewReceipt(pay.id)}
@@ -676,7 +676,7 @@ export default function CollectionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <AlertTriangle className="size-5 text-rose-400" />
                 <h3 className="text-base font-bold text-white">Reverse Payment Receipt</h3>
               </div>
@@ -720,7 +720,7 @@ export default function CollectionsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setReversalTarget(null)}
@@ -879,7 +879,7 @@ export default function CollectionsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsNewCollectionOpen(false)}

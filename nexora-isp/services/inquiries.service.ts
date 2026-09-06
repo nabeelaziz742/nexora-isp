@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type InquiryStatus =
   | "NEW"
@@ -121,14 +121,14 @@ export interface FeasibilityCreatePayload {
 }
 
 export const inquiriesService = {
-  getInquiries(params?: {
+  async getInquiries(params?: {
     status?: string;
     city?: string;
     area?: string;
     package_id?: string;
     source?: string;
     search?: string;
-  }) {
+  }): Promise<InquiryItem[]> {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
     if (params?.city) query.set("city", params.city);
@@ -138,7 +138,8 @@ export const inquiriesService = {
     if (params?.search) query.set("search", params.search);
 
     const qs = query.toString();
-    return apiRequest<InquiryItem[]>(`/customers/inquiries/${qs ? `?${qs}` : ""}`);
+    const res = await apiRequest<ListResponse<InquiryItem>>(`/customers/inquiries/${qs ? `?${qs}` : ""}`);
+    return normalizeList<InquiryItem>(res);
   },
 
   getInquiry(id: string) {
@@ -189,14 +190,15 @@ export const inquiriesService = {
   },
 
   // Feasibility Assessments
-  getFeasibilities(params?: { inquiry_id?: string; status?: string; search?: string }) {
+  async getFeasibilities(params?: { inquiry_id?: string; status?: string; search?: string }): Promise<FeasibilityAssessmentItem[]> {
     const query = new URLSearchParams();
     if (params?.inquiry_id) query.set("inquiry_id", params.inquiry_id);
     if (params?.status) query.set("status", params.status);
     if (params?.search) query.set("search", params.search);
 
     const qs = query.toString();
-    return apiRequest<FeasibilityAssessmentItem[]>(`/customers/feasibilities/${qs ? `?${qs}` : ""}`);
+    const res = await apiRequest<ListResponse<FeasibilityAssessmentItem>>(`/customers/feasibilities/${qs ? `?${qs}` : ""}`);
+    return normalizeList<FeasibilityAssessmentItem>(res);
   },
 
   getFeasibility(id: string) {

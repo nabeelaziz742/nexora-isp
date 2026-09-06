@@ -234,7 +234,7 @@ export default function PackagesPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -453,7 +453,7 @@ export default function PackagesPage() {
                   </td>
 
                   <td className="px-4 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => openEditModal(pkg)}
@@ -656,7 +656,7 @@ export default function PackagesPage() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
@@ -705,7 +705,7 @@ export default function PackagesPage() {
               </div>
             ) : null}
 
-            <div className="mt-6 flex items-center justify-end gap-2">
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {

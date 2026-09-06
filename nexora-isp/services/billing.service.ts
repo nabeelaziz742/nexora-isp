@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 import type {
   BillingSummary,
@@ -53,10 +53,10 @@ export const billingService = {
       customer_id: filters.customer_id,
     });
 
-    const res = await apiRequest<any>(
+    const res = await apiRequest<ListResponse<Invoice>>(
       `/billing/invoices/${query}`,
     );
-    return Array.isArray(res) ? res : (res?.results ?? []);
+    return normalizeList<Invoice>(res);
   },
 
   getInvoice(
@@ -115,10 +115,10 @@ export const billingService = {
       customer_id: filters.customer_id,
     });
 
-    const res = await apiRequest<any>(
+    const res = await apiRequest<ListResponse<Payment>>(
       `/billing/payments/${query}`,
     );
-    return Array.isArray(res) ? res : (res?.results ?? []);
+    return normalizeList<Payment>(res);
   },
 
   recordInvoicePayment(

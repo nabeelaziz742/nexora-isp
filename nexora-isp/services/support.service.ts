@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type ComplaintStatus =
   | "OPEN"
@@ -220,7 +220,7 @@ export interface CreateComplaintPayload {
 }
 
 export const supportService = {
-  getComplaints(params?: ComplaintQueryParams): Promise<Complaint[]> {
+  async getComplaints(params?: ComplaintQueryParams): Promise<Complaint[]> {
     const searchParams = new URLSearchParams();
     if (params) {
       if (params.status) searchParams.append("status", params.status);
@@ -235,7 +235,8 @@ export const supportService = {
       if (params.search) searchParams.append("search", params.search);
     }
     const query = searchParams.toString();
-    return apiClient.get<Complaint[]>(`/support/complaints/${query ? `?${query}` : ""}`);
+    const res = await apiClient.get<ListResponse<Complaint>>(`/support/complaints/${query ? `?${query}` : ""}`);
+    return normalizeList<Complaint>(res);
   },
 
   getComplaintDetail(complaintId: string): Promise<Complaint> {
@@ -282,8 +283,9 @@ export const supportService = {
     });
   },
 
-  getInternalNotes(complaintId: string): Promise<ComplaintInternalNote[]> {
-    return apiClient.get<ComplaintInternalNote[]>(`/support/complaints/${complaintId}/notes/`);
+  async getInternalNotes(complaintId: string): Promise<ComplaintInternalNote[]> {
+    const res = await apiClient.get<ListResponse<ComplaintInternalNote>>(`/support/complaints/${complaintId}/notes/`);
+    return normalizeList<ComplaintInternalNote>(res);
   },
 
   resolveComplaint(complaintId: string, diagnosisCategory: string, resolutionSummary: string, resolutionNotes = ""): Promise<Complaint> {
@@ -302,24 +304,27 @@ export const supportService = {
     });
   },
 
-  getTimeline(complaintId: string): Promise<ComplaintTimelineEvent[]> {
-    return apiClient.get<ComplaintTimelineEvent[]>(`/support/complaints/${complaintId}/timeline/`);
+  async getTimeline(complaintId: string): Promise<ComplaintTimelineEvent[]> {
+    const res = await apiClient.get<ListResponse<ComplaintTimelineEvent>>(`/support/complaints/${complaintId}/timeline/`);
+    return normalizeList<ComplaintTimelineEvent>(res);
   },
 
   getDashboardMetrics(): Promise<SupportDashboardMetrics> {
     return apiClient.get<SupportDashboardMetrics>("/support/dashboard/metrics/");
   },
 
-  getSLAPolicies(): Promise<ComplaintSLAPolicy[]> {
-    return apiClient.get<ComplaintSLAPolicy[]>("/support/sla-policies/");
+  async getSLAPolicies(): Promise<ComplaintSLAPolicy[]> {
+    const res = await apiClient.get<ListResponse<ComplaintSLAPolicy>>("/support/sla-policies/");
+    return normalizeList<ComplaintSLAPolicy>(res);
   },
 
   updateSLAPolicies(policies: Partial<ComplaintSLAPolicy>[]): Promise<ComplaintSLAPolicy[]> {
     return apiClient.put<ComplaintSLAPolicy[]>("/support/sla-policies/", { policies });
   },
 
-  getIncidents(params?: any): Promise<Incident[]> {
-    return apiClient.get<Incident[]>("/support/incidents/");
+  async getIncidents(params?: any): Promise<Incident[]> {
+    const res = await apiClient.get<ListResponse<Incident>>("/support/incidents/");
+    return normalizeList<Incident>(res);
   },
 
   getIncidentDetail(incidentId: string): Promise<Incident> {

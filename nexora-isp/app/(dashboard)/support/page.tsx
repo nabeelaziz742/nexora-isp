@@ -584,7 +584,7 @@ export default function SupportPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 border-b border-[#202938] pb-5 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#202938] pb-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-ping" />
@@ -592,19 +592,19 @@ export default function SupportPage() {
               Customer Support & Technical Operations
             </p>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F8FAFC]">
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight text-[#F8FAFC] sm:text-2xl">
             Support Operations & Helpdesk
           </h1>
-          <p className="mt-1 text-xs text-[#94A3B8]">
+          <p className="mt-0.5 text-xs text-[#94A3B8]">
             Multi-channel ticket management, technician dispatching, automated SLA enforcement, and technical diagnostics.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 border border-[#202938] bg-[#0D1117] px-3.5 py-2 text-xs font-medium text-[#94A3B8] transition-colors hover:border-[#303E55] hover:text-[#F8FAFC] disabled:opacity-50"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-md border border-[#202938] bg-[#0D1117] px-3 text-xs font-medium text-[#94A3B8] transition-colors hover:border-[#303E55] hover:text-[#F8FAFC] disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-blue-400" : ""}`} />
             Refresh
@@ -612,9 +612,9 @@ export default function SupportPage() {
 
           <button
             onClick={() => setIsNewTicketOpen(true)}
-            className="inline-flex items-center gap-2 border border-blue-500 bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-md border border-blue-500 bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-xs transition-all hover:bg-blue-500"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             Register New Ticket
           </button>
         </div>
@@ -1357,7 +1357,7 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsNewTicketOpen(false)}
@@ -1446,7 +1446,7 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsAssignOpen(false)}
@@ -1515,7 +1515,7 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsTransitionOpen(false)}
@@ -1588,7 +1588,7 @@ export default function SupportPage() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsEscalateOpen(false)}
@@ -1674,7 +1674,7 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsResolveOpen(false)}
@@ -1750,7 +1750,7 @@ export default function SupportPage() {
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
                     Feedback Star Rating (1 to 5)
                   </label>
-                  <div className="mt-1.5 flex gap-2">
+                  <div className="mt-1.5 flex flex-wrap gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
@@ -1782,7 +1782,7 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsCloseOpen(false)}

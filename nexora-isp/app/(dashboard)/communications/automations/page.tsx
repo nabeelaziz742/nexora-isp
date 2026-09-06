@@ -250,7 +250,7 @@ export default function CommunicationAutomationsPage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
 
       {/* Header */}
 
@@ -274,7 +274,7 @@ export default function CommunicationAutomationsPage() {
 
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
 
           <button
             className="flex items-center gap-2 border border-[#202938] bg-[#0D1117] px-4 py-2 text-sm text-white hover:border-blue-500"
@@ -653,7 +653,7 @@ export default function CommunicationAutomationsPage() {
 
                       <td className="px-5 py-4">
 
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
 
                           <button
                             onClick={() =>
@@ -747,7 +747,7 @@ export default function CommunicationAutomationsPage() {
 
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-wrap justify-end gap-3 pt-2">
 
               <button
                 type="button"

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type PromiseStatus =
   | "PENDING"
@@ -45,12 +45,12 @@ export interface PromiseCreatePayload {
 }
 
 export const promisesService = {
-  getPromises(params?: {
+  async getPromises(params?: {
     customer_id?: string;
     service_account_id?: string;
     status?: string;
     search?: string;
-  }) {
+  }): Promise<PromiseToPayItem[]> {
     const query = new URLSearchParams();
     if (params?.customer_id) query.set("customer_id", params.customer_id);
     if (params?.service_account_id) query.set("service_account_id", params.service_account_id);
@@ -58,7 +58,8 @@ export const promisesService = {
     if (params?.search) query.set("search", params.search);
 
     const qs = query.toString();
-    return apiRequest<PromiseToPayItem[]>(`/billing/promises/${qs ? `?${qs}` : ""}`);
+    const res = await apiRequest<ListResponse<PromiseToPayItem>>(`/billing/promises/${qs ? `?${qs}` : ""}`);
+    return normalizeList<PromiseToPayItem>(res);
   },
 
   getPromise(id: string) {

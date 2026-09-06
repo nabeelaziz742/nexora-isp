@@ -358,21 +358,21 @@ export default function InquiriesPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
             Inquiries & Leads
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-400">
             Track prospective subscribers, conduct network feasibility assessments, and convert leads to active customer accounts.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => fetchInquiries()}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </button>
           <button
@@ -380,9 +380,9 @@ export default function InquiriesPage() {
               setFormError(null);
               setShowCreateModal(true);
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition shadow-emerald-950/20"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-emerald-500 transition"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             New Inquiry
           </button>
         </div>
@@ -440,7 +440,7 @@ export default function InquiriesPage() {
               className="w-full rounded-lg border border-slate-700 bg-slate-950/80 pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </form>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
@@ -634,7 +634,7 @@ export default function InquiriesPage() {
                         )}
                       </td>
                       <td className="py-4 pl-3 pr-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           {/* Feasibility Check Action */}
                           {item.status !== "CONVERTED" && item.status !== "CANCELLED" && (
                             <button
@@ -929,7 +929,7 @@ export default function InquiriesPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
@@ -1040,7 +1040,7 @@ export default function InquiriesPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowFeasibilityModal(false)}
@@ -1147,7 +1147,7 @@ export default function InquiriesPage() {
                 <p>• The inquiry status is transitioned to <strong className="text-emerald-400">CONVERTED</strong> and retained in history.</p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowConvertModal(false)}
@@ -1231,7 +1231,7 @@ export default function InquiriesPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowStatusModal(false)}

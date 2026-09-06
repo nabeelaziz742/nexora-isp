@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 import type {
   MarkNotificationFailedPayload,
@@ -27,12 +27,13 @@ function buildQueryString(
 }
 
 export const notificationService = {
-  getJobs(
+  async getJobs(
     filters: NotificationJobFilters = {},
   ): Promise<NotificationJob[]> {
-    return apiRequest<NotificationJob[]>(
+    const res = await apiRequest<ListResponse<NotificationJob>>(
       `/notifications/jobs/${buildQueryString(filters)}`,
     );
+    return normalizeList<NotificationJob>(res);
   },
 
   getJob(

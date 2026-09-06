@@ -98,7 +98,7 @@ export default function Dealer360Page() {
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => router.push("/dealers")}
             className="rounded-lg border border-slate-800 bg-slate-900/80 p-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -132,7 +132,7 @@ export default function Dealer360Page() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleToggleStatus}
             disabled={toggling}

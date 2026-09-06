@@ -5,7 +5,7 @@ import CustomerOnboarding from "@/components/customers/CustomerOnboarding";
 
 export default function NewCustomerPage() {
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-8 py-7">
+    <div className="space-y-6">
       <Link
         href="/customers"
         className="inline-flex items-center gap-2 text-[11px] text-[var(--text-muted)] transition-colors hover:text-white"

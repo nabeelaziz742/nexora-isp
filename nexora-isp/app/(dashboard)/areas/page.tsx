@@ -338,7 +338,7 @@ export default function AreasPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -544,7 +544,7 @@ export default function AreasPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditArea(area)}
@@ -640,7 +640,7 @@ export default function AreasPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditCity(city)}
@@ -736,7 +736,7 @@ export default function AreasPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditCountry(c)}
@@ -867,7 +867,7 @@ export default function AreasPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setAreaModalOpen(false)}
@@ -958,7 +958,7 @@ export default function AreasPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setCityModalOpen(false)}
@@ -1033,7 +1033,7 @@ export default function AreasPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setCountryModalOpen(false)}
@@ -1078,7 +1078,7 @@ export default function AreasPage() {
               </div>
             )}
 
-            <div className="mt-6 flex items-center justify-end gap-2">
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteItem(null)}

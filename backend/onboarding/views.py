@@ -103,6 +103,29 @@ class SuperAdminLoginAPIView(APIView):
         })
 
 
+class SuperAdminTokenRefreshAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        refresh_str = request.data.get("refresh", "")
+        if not refresh_str:
+            return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            refresh = RefreshToken(refresh_str)
+            user_id = refresh.payload.get("user_id")
+            user = User.objects.filter(id=user_id, is_active=True, is_superuser=True).first()
+            if not user:
+                return Response({"detail": "Invalid administrator token."}, status=status.HTTP_401_UNAUTHORIZED)
+            new_refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(new_refresh.access_token),
+                "refresh": str(new_refresh),
+            }, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+
 class SuperAdminPaymentSettingsAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsSuperAdmin]

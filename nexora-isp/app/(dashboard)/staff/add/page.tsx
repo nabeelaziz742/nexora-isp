@@ -279,7 +279,7 @@ export default function AddStaffPage() {
             </FormField>
           </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-[#202938] bg-slate-900/30 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#202938] bg-slate-900/30 px-5 py-4">
             <Link
               href="/staff"
               className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"

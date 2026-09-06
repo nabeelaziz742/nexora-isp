@@ -76,8 +76,8 @@ export default function CommunicationProvidersPage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.20em] text-cyan-400">
             Communication
@@ -248,7 +248,7 @@ export default function CommunicationProvidersPage() {
                     </td>
 
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         <button className="rounded border border-[#202938] bg-[#111827] p-2 hover:border-cyan-500">
                           <Eye className="h-4 w-4 text-cyan-400" />
                         </button>

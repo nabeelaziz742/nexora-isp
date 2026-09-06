@@ -163,35 +163,35 @@ export default function StaffManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-blue-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-400">
             Workforce & Access Control
           </p>
 
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-50">
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight text-slate-50 sm:text-2xl">
             Staff & Operators Management
           </h1>
 
-          <p className="mt-1 max-w-3xl text-sm text-slate-400">
+          <p className="mt-0.5 max-w-3xl text-xs sm:text-sm text-slate-400">
             Manage employee identities, operational roles, assigned territories, and operational statuses.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={loadStaff}
-            className="flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-4 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
+            className="flex h-8.5 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/60 px-3 text-xs sm:text-sm font-medium text-slate-300 transition hover:bg-slate-800"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </button>
 
           <Link
             href="/staff/add"
-            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-500 shadow-lg shadow-blue-500/20"
+            className="flex h-8.5 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-xs sm:text-sm font-semibold text-white transition hover:bg-blue-500 shadow-xs"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             Add Staff
           </Link>
         </div>
@@ -629,7 +629,7 @@ export default function StaffManagementPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditingStaff(null)}

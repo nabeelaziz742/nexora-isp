@@ -303,4 +303,30 @@ class ISPOnboardingFlowTests(TestCase):
             self.assertNotIn("password", log_line.lower())
             self.assertNotIn("secret", log_line.lower())
 
+    def test_superadmin_token_refresh(self):
+        admin = User.objects.create_superuser(
+            username="refresh_admin@example.com",
+            email="refresh_admin@example.com",
+            password="SuperAdminPassword!123",
+            first_name="Admin",
+            last_name="Super",
+        )
+        login_res = self.client.post(
+            reverse("superadmin-login"),
+            {"email": "refresh_admin@example.com", "password": "SuperAdminPassword!123"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+        refresh_token = login_res.json()["refresh"]
+
+        refresh_res = self.client.post(
+            reverse("superadmin-refresh"),
+            {"refresh": refresh_token},
+            format="json",
+        )
+        self.assertEqual(refresh_res.status_code, 200)
+        self.assertIn("access", refresh_res.json())
+        self.assertIn("refresh", refresh_res.json())
+
+
 

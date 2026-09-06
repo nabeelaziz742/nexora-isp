@@ -233,37 +233,37 @@ export default function SuspensionsManagementPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Suspension & Policy Center
             </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400 border border-red-500/20">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-[11px] font-medium text-red-400 border border-red-500/20">
               <ShieldAlert className="h-3 w-3" />
               Automated Lifecycle
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-400">
             Authoritative overdue enforcement, Promise-to-Pay protection, auto-suspension & instant payment restoration.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={loadData}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-3 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </button>
 
           <button
             onClick={() => setShowRunConfirmModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-red-900/20 hover:from-amber-500 hover:to-red-500 transition-all"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-red-600 px-3.5 text-xs sm:text-sm font-semibold text-white shadow-xs hover:from-amber-500 hover:to-red-500 transition-all"
           >
-            <Play className="h-4 w-4 fill-white" />
+            <Play className="h-3.5 w-3.5 fill-white" />
             Run Engine Now
           </button>
         </div>
@@ -531,7 +531,7 @@ export default function SuspensionsManagementPage() {
                           )}
                         </td>
                         <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
                             {item.status === "SUSPENDED_NON_PAYMENT" ? (
                               <button
                                 onClick={() => setSelectedForRestore(item)}
@@ -613,7 +613,7 @@ export default function SuspensionsManagementPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
                             <button
                               onClick={() => setSelectedForRestore(item)}
                               className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors"
@@ -885,7 +885,7 @@ export default function SuspensionsManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-red-900/40 bg-slate-950 p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-red-400 font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-red-400 font-semibold">
                 <AlertTriangle className="h-5 w-5" />
                 Suspend Service Account
               </div>
@@ -926,7 +926,7 @@ export default function SuspensionsManagementPage() {
                 <div className="text-xs text-red-400">{suspendModalError}</div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedForSuspend(null)}
@@ -953,7 +953,7 @@ export default function SuspensionsManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-emerald-900/40 bg-slate-950 p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-emerald-400 font-semibold">
                 <CheckCircle2 className="h-5 w-5" />
                 Restore Service Account
               </div>
@@ -993,7 +993,7 @@ export default function SuspensionsManagementPage() {
                 <div className="text-xs text-red-400">{restoreModalError}</div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedForRestore(null)}
@@ -1020,7 +1020,7 @@ export default function SuspensionsManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-xl border border-amber-900/40 bg-slate-950 p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-amber-400 font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-amber-400 font-semibold">
                 <Zap className="h-5 w-5" />
                 Run Automated Suspension Engine
               </div>
@@ -1049,7 +1049,7 @@ export default function SuspensionsManagementPage() {
                     <li>Suspends non-paying overdue accounts automatically</li>
                   </ul>
 
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className="flex flex-wrap justify-end gap-2 pt-4">
                     <button
                       onClick={() => setShowRunConfirmModal(false)}
                       className="rounded-lg border border-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-900"

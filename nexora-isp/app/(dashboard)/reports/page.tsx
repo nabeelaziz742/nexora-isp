@@ -291,45 +291,45 @@ export default function ReportingCenterPage() {
   return (
     <div className="space-y-6 pb-20">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Reports & Analytics Center
             </h1>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-400">
+            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[11px] font-semibold text-indigo-400">
               Enterprise Engine
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-400">
             Authoritative operational metrics, collections registers, financial statements, and partner analytics.
           </p>
         </div>
 
         {/* Global Toolbar Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1 text-xs text-slate-400">
+          <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900/90 p-0.5 text-xs text-slate-400">
             <button
               onClick={() => handleApplyPreset("today")}
-              className="rounded-lg px-2.5 py-1 hover:text-white transition"
+              className="rounded-md px-2 py-1 text-[11px] hover:text-white transition"
             >
               Today
             </button>
             <button
               onClick={() => handleApplyPreset("this_month")}
-              className="rounded-lg px-2.5 py-1 hover:text-white transition"
+              className="rounded-md px-2 py-1 text-[11px] hover:text-white transition"
             >
               This Month
             </button>
             <button
               onClick={() => handleApplyPreset("last_30")}
-              className="rounded-lg px-2.5 py-1 hover:text-white transition"
+              className="rounded-md px-2 py-1 text-[11px] hover:text-white transition"
             >
               Last 30D
             </button>
             <button
               onClick={() => handleApplyPreset("ytd")}
-              className="rounded-lg px-2.5 py-1 hover:text-white transition"
+              className="rounded-md px-2 py-1 text-[11px] hover:text-white transition"
             >
               YTD
             </button>
@@ -337,18 +337,18 @@ export default function ReportingCenterPage() {
 
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition"
           >
-            <Printer className="h-4 w-4 text-slate-400" />
-            Print Report
+            <Printer className="h-3.5 w-3.5 text-slate-400" />
+            Print
           </button>
 
           <button
             onClick={fetchActiveReport}
-            className="rounded-xl border border-slate-800 bg-slate-900/90 p-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 bg-slate-900/90 text-slate-400 hover:text-white hover:bg-slate-800 transition"
             title="Refresh Report"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
           </button>
         </div>
       </div>

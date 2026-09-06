@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type WorkOrderStatus =
   | "CREATED"
@@ -129,28 +129,32 @@ export const fieldOperationsService = {
     );
   },
 
-  getWorkOrders(): Promise<WorkOrder[]> {
-    return apiClient.get<WorkOrder[]>(
+  async getWorkOrders(): Promise<WorkOrder[]> {
+    const res = await apiClient.get<ListResponse<WorkOrder>>(
       "/field-operations/work-orders/",
     );
+    return normalizeList<WorkOrder>(res);
   },
 
-  getTechnicians(): Promise<Technician[]> {
-    return apiClient.get<Technician[]>(
+  async getTechnicians(): Promise<Technician[]> {
+    const res = await apiClient.get<ListResponse<Technician>>(
       "/tenant/technicians/",
     );
+    return normalizeList<Technician>(res);
   },
 
-  getComplaints(): Promise<SupportComplaint[]> {
-    return apiClient.get<SupportComplaint[]>(
+  async getComplaints(): Promise<SupportComplaint[]> {
+    const res = await apiClient.get<ListResponse<SupportComplaint>>(
       "/support/complaints/",
     );
+    return normalizeList<SupportComplaint>(res);
   },
 
-  getIncidents(): Promise<SupportIncident[]> {
-    return apiClient.get<SupportIncident[]>(
+  async getIncidents(): Promise<SupportIncident[]> {
+    const res = await apiClient.get<ListResponse<SupportIncident>>(
       "/support/incidents/",
     );
+    return normalizeList<SupportIncident>(res);
   },
 
   createWorkOrder(

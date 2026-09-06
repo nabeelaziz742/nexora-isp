@@ -150,27 +150,27 @@ export default function CustomersPage() {
   }, [customers]);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-400">
             Operations & Subscribers
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight text-white sm:text-2xl">
             Customer Management
           </h1>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
             Manage subscriber profiles, service account connections, and network provisioning.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => void loadCustomers()}
             disabled={loading}
-            className="flex h-9 items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-white disabled:opacity-50"
+            className="flex h-8.5 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-white disabled:opacity-50"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -178,9 +178,9 @@ export default function CustomersPage() {
 
           <Link
             href="/customers/new"
-            className="flex h-9 items-center gap-2 bg-blue-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
+            className="flex h-8.5 items-center gap-1.5 rounded-md bg-blue-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
             Add Customer
           </Link>
         </div>
@@ -232,7 +232,7 @@ export default function CustomersPage() {
         </div>
 
         {/* Filter Toggle & Clear */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasActiveFilters && (
             <button
               type="button"

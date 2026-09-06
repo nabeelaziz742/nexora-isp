@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 import { InventoryItem, PaginatedResult } from "@/services/inventory.service";
 
 export type PosSalePaymentMethod =
@@ -77,12 +77,13 @@ export type CreatePosSalePayload = {
 };
 
 export const posService = {
-  getCatalog(params?: { category?: string; search?: string }): Promise<InventoryItem[]> {
+  async getCatalog(params?: { category?: string; search?: string }): Promise<InventoryItem[]> {
     const query = new URLSearchParams();
     if (params?.category) query.set("category", params.category);
     if (params?.search) query.set("search", params.search);
     const qs = query.toString();
-    return apiClient.get<InventoryItem[]>(`/pos/catalog/${qs ? `?${qs}` : ""}`);
+    const res = await apiClient.get<ListResponse<InventoryItem>>(`/pos/catalog/${qs ? `?${qs}` : ""}`);
+    return normalizeList<InventoryItem>(res);
   },
 
   getSales(params?: {

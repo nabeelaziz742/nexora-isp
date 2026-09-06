@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type AllocationPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
 
@@ -143,7 +143,7 @@ function buildQuery(params?: Record<string, string | undefined>) {
 }
 
 export const recoveryService = {
-  getDefaulters(params?: {
+  async getDefaulters(params?: {
     search?: string;
     city?: string;
     area?: string;
@@ -151,12 +151,13 @@ export const recoveryService = {
     min_amount?: string;
     has_active_allocation?: string;
   }): Promise<DefaulterItem[]> {
-    return apiClient.get<DefaulterItem[]>(
+    const res = await apiClient.get<ListResponse<DefaulterItem>>(
       `/billing/defaulters/${buildQuery(params)}`,
     );
+    return normalizeList<DefaulterItem>(res);
   },
 
-  getAllocations(params?: {
+  async getAllocations(params?: {
     status?: string;
     operator_id?: string;
     customer_id?: string;
@@ -164,9 +165,10 @@ export const recoveryService = {
     area?: string;
     search?: string;
   }): Promise<RecoveryAllocationItem[]> {
-    return apiClient.get<RecoveryAllocationItem[]>(
+    const res = await apiClient.get<ListResponse<RecoveryAllocationItem>>(
       `/billing/allocations/${buildQuery(params)}`,
     );
+    return normalizeList<RecoveryAllocationItem>(res);
   },
 
   getAllocation(allocationId: string): Promise<RecoveryAllocationItem> {

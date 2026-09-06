@@ -194,7 +194,7 @@ export default function CommunicationTemplatesPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
@@ -214,7 +214,7 @@ export default function CommunicationTemplatesPage() {
 
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
 
           <button className="flex items-center gap-2 border border-[#202938] bg-[#0D1117] px-4 py-2 text-sm text-white hover:border-blue-500">
 
@@ -488,7 +488,7 @@ export default function CommunicationTemplatesPage() {
 
                   <td className="px-5 py-4">
 
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
 
                       <button
                         onClick={() => handlePreview(template.id)}

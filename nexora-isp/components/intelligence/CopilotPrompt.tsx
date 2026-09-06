@@ -127,7 +127,7 @@ export default function CopilotPrompt({
             />
 
             <div className="flex items-center justify-between border-t border-[#202938] px-3 py-3">
-              <div className="flex items-center gap-2 text-[11px] text-slate-600">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
                 <Command className="h-3.5 w-3.5" />
                 Operational context aware
               </div>

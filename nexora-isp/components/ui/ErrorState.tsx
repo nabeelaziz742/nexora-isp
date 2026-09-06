@@ -39,7 +39,7 @@ export default function ErrorState({
         className={`flex items-center justify-between gap-3 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-400 ${className}`}
         role="alert"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
           <Icon className="h-4 w-4 shrink-0 text-red-400" />
           <span className="truncate">{message}</span>
         </div>

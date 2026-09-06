@@ -557,7 +557,7 @@ export default function FieldOperationsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-blue-400">
@@ -1107,7 +1107,7 @@ export default function FieldOperationsPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[#202938] pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#202938] pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}

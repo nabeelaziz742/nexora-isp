@@ -342,14 +342,12 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="space-y-6">
-          <Skeleton className="h-6 w-36" />
-          <Skeleton className="h-20 w-full" />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <Skeleton className="h-80 w-full lg:col-span-2" />
-            <Skeleton className="h-80 w-full" />
-          </div>
+      <div className="space-y-6">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-20 w-full" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Skeleton className="h-80 w-full lg:col-span-2" />
+          <Skeleton className="h-80 w-full" />
         </div>
       </div>
     );
@@ -357,7 +355,7 @@ export default function CustomerDetailPage() {
 
   if (error || !customer) {
     return (
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="space-y-6">
         <Link
           href="/customers"
           className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-white"
@@ -365,7 +363,7 @@ export default function CustomerDetailPage() {
           <ArrowLeft className="size-3.5" />
           Back to Customers
         </Link>
-        <div className="mt-6">
+        <div className="mt-2">
           <ErrorState
             title="Unable to Open Subscriber Profile"
             message={error || "Customer record does not exist or access was denied."}
@@ -380,7 +378,7 @@ export default function CustomerDetailPage() {
   const statusCfg = primaryService ? serviceStatusStyles[primaryService.status] : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <Link
         href="/customers"
@@ -1235,7 +1233,7 @@ export default function CustomerDetailPage() {
               This creates a backend provisioning request and marks the service status as Suspension Pending.
             </p>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsSuspendModalOpen(false)}
@@ -1270,7 +1268,7 @@ export default function CustomerDetailPage() {
               This creates a backend restore provisioning request and marks the status as Restore Pending.
             </p>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsRestoreModalOpen(false)}
@@ -1336,7 +1334,7 @@ export default function CustomerDetailPage() {
               ))}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-[var(--border)] pt-4">
+            <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[var(--border)] pt-4">
               <button
                 type="button"
                 onClick={() => setIsChangePackageModalOpen(false)}
@@ -1407,7 +1405,7 @@ export default function CustomerDetailPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-[var(--border)] pt-4">
+            <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[var(--border)] pt-4">
               <button
                 type="button"
                 onClick={() => setIsAssignDeviceModalOpen(false)}
@@ -1467,7 +1465,7 @@ export default function CustomerDetailPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-[var(--border)] pt-4">
+            <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[var(--border)] pt-4">
               <button
                 type="button"
                 onClick={() => setIsReturnDeviceModalOpen(null)}
@@ -1642,7 +1640,7 @@ export default function CustomerDetailPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsCollectPaymentOpen(false)}
@@ -1906,7 +1904,7 @@ function EditCustomerModal({
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-[var(--border)] pt-4">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--border)] pt-4">
             <button
               type="button"
               onClick={onClose}

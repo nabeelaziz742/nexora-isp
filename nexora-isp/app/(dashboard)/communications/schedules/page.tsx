@@ -60,7 +60,7 @@ export default function CommunicationSchedulesPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.20em] text-green-400">
@@ -213,7 +213,7 @@ export default function CommunicationSchedulesPage() {
                     </td>
 
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         <button className="rounded-md border border-[#202938] bg-[#111827] p-2 hover:border-green-500">
                           <Power className="h-4 w-4 text-green-400" />
                         </button>

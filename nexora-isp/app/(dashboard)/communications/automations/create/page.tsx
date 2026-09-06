@@ -120,9 +120,9 @@ export default function CreateAutomationPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
 
@@ -383,7 +383,7 @@ export default function CreateAutomationPage() {
 
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-[#202938] px-6 py-4">
+        <div className="flex flex-wrap justify-end gap-3 border-t border-[#202938] px-6 py-4">
 
           <Link
             href="/communications/automations"

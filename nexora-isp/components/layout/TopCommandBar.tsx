@@ -348,16 +348,17 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#202938] bg-[#0D1117] px-4 lg:px-6">
-        {/* Left side: Mobile menu toggle + Breadcrumbs */}
-        <div className="flex min-w-0 items-center gap-3">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[#202938] bg-[#0D1117] px-3.5 lg:px-5">
+        {/* Left side: Menu toggle + Breadcrumbs */}
+        <div className="flex flex-wrap min-w-0 items-center gap-2.5">
           <button
             type="button"
             onClick={onMenuClick}
-            aria-label="Toggle navigation menu"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-[#121821] hover:text-slate-100 lg:hidden"
+            aria-label="Toggle navigation sidebar"
+            title="Toggle sidebar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-[#121821] hover:text-slate-100"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </button>
 
           {/* Dynamic Breadcrumbs */}
@@ -412,7 +413,7 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
         </div>
 
         {/* Right side: Notifications + Search on mobile + User Profile */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Mobile search button */}
           <button
             type="button"
@@ -475,7 +476,7 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
                   <p className="text-[11px] text-slate-500 truncate mt-0.5">
                     {user?.email}
                   </p>
-                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-emerald-400">
                     <ShieldCheck className="h-3 w-3 shrink-0" />
                     <span>Verified Tenant Session</span>
                   </div>

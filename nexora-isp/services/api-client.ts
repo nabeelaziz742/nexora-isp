@@ -191,6 +191,29 @@ export async function apiRequest<T>(
   return payload as T;
 }
 
+export interface PaginatedResponse<T> {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results: T[];
+}
+
+export type ListResponse<T> = T[] | PaginatedResponse<T>;
+
+export function normalizeList<T>(data: unknown): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data as T[];
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "results" in data &&
+    Array.isArray((data as { results: unknown }).results)
+  ) {
+    return (data as { results: T[] }).results;
+  }
+  return [];
+}
+
 export const apiClient = {
   get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     return apiRequest<T>(path, { ...options, method: "GET" });
@@ -208,3 +231,4 @@ export const apiClient = {
     return apiRequest<T>(path, { ...options, method: "DELETE" });
   },
 };
+

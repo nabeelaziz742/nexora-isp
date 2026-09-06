@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 import type {
   AutomatedRunResult,
   OverdueEligibilityItem,
@@ -12,13 +12,15 @@ export const suspensionService = {
     return apiRequest<SuspensionDashboardMetrics>("/customers/suspensions/dashboard/");
   },
 
-  getOverdueEligibility(): Promise<OverdueEligibilityItem[]> {
-    return apiRequest<OverdueEligibilityItem[]>("/customers/suspensions/eligibility/");
+  async getOverdueEligibility(): Promise<OverdueEligibilityItem[]> {
+    const res = await apiRequest<ListResponse<OverdueEligibilityItem>>("/customers/suspensions/eligibility/");
+    return normalizeList<OverdueEligibilityItem>(res);
   },
 
-  getSuspensionHistory(serviceId?: string): Promise<ServiceSuspensionLog[]> {
+  async getSuspensionHistory(serviceId?: string): Promise<ServiceSuspensionLog[]> {
     const query = serviceId ? `?service_id=${serviceId}` : "";
-    return apiRequest<ServiceSuspensionLog[]>(`/customers/suspensions/history/${query}`);
+    const res = await apiRequest<ListResponse<ServiceSuspensionLog>>(`/customers/suspensions/history/${query}`);
+    return normalizeList<ServiceSuspensionLog>(res);
   },
 
   getPolicy(): Promise<SuspensionPolicy> {

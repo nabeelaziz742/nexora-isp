@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type CustomerServiceStatus =
   | "ACTIVE"
@@ -212,10 +212,10 @@ function buildQueryString(params?: Record<string, string | boolean | undefined>)
 
 export const customersService = {
   async getCustomers(params?: GetCustomersParams): Promise<CustomerListItem[]> {
-    const res = await apiRequest<any>(
+    const res = await apiRequest<ListResponse<CustomerListItem>>(
       `/customers/${buildQueryString(params as Record<string, string | boolean | undefined>)}`
     );
-    return Array.isArray(res) ? res : (res?.results ?? []);
+    return normalizeList<CustomerListItem>(res);
   },
 
   getCustomer(customerId: string): Promise<CustomerDetail> {
@@ -239,10 +239,10 @@ export const customersService = {
   },
 
   async getInternetPackages(params?: GetPackagesParams): Promise<InternetPackage[]> {
-    const res = await apiRequest<any>(
+    const res = await apiRequest<ListResponse<InternetPackage>>(
       `/customers/packages/${buildQueryString(params as Record<string, string | undefined>)}`
     );
-    return Array.isArray(res) ? res : (res?.results ?? []);
+    return normalizeList<InternetPackage>(res);
   },
 
   getInternetPackage(packageId: string): Promise<InternetPackage> {

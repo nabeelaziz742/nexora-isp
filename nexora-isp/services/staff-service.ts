@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type BaseStaffRole = "OWNER" | "STAFF" | "TECHNICIAN";
 
@@ -139,16 +139,17 @@ function buildQuery(params?: Record<string, string | undefined>) {
 }
 
 export const staffService = {
-  getStaff(params?: {
+  async getStaff(params?: {
     role?: string;
     status?: string;
     department?: string;
     area_id?: string;
     search?: string;
   }): Promise<OrganizationStaff[]> {
-    return apiClient.get<OrganizationStaff[]>(
+    const res = await apiClient.get<ListResponse<OrganizationStaff>>(
       `/tenant/staff/${buildQuery(params)}`,
     );
+    return normalizeList<OrganizationStaff>(res);
   },
 
   getStaffMember(membershipId: string): Promise<OrganizationStaff> {
@@ -193,13 +194,14 @@ export const staffService = {
     );
   },
 
-  getOperators(params?: {
+  async getOperators(params?: {
     area_id?: string;
     search?: string;
   }): Promise<OperatorListItem[]> {
-    return apiClient.get<OperatorListItem[]>(
+    const res = await apiClient.get<ListResponse<OperatorListItem>>(
       `/tenant/operators/${buildQuery(params)}`,
     );
+    return normalizeList<OperatorListItem>(res);
   },
 
   getOperatorWorkload(userId: string): Promise<OperatorWorkloadDetail> {

@@ -160,7 +160,7 @@ export default function EditAutomationPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="w-full">
 
         <div className="animate-pulse rounded-lg border border-[#202938] bg-[#0D1117] p-10">
 
@@ -184,7 +184,7 @@ export default function EditAutomationPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
 
       <div>
 
@@ -426,7 +426,7 @@ export default function EditAutomationPage() {
 
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-[#202938] px-6 py-4">
+        <div className="flex flex-wrap justify-end gap-3 border-t border-[#202938] px-6 py-4">
 
           <Link
             href="/communications/automations"

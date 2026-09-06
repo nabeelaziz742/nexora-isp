@@ -23,11 +23,24 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const [sessionReady, setSessionReady] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Initialize collapsed preference from localStorage
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("nexora_sidebar_collapsed");
+      if (stored !== null) {
+        setSidebarCollapsed(stored === "true");
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   // Close mobile sidebar on route change
   useEffect(() => {
-    setSidebarOpen(false);
+    setSidebarMobileOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -66,6 +79,34 @@ export default function DashboardLayout({
     };
   }, [router]);
 
+  const handleToggleSidebar = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setSidebarMobileOpen((prev) => !prev);
+    } else {
+      setSidebarCollapsed((prev) => {
+        const next = !prev;
+        try {
+          window.localStorage.setItem("nexora_sidebar_collapsed", String(next));
+        } catch {
+          // Ignore
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("nexora_sidebar_collapsed", String(next));
+      } catch {
+        // Ignore
+      }
+      return next;
+    });
+  };
+
   if (!sessionReady) {
     return (
       <PageLoader
@@ -80,18 +121,22 @@ export default function DashboardLayout({
     <div className="flex h-screen overflow-hidden bg-[var(--background)]">
       {/* Navigation Sidebar */}
       <AppSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        isOpen={sidebarMobileOpen}
+        onClose={() => setSidebarMobileOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       />
 
       {/* Main Workspace Area */}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopCommandBar
-          onMenuClick={() => setSidebarOpen((prev) => !prev)}
+          onMenuClick={handleToggleSidebar}
         />
 
-        <main className="nexora-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#070A0F]">
-          {children}
+        <main className="nexora-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#070A0F] p-5">
+          <div className="mx-auto w-full max-w-[1600px] min-w-0">
+            {children}
+          </div>
         </main>
       </div>
     </div>

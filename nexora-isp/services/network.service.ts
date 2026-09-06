@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 import type {
   NetworkAssignment,
@@ -59,7 +59,7 @@ function buildQueryString(
 }
 
 export const networkService = {
-  getNodes(
+  async getNodes(
     params: GetNetworkNodesParams = {},
   ): Promise<NetworkNode[]> {
     const queryString = buildQueryString({
@@ -68,9 +68,10 @@ export const networkService = {
       search: params.search,
     });
 
-    return apiRequest<NetworkNode[]>(
+    const res = await apiRequest<ListResponse<NetworkNode>>(
       `/network/nodes/${queryString}`,
     );
+    return normalizeList<NetworkNode>(res);
   },
 
   getNode(nodeId: string): Promise<NetworkNode> {
@@ -79,7 +80,7 @@ export const networkService = {
     );
   },
 
-  getAssignments(
+  async getAssignments(
     params: GetNetworkAssignmentsParams = {},
   ): Promise<NetworkAssignment[]> {
     const queryString = buildQueryString({
@@ -88,12 +89,13 @@ export const networkService = {
       search: params.search,
     });
 
-    return apiRequest<NetworkAssignment[]>(
+    const res = await apiRequest<ListResponse<NetworkAssignment>>(
       `/network/assignments/${queryString}`,
     );
+    return normalizeList<NetworkAssignment>(res);
   },
 
-  getProvisioningRequests(
+  async getProvisioningRequests(
     params: GetProvisioningRequestsParams = {},
   ): Promise<ProvisioningRequest[]> {
     const queryString = buildQueryString({
@@ -102,9 +104,10 @@ export const networkService = {
       search: params.search,
     });
 
-    return apiRequest<ProvisioningRequest[]>(
+    const res = await apiRequest<ListResponse<ProvisioningRequest>>(
       `/network/provisioning-requests/${queryString}`,
     );
+    return normalizeList<ProvisioningRequest>(res);
   },
 
   requestSuspension(
@@ -144,7 +147,7 @@ export const networkService = {
     );
   },
 
-  getPops(
+  async getPops(
     params: {
       pop_type?: string;
       status?: string;
@@ -159,9 +162,10 @@ export const networkService = {
       search: params.search,
     });
 
-    return apiRequest<PointOfPresence[]>(
+    const res = await apiRequest<ListResponse<PointOfPresence>>(
       `/network/pops/${queryString}`,
     );
+    return normalizeList<PointOfPresence>(res);
   },
 
   getPop(popId: string): Promise<PointOfPresence> {

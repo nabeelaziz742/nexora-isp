@@ -278,17 +278,17 @@ export default function AccountingWorkspacePage() {
   return (
     <div className="space-y-6 pb-16">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Accounting & Financial Ledger
             </h1>
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
               Double-Entry GL
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-400">
             Enterprise Chart of Accounts, General Ledger, Cash/Bank management, and financial integrity controls.
           </p>
         </div>
@@ -296,31 +296,31 @@ export default function AccountingWorkspacePage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowExpenseModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition shadow-sm"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition shadow-xs"
           >
-            <TrendingDown className="h-4 w-4" />
+            <TrendingDown className="h-3.5 w-3.5" />
             Record Expense
           </button>
           <button
             onClick={() => setShowIncomeModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition shadow-xs"
           >
-            <TrendingUp className="h-4 w-4" />
+            <TrendingUp className="h-3.5 w-3.5" />
             Direct Income
           </button>
           <button
             onClick={() => setShowTransferModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition shadow-sm"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition shadow-xs"
           >
-            <ArrowRightLeft className="h-4 w-4" />
+            <ArrowRightLeft className="h-3.5 w-3.5" />
             Transfer Funds
           </button>
           <button
             onClick={() => setShowNewJournalModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500 transition"
           >
-            <Plus className="h-4 w-4" />
-            New Journal Entry
+            <Plus className="h-3.5 w-3.5" />
+            New Journal
           </button>
           <button
             onClick={loadBaseData}
@@ -784,7 +784,7 @@ export default function AccountingWorkspacePage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
                           <button
                             onClick={() => setSelectedJournalDetail(entry)}
                             className="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -1074,7 +1074,7 @@ export default function AccountingWorkspacePage() {
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
               <Building2 className="h-4 w-4 text-indigo-400" /> Dealer Commission Accruals & Payout Settlements
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setShowAccrualModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition"
@@ -1484,7 +1484,7 @@ export default function AccountingWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex flex-wrap justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowExpenseModal(false)}
@@ -1627,7 +1627,7 @@ export default function AccountingWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex flex-wrap justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowIncomeModal(false)}
@@ -1758,7 +1758,7 @@ export default function AccountingWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex flex-wrap justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowTransferModal(false)}
@@ -2031,7 +2031,7 @@ function NewJournalEntryModal({
             })()}
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}

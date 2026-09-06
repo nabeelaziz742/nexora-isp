@@ -77,7 +77,7 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
                 >
                   {/* Customer Info */}
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <div>
                         <Link
                           href={`/customers/${customer.id}`}
@@ -171,7 +171,7 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
 
           return (
             <div key={customer.id} className="p-4 transition-colors hover:bg-white/[0.02]">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <Link
                     href={`/customers/${customer.id}`}

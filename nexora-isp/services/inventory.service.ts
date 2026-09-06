@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type InventoryDeviceStatus =
   | "AVAILABLE"
@@ -113,12 +113,14 @@ export type PaginatedResult<T> = {
 
 export const inventoryService = {
   // Serialized Devices
-  getDevices(): Promise<InventoryDevice[]> {
-    return apiClient.get<InventoryDevice[]>("/inventory/devices/");
+  async getDevices(): Promise<InventoryDevice[]> {
+    const res = await apiClient.get<ListResponse<InventoryDevice>>("/inventory/devices/");
+    return normalizeList<InventoryDevice>(res);
   },
 
-  getAssignments(): Promise<DeviceAssignment[]> {
-    return apiClient.get<DeviceAssignment[]>("/inventory/assignments/");
+  async getAssignments(): Promise<DeviceAssignment[]> {
+    const res = await apiClient.get<ListResponse<DeviceAssignment>>("/inventory/assignments/");
+    return normalizeList<DeviceAssignment>(res);
   },
 
   assignDevice(

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type DealerStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "TERMINATED";
 export type CommissionType = "PERCENTAGE" | "FLAT_PER_SUBSCRIBER";
@@ -82,7 +82,7 @@ export interface Dealer360Data {
 }
 
 export const dealersService = {
-  getDealers(params?: { status?: string; city?: string; area?: string; search?: string }) {
+  async getDealers(params?: { status?: string; city?: string; area?: string; search?: string }): Promise<DealerItem[]> {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
     if (params?.city) query.set("city", params.city);
@@ -90,7 +90,8 @@ export const dealersService = {
     if (params?.search) query.set("search", params.search);
 
     const qs = query.toString();
-    return apiRequest<DealerItem[]>(`/customers/dealers/${qs ? `?${qs}` : ""}`);
+    const res = await apiRequest<ListResponse<DealerItem>>(`/customers/dealers/${qs ? `?${qs}` : ""}`);
+    return normalizeList<DealerItem>(res);
   },
 
   getDealer(id: string) {

@@ -189,7 +189,7 @@ export default function NetworkPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="w-full">
         <div className="flex min-h-[420px] items-center justify-center border border-[#202938] bg-[#0D1117]">
           <p className="text-xs text-[#64748B]">
             Loading network operations...
@@ -200,8 +200,8 @@ export default function NetworkPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-[#F8FAFC]">
             Network Operations Center

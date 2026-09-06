@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiClient, normalizeList, type ListResponse } from "@/services/api-client";
 import { Account } from "@/services/accounting.service";
 
 export type ExpenseRecord = {
@@ -34,19 +34,21 @@ export type CreateExpensePayload = {
 };
 
 export const expensesService = {
-  getExpenses(params?: { category?: string; search?: string }): Promise<ExpenseRecord[]> {
+  async getExpenses(params?: { category?: string; search?: string }): Promise<ExpenseRecord[]> {
     const query = new URLSearchParams();
     if (params?.category) query.set("category", params.category);
     if (params?.search) query.set("search", params.search);
     const qs = query.toString();
-    return apiClient.get<ExpenseRecord[]>(`/accounting/expenses/${qs ? `?${qs}` : ""}`);
+    const res = await apiClient.get<ListResponse<ExpenseRecord>>(`/accounting/expenses/${qs ? `?${qs}` : ""}`);
+    return normalizeList<ExpenseRecord>(res);
   },
 
   createExpense(payload: CreateExpensePayload): Promise<ExpenseRecord> {
     return apiClient.post<ExpenseRecord>("/accounting/expenses/", payload);
   },
 
-  getAccounts(): Promise<Account[]> {
-    return apiClient.get<Account[]>("/accounting/accounts/");
+  async getAccounts(): Promise<Account[]> {
+    const res = await apiClient.get<ListResponse<Account>>("/accounting/accounts/");
+    return normalizeList<Account>(res);
   },
 };

@@ -111,8 +111,8 @@ export default function CommandCenterPage() {
     : [];
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-8 py-7">
-      <div className="flex items-end justify-between gap-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-400">
             Command

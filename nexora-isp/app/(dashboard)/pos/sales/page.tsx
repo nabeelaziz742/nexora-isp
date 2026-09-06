@@ -111,7 +111,7 @@ export default function PosSalesRegisterPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/pos"
               className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-200 transition mr-2"
@@ -129,7 +129,7 @@ export default function PosSalesRegisterPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => loadSales(false)}
             disabled={refreshing}
@@ -158,7 +158,7 @@ export default function PosSalesRegisterPage() {
               : "border-rose-500/30 bg-rose-950/40 text-rose-300"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {notification.type === "success" ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <AlertCircle className="h-5 w-5 text-rose-400" />}
             <span className="text-sm font-medium">{notification.message}</span>
           </div>
@@ -323,7 +323,7 @@ export default function PosSalesRegisterPage() {
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
                         <button
                           onClick={() => setSelectedReceiptSale(sale)}
                           className="inline-flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:bg-slate-700 border border-slate-700"
@@ -476,7 +476,7 @@ export default function PosSalesRegisterPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <RotateCcw className="h-5 w-5 text-rose-400" />
                 <h3 className="text-base font-semibold text-slate-100">
                   Void POS Sale #{cancelModalSale.sale_number}
@@ -508,7 +508,7 @@ export default function PosSalesRegisterPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-800 pt-4">
+              <div className="flex flex-wrap justify-end gap-3 border-t border-slate-800 pt-4">
                 <button
                   type="button"
                   onClick={() => setCancelModalSale(null)}
