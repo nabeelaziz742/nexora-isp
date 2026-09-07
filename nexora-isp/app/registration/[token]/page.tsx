@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   Check,
   CheckCircle2,
@@ -19,12 +20,9 @@ import {
   type Registration,
 } from "@/services/onboarding.service";
 
-export default function RegistrationStatusPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
-  const { token } = use(params);
+export default function RegistrationStatusPage() {
+  const params = useParams<{ token: string }>();
+  const token = (params?.token as string) || "";
   const [registration, setRegistration] = useState<Registration | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,8 @@ export default function RegistrationStatusPage({
   const [error, setError] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
+    if (!token) return;
     try {
       setRegistration(await getRegistration(token));
     } catch (err) {
@@ -43,11 +42,13 @@ export default function RegistrationStatusPage({
     } finally {
       setLoading(false);
     }
-  }
+  }, [token]);
 
   useEffect(() => {
-    void load();
-  }, [token]);
+    if (token) {
+      void load();
+    }
+  }, [token, load]);
 
   async function handleCopy(text: string, key: string) {
     if (!text) return;
@@ -119,7 +120,7 @@ export default function RegistrationStatusPage({
   const iban = payment?.iban || "";
   const instructions =
     payment?.instructions ||
-    "Please deposit the ISP registration setup fee to the designated account and upload your payment receipt.";
+    "Please transfer the agreed amount using the bank details below and upload your payment receipt.";
 
   return (
     <main className="min-h-screen bg-[#070A0F] px-4 py-12 text-white sm:px-6">
@@ -186,11 +187,7 @@ export default function RegistrationStatusPage({
                 </h2>
               </div>
               <p className="text-sm text-slate-300">
-                Please transfer the setup fee of{" "}
-                <span className="font-semibold text-white">
-                  Rs. {registration.amount_due || "5,000.00"}
-                </span>{" "}
-                using the bank details below:
+                Please transfer the agreed amount using the bank details below and upload your payment receipt.
               </p>
 
               <div className="mt-4 space-y-3 rounded-lg border border-[#263142] bg-[#0D1117] p-4 text-sm">
@@ -298,11 +295,13 @@ export default function RegistrationStatusPage({
                   </div>
                 )}
 
-                {instructions && (
-                  <p className="pt-1 text-xs leading-relaxed text-slate-400">
-                    {instructions}
-                  </p>
-                )}
+                {instructions &&
+                  instructions !==
+                    "Please transfer the agreed amount using the bank details below and upload your payment receipt." && (
+                    <p className="pt-1 text-xs leading-relaxed text-slate-400">
+                      {instructions}
+                    </p>
+                  )}
               </div>
             </div>
 

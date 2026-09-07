@@ -328,5 +328,54 @@ class ISPOnboardingFlowTests(TestCase):
         self.assertIn("access", refresh_res.json())
         self.assertIn("refresh", refresh_res.json())
 
+    def test_registration_with_custom_agreed_amount(self):
+        response = self.client.post(
+            reverse("isp-register"),
+            {
+                "company_name": "Negotiated Fiber",
+                "city": "Islamabad",
+                "first_name": "Hamza",
+                "last_name": "Tariq",
+                "email": "hamza@example.com",
+                "password": "StrongPassword!123",
+                "amount_due": "25000.00",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(float(data["amount_due"]), 25000.00)
+
+        registration = ISPRegistration.objects.get(id=data["registration_id"])
+        self.assertEqual(float(registration.amount_due), 25000.00)
+
+        # SuperAdmin list reflects the per-client agreed amount
+        admin = User.objects.create_superuser(
+            username="admin_check@example.com",
+            email="admin_check@example.com",
+            password="AdminPassword!123",
+        )
+        self.client.force_authenticate(admin)
+        super_res = self.client.get(reverse("superadmin-registrations"))
+        self.assertEqual(super_res.status_code, 200)
+        reg_entry = next((r for r in super_res.json() if r["id"] == str(registration.id)), None)
+        self.assertIsNotNone(reg_entry)
+        self.assertEqual(float(reg_entry["amount_due"]), 25000.00)
+
+    def test_default_payment_settings_instructions_have_no_fixed_fee_text(self):
+        PaymentSettings.objects.all().delete()
+        admin = User.objects.create_superuser(
+            username="admin_inst@example.com",
+            email="admin_inst@example.com",
+            password="AdminPassword!123",
+        )
+        self.client.force_authenticate(admin)
+        response = self.client.get(reverse("superadmin-payment-settings"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertNotIn("setup fee of", data["instructions"].lower())
+        self.assertIn("agreed amount", data["instructions"].lower())
+
+
 
 

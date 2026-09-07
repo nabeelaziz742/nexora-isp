@@ -33,7 +33,7 @@ def get_or_create_payment_settings():
             account_number="17877900894403",
             iban="",
             amount=5000.00,
-            instructions="Please deposit the ISP registration setup fee to the designated account and upload your payment receipt.",
+            instructions="Please transfer the agreed amount using the bank details below and upload your payment receipt.",
             is_active=True,
         )
     return settings
@@ -70,10 +70,14 @@ def create_registration(*, validated_data):
         is_active=False,
     )
 
+    amount_due = validated_data.get("amount_due")
+    if amount_due is None:
+        amount_due = settings.amount
+
     registration = ISPRegistration.objects.create(
         organization=organization,
         owner=owner,
-        amount_due=settings.amount,
+        amount_due=amount_due,
         status=ISPRegistration.Status.PENDING_PAYMENT,
     )
 

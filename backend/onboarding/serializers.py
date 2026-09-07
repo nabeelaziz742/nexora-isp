@@ -15,6 +15,7 @@ class ISPRegistrationSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
+    amount_due = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
