@@ -393,8 +393,8 @@ class WhatsAppWebhookAPIView(APIView):
 
     def get(self, request):
         if request.GET.get("hub.mode") == "subscribe" and request.GET.get("hub.verify_token") == settings.WHATSAPP_VERIFY_TOKEN:
-            return HttpResponse(request.GET.get("hub.challenge"), status=200)
-        return HttpResponse("Verification failed.", status=403)
+            return HttpResponse(request.GET.get("hub.challenge"), content_type="text/plain", status=200)
+        return HttpResponse("Verification failed.", content_type="text/plain", status=403)
 
     @staticmethod
     def _valid_signature(request):
