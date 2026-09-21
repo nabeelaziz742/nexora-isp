@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from datetime import timedelta
 from pathlib import Path
 
@@ -30,7 +31,7 @@ INSTALLED_APPS = [
     "corsheaders", "rest_framework", "rest_framework_simplejwt.token_blacklist",
     "accounts", "tenancy", "onboarding", "customers", "network",
     "inventory", "billing", "accounting", "support", "field_operations", "notifications",
-    "command_center", "revenue_intelligence", "reports", "communications",
+    "command_center", "revenue_intelligence", "reports", "communications", "hr",
 ]
 
 MIDDLEWARE = [
@@ -55,11 +56,34 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {"default": {
-    "ENGINE": "django.db.backends.postgresql",
-    "NAME": os.environ["DB_NAME"], "USER": os.environ["DB_USER"], "PASSWORD": os.environ["DB_PASSWORD"],
-    "HOST": os.getenv("DB_HOST", "127.0.0.1"), "PORT": os.getenv("DB_PORT", "5432"),
-}}
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    parsed_db_url = urllib.parse.urlparse(DATABASE_URL)
+    db_config = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": urllib.parse.unquote(parsed_db_url.path.lstrip("/")) if parsed_db_url.path else "",
+        "USER": urllib.parse.unquote(parsed_db_url.username) if parsed_db_url.username else "",
+        "PASSWORD": urllib.parse.unquote(parsed_db_url.password) if parsed_db_url.password else "",
+        "HOST": parsed_db_url.hostname or "",
+        "PORT": str(parsed_db_url.port) if parsed_db_url.port else "5432",
+    }
+    if parsed_db_url.query:
+        query_params = urllib.parse.parse_qs(parsed_db_url.query)
+        options = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
+        if options:
+            db_config["OPTIONS"] = options
+    DATABASES = {"default": db_config}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", ""),
+            "USER": os.environ.get("DB_USER", ""),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
 
 WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
