@@ -31,7 +31,7 @@ INSTALLED_APPS = [
     "corsheaders", "rest_framework", "rest_framework_simplejwt.token_blacklist",
     "accounts", "tenancy", "onboarding", "customers", "network",
     "inventory", "billing", "accounting", "support", "field_operations", "notifications",
-    "command_center", "revenue_intelligence", "reports", "communications", "hr",
+    "command_center", "revenue_intelligence", "reports", "communications",
 ]
 
 MIDDLEWARE = [
