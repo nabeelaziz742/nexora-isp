@@ -2,6 +2,6 @@
   "$schema": "https://schema.railpack.com",
   "provider": "python",
   "deploy": {
-    "startCommand": "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8080}"
+    "startCommand": "cd backend && echo \"NEXORA_RUNTIME_START\" && python -u -c \"import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); import config.wsgi; print('NEXORA_WSGI_OK', flush=True)\" && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8080} --access-logfile - --error-logfile - --log-level debug"
   }
 }
