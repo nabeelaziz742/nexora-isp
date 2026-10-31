@@ -141,7 +141,7 @@ This **Final Production Readiness Audit** assesses the technical, architectural,
 
 - **Target Objectives:** RPO $\le 1\text{ hour}$, RTO $\le 30\text{ minutes}$.
 - **Automation Runner:** `backend/scripts/backup_db.py` creates compressed PostgreSQL dumps (`.sql.gz`).
-- **Disaster Recovery Procedures:** Documented in [BACKUP_DISASTER_RECOVERY.md](file:///c:/Users/nabee/Desktop/ISP/BACKUP_DISASTER_RECOVERY.md) including cold-standby restoration commands.
+- **Disaster Recovery Procedures:** Documented in [BACKUP_DISASTER_RECOVERY.md](BACKUP_DISASTER_RECOVERY.md) including cold-standby restoration commands.
 
 ---
 

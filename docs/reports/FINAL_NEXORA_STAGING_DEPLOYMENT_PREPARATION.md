@@ -331,7 +331,7 @@ server {
 
 ## 14. Backup & Disaster Recovery Readiness
 
-- **Runbook Location:** [`BACKUP_DISASTER_RECOVERY.md`](file:///c:/Users/nabee/Desktop/ISP/BACKUP_DISASTER_RECOVERY.md)
+- **Runbook Location:** [`BACKUP_DISASTER_RECOVERY.md`](BACKUP_DISASTER_RECOVERY.md)
 - **Target Metrics:** RPO $\le 1\text{ hour}$, RTO $\le 30\text{ minutes}$.
 - **Automated Runner Script:** `backend/scripts/backup_db.py` creates encrypted/compressed PostgreSQL dumps.
 - **Classification:** **`DOCUMENTED & SCRIPTED`** (Becomes `OPERATIONAL` once cron/systemd timer is enabled on staging VPS).
