@@ -7,7 +7,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from onboarding.models import ISPRegistration, PaymentSettings
-from tenancy.models import Organization, OrganizationMembership
+from tenancy.models import Organization, OrganizationMembership, StaffProfile
+from tenancy.staff_services import get_or_create_staff_profile
 
 
 User = get_user_model()
@@ -122,6 +123,17 @@ def approve_registration(*, registration, admin_user):
         user=registration.owner,
         role=OrganizationMembership.Role.OWNER,
     ).update(is_active=True)
+
+    # Owners need an active StaffProfile so HR attendance and leave work from day one.
+    owner_membership = OrganizationMembership.objects.get(
+        organization=registration.organization,
+        user=registration.owner,
+        role=OrganizationMembership.Role.OWNER,
+    )
+    profile = get_or_create_staff_profile(owner_membership)
+    if profile.status != StaffProfile.Status.ACTIVE:
+        profile.status = StaffProfile.Status.ACTIVE
+        profile.save(update_fields=["status", "updated_at"])
 
     return registration
 

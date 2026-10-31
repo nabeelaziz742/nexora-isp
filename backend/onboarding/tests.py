@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from onboarding.models import ISPRegistration, PaymentSettings
-from tenancy.models import OrganizationMembership
+from tenancy.models import OrganizationMembership, StaffProfile
 
 
 class ISPOnboardingFlowTests(TestCase):
@@ -107,6 +107,11 @@ class ISPOnboardingFlowTests(TestCase):
         self.assertTrue(registration.organization.is_active)
         self.assertTrue(membership.is_active)
 
+        profile = StaffProfile.objects.get(membership=membership)
+        self.assertEqual(profile.role, StaffProfile.Role.OWNER)
+        self.assertEqual(profile.status, StaffProfile.Status.ACTIVE)
+        self.assertEqual(profile.staff_code, f"{registration.organization.code}-STF-0001")
+
         self.client.force_authenticate(user=None)
         login = self.client.post(
             reverse("tenant-login"),
@@ -115,6 +120,11 @@ class ISPOnboardingFlowTests(TestCase):
         )
         self.assertEqual(login.status_code, 200)
         self.assertIn("access", login.json())
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
+        check_in = self.client.post(reverse("hr-attendance-check-in"), {}, format="json")
+        self.assertEqual(check_in.status_code, 201)
+        self.assertEqual(check_in.json()["staff"]["id"], str(profile.id))
 
     def test_admin_reject_keeps_login_blocked_and_allows_resubmission(self):
         data = self.register()

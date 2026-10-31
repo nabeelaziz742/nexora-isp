@@ -73,6 +73,10 @@ urlpatterns = [
         "api/v1/communications/",
         include("communications.urls"),
     ),
+    path(
+        "api/v1/hr/",
+        include("hr.urls"),
+    ),
 ]
 
 if settings.DEBUG:
