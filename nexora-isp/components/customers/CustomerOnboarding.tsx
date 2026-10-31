@@ -64,6 +64,7 @@ interface OnboardingForm {
   internetPackageId: string;
   networkNodeId: string;
   networkUsername: string;
+  networkPassword: string;
   networkIpAddress: string;
   deviceId: string;
   deviceAssignmentNotes: string;
@@ -85,6 +86,7 @@ const initialForm: OnboardingForm = {
   internetPackageId: "",
   networkNodeId: "",
   networkUsername: "",
+  networkPassword: "",
   networkIpAddress: "",
   deviceId: "",
   deviceAssignmentNotes: "",
@@ -113,6 +115,13 @@ export default function CustomerOnboarding() {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activatedCredentials, setActivatedCredentials] = useState<{
+    customerId: string;
+    customerName: string;
+    serviceNumber: string;
+    username: string;
+    password: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -371,12 +380,28 @@ export default function CustomerOnboarding() {
       payload.device_id = form.deviceId;
     }
 
+    if (form.networkPassword) {
+      payload.network_password = form.networkPassword;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
 
       const result =
         await customersService.activateCustomer(payload);
+
+      // PPPoE credentials are only returned once, so show them before leaving the page.
+      if (result.network_assignment.password) {
+        setActivatedCredentials({
+          customerId: result.customer.id,
+          customerName: result.customer.full_name,
+          serviceNumber: result.service_account.service_number,
+          username: result.network_assignment.username,
+          password: result.network_assignment.password,
+        });
+        return;
+      }
 
       router.push(`/customers/${result.customer.id}`);
     } catch (requestError) {
@@ -402,6 +427,54 @@ export default function CustomerOnboarding() {
         <p className="text-[11px] text-[var(--text-muted)]">
           Loading activation workflow...
         </p>
+      </div>
+    );
+  }
+
+  if (activatedCredentials) {
+    return (
+      <div className="flex min-h-[620px] items-center justify-center border border-[var(--border)] bg-[var(--surface)] p-6">
+        <div className="w-full max-w-md border border-[var(--border)] bg-[var(--background)] p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Service Activated
+          </p>
+
+          <h2 className="mt-2 text-base font-semibold text-white">
+            {activatedCredentials.customerName}
+          </h2>
+
+          <p className="mt-1 font-mono text-[11px] text-[var(--text-muted)]">
+            {activatedCredentials.serviceNumber}
+          </p>
+
+          <div className="mt-5 space-y-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div>
+              <span className={labelClass}>PPPoE Username</span>
+              <p className="font-mono text-[13px] text-white">
+                {activatedCredentials.username}
+              </p>
+            </div>
+
+            <div>
+              <span className={labelClass}>PPPoE Password</span>
+              <p className="font-mono text-[13px] text-white">
+                {activatedCredentials.password}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-3 text-[11px] leading-5 text-[var(--text-secondary)]">
+            Configure these on the customer&apos;s router now. The password is stored encrypted and is not shown again.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => router.push(`/customers/${activatedCredentials.customerId}`)}
+            className="mt-5 flex h-10 w-full items-center justify-center bg-blue-600 text-[12px] font-semibold text-white transition-colors hover:bg-blue-500"
+          >
+            Open Customer Profile
+          </button>
+        </div>
       </div>
     );
   }
@@ -776,23 +849,34 @@ export default function CustomerOnboarding() {
                 }
               />
 
-              <div className="md:col-span-2">
-                <Field
-                  label="Network Username"
-                  placeholder="Optional provisioning username"
-                  value={form.networkUsername}
-                  onChange={(value) =>
-                    updateField(
-                      "networkUsername",
-                      value,
-                    )
-                  }
-                />
-              </div>
+              <Field
+                label="Network Username"
+                placeholder="Defaults to service number on MikroTik nodes"
+                value={form.networkUsername}
+                onChange={(value) =>
+                  updateField(
+                    "networkUsername",
+                    value,
+                  )
+                }
+              />
+
+              <Field
+                label="Network Password"
+                type="password"
+                placeholder="Leave blank to auto-generate"
+                value={form.networkPassword}
+                onChange={(value) =>
+                  updateField(
+                    "networkPassword",
+                    value,
+                  )
+                }
+              />
 
               {networkNodes.length === 0 && (
                 <div className="md:col-span-2">
-                  <EmptyOptionState message="No active network nodes are available." />
+                  <EmptyOptionState message="No active network nodes are available. Add a router, OLT or switch from the Network page first." />
                 </div>
               )}
             </div>

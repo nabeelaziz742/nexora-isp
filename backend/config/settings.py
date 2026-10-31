@@ -92,6 +92,12 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
 WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
 WHATSAPP_API_VERSION = os.getenv("WHATSAPP_API_VERSION", "v25.0")
 
+# Router API logins and PPPoE secrets are encrypted at rest with this key.
+# Falls back to a key derived from SECRET_KEY; set it explicitly in production
+# so rotating SECRET_KEY does not make stored router credentials unreadable.
+NETWORK_CREDENTIALS_KEY = os.getenv("NETWORK_CREDENTIALS_KEY", "")
+MIKROTIK_API_TIMEOUT_SECONDS = float(os.getenv("MIKROTIK_API_TIMEOUT_SECONDS", "10"))
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -168,6 +174,10 @@ CELERY_BEAT_SCHEDULE = {
     "daily-scan-ptp-breaches": {
         "task": "billing.tasks.scan_ptp_breaches_task",
         "schedule": crontab(hour=2, minute=0),
+    },
+    "process-pending-provisioning": {
+        "task": "network.tasks.process_pending_provisioning_task",
+        "schedule": 60.0,
     },
 }
 

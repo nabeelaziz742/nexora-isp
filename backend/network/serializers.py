@@ -61,6 +61,14 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
         source="pop_site.code",
         read_only=True,
     )
+    router_api_password = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        write_only=True,
+    )
+    router_api_password_set = serializers.SerializerMethodField()
 
     class Meta:
         model = NetworkNode
@@ -74,11 +82,21 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
             "pop_site_code",
             "management_ip",
             "location",
+            "provisioning_backend",
+            "router_api_host",
+            "router_api_port",
+            "router_api_username",
+            "router_api_password",
+            "router_api_password_set",
+            "router_api_use_tls",
             "is_active",
             "assignment_count",
             "created_at",
             "updated_at",
         ]
+
+    def get_router_api_password_set(self, obj):
+        return bool(obj.router_api_password_encrypted)
 
 
 class PointOfPresenceDetailSerializer(PointOfPresenceSerializer):

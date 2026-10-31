@@ -13,6 +13,7 @@ from customers.models import (
 from network.models import (
     NetworkAssignment,
     NetworkNode,
+    PointOfPresence,
     ProvisioningRequest,
 )
 from tenancy.models import (
@@ -373,6 +374,257 @@ class NetworkOperationalAPITests(APITestCase):
         self.assertEqual(
             response.data[0]["status"],
             ProvisioningRequest.Status.PENDING,
+        )
+
+
+class NetworkNodeManagementAPITests(APITestCase):
+    def setUp(self):
+        self.organization = Organization.objects.create(
+            name="NEXORA Node ISP",
+            code="NODE-ISP",
+            city="Lahore",
+        )
+        self.other_organization = Organization.objects.create(
+            name="Other Node ISP",
+            code="OTHER-NODE",
+            city="Karachi",
+        )
+
+        self.owner = User.objects.create_user(
+            username="node-owner",
+            email="node-owner@nexora.local",
+            password="StrongTestPassword123!",
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.owner,
+            role=OrganizationMembership.Role.OWNER,
+        )
+
+        self.staff = User.objects.create_user(
+            username="node-staff",
+            email="node-staff@nexora.local",
+            password="StrongTestPassword123!",
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.staff,
+            role=OrganizationMembership.Role.STAFF,
+        )
+
+        self.pop = PointOfPresence.objects.create(
+            organization=self.organization,
+            code="POP-LHR-01",
+            name="Lahore POP",
+        )
+        self.other_pop = PointOfPresence.objects.create(
+            organization=self.other_organization,
+            code="POP-KHI-01",
+            name="Karachi POP",
+        )
+
+        self.authenticate(self.owner)
+
+    def authenticate(self, user):
+        response = self.client.post(
+            reverse("tenant-login"),
+            {
+                "email": user.email,
+                "password": "StrongTestPassword123!",
+                "organization_code": self.organization.code,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {response.data['access']}"
+        )
+
+    def node_payload(self, **overrides):
+        payload = {
+            "name": "Model Town OLT",
+            "code": "olt-mdl-01",
+            "node_type": NetworkNode.NodeType.OLT,
+            "pop_site": str(self.pop.id),
+            "management_ip": "10.30.0.1",
+            "location": "Model Town Block C",
+        }
+        payload.update(overrides)
+        return payload
+
+    def create_node(self, **overrides):
+        return self.client.post(
+            reverse("network-node-list"),
+            self.node_payload(**overrides),
+            format="json",
+        )
+
+    def create_active_service_on(self, node_id):
+        customer = Customer.objects.create(
+            organization=self.organization,
+            customer_number="NODE-CUST-001",
+            first_name="Ali",
+            last_name="Khan",
+            phone="03001112233",
+            address_line="Street 1",
+            city="Lahore",
+        )
+        package = InternetPackage.objects.create(
+            organization=self.organization,
+            name="Fiber 20",
+            code="FIBER-20",
+            download_speed_mbps=20,
+            upload_speed_mbps=10,
+            monthly_price="2500.00",
+        )
+        service = ServiceAccount.objects.create(
+            organization=self.organization,
+            service_number="NODE-SRV-001",
+            customer=customer,
+            internet_package=package,
+            status=ServiceAccount.Status.ACTIVE,
+        )
+        return NetworkAssignment.objects.create(
+            organization=self.organization,
+            service_account=service,
+            network_node_id=node_id,
+            username="ali-fiber",
+        )
+
+    def test_owner_can_create_node(self):
+        response = self.create_node()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["code"], "OLT-MDL-01")
+        self.assertEqual(response.data["pop_site_name"], self.pop.name)
+        self.assertEqual(response.data["assignment_count"], 0)
+        self.assertTrue(response.data["is_active"])
+
+        node = NetworkNode.objects.get(id=response.data["id"])
+        self.assertEqual(node.organization, self.organization)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                organization=self.organization,
+                action="NETWORK_NODE_CREATED",
+                resource_id=node.id,
+            ).exists()
+        )
+
+    def test_created_node_is_available_in_active_node_list(self):
+        self.create_node()
+
+        response = self.client.get(
+            reverse("network-node-list"),
+            {"active": "true"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([node["code"] for node in response.data], ["OLT-MDL-01"])
+
+    def test_duplicate_code_is_rejected_case_insensitively(self):
+        self.assertEqual(self.create_node().status_code, status.HTTP_201_CREATED)
+
+        response = self.create_node(code="OLT-MDL-01", name="Another OLT")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(NetworkNode.objects.filter(organization=self.organization).count(), 1)
+
+    def test_cross_tenant_pop_site_is_rejected(self):
+        response = self.create_node(pop_site=str(self.other_pop.id))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(NetworkNode.objects.filter(organization=self.organization).exists())
+
+    def test_invalid_node_type_and_ip_are_rejected(self):
+        response = self.create_node(node_type="MODEM", management_ip="not-an-ip")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("node_type", response.data)
+        self.assertIn("management_ip", response.data)
+
+    def test_staff_without_network_role_cannot_create_or_update_node(self):
+        node = NetworkNode.objects.create(
+            organization=self.organization,
+            name="Existing Router",
+            code="RTR-EXIST",
+            node_type=NetworkNode.NodeType.ROUTER,
+        )
+        self.authenticate(self.staff)
+
+        list_response = self.client.get(reverse("network-node-list"))
+        create_response = self.create_node()
+        update_response = self.client.patch(
+            reverse("network-node-detail", kwargs={"node_id": node.id}),
+            {"name": "Renamed"},
+            format="json",
+        )
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(create_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(update_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_can_update_node(self):
+        node_id = self.create_node().data["id"]
+
+        response = self.client.patch(
+            reverse("network-node-detail", kwargs={"node_id": node_id}),
+            {"name": "Model Town OLT 2", "pop_site": None, "management_ip": None},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Model Town OLT 2")
+        self.assertIsNone(response.data["pop_site"])
+        self.assertIsNone(response.data["management_ip"])
+
+    def test_update_blocks_cross_tenant_node(self):
+        other_node = NetworkNode.objects.create(
+            organization=self.other_organization,
+            name="Karachi Router",
+            code="RTR-KHI-01",
+            node_type=NetworkNode.NodeType.ROUTER,
+        )
+
+        response = self.client.patch(
+            reverse("network-node-detail", kwargs={"node_id": other_node.id}),
+            {"name": "Hijacked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        other_node.refresh_from_db()
+        self.assertEqual(other_node.name, "Karachi Router")
+
+    def test_node_with_active_subscribers_cannot_be_deactivated(self):
+        node_id = self.create_node().data["id"]
+        self.create_active_service_on(node_id)
+
+        response = self.client.patch(
+            reverse("network-node-detail", kwargs={"node_id": node_id}),
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(NetworkNode.objects.get(id=node_id).is_active)
+
+    def test_idle_node_can_be_deactivated(self):
+        node_id = self.create_node().data["id"]
+
+        response = self.client.patch(
+            reverse("network-node-detail", kwargs={"node_id": node_id}),
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["is_active"])
+        self.assertTrue(
+            AuditLog.objects.filter(
+                organization=self.organization,
+                action="NETWORK_NODE_STATUS_CHANGED",
+                resource_id=node_id,
+            ).exists()
         )
 
 

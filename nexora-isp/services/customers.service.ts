@@ -31,6 +31,7 @@ export interface InternetPackage {
   download_speed_mbps: number;
   upload_speed_mbps: number;
   monthly_price: string | number;
+  router_profile?: string;
   is_active: boolean;
   subscribers_count?: number;
   created_at?: string;
@@ -44,6 +45,7 @@ export interface InternetPackagePayload {
   download_speed_mbps: number;
   upload_speed_mbps: number;
   monthly_price: number | string;
+  router_profile?: string;
   is_active?: boolean;
 }
 
@@ -124,6 +126,7 @@ export interface CustomerActivationPayload {
   area?: string;
   city: string;
   network_username?: string;
+  network_password?: string;
   network_ip_address?: string | null;
   device_assignment_notes?: string;
   billing_day: number;
@@ -150,6 +153,8 @@ export interface CustomerActivationResponse {
     id: string;
     network_node_id: string;
     username: string;
+    // Returned once at activation so staff can configure the customer's router.
+    password: string;
     ip_address: string | null;
   };
   provisioning_request: {

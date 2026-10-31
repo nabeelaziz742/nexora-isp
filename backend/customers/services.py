@@ -62,6 +62,7 @@ class CustomerActivationResult:
     network_assignment: NetworkAssignment | None = None
     provisioning_request: ProvisioningRequest | None = None
     device_assignment: DeviceAssignment | None = None
+    network_password: str = ""
 
 
 def _lock_organization_for_numbering(*, organization: Organization) -> Organization:
@@ -165,6 +166,7 @@ def activate_customer_service(
     whatsapp_enabled: bool = True,
     network_node_id=None,
     network_username: str = "",
+    network_password: str = "",
     network_ip_address: str | None = None,
     device_id=None,
     device_assignment_notes: str = "",
@@ -264,6 +266,7 @@ def activate_customer_service(
     network_assignment = None
     provisioning_request = None
     device_assignment = None
+    network_password = network_password if network_node_id is not None else ""
 
     if network_node_id is not None:
         try:
@@ -272,6 +275,7 @@ def activate_customer_service(
                 service_account=service_account,
                 network_node_id=network_node_id,
                 username=network_username,
+                password=network_password,
                 ip_address=network_ip_address,
                 provisioning_payload=provisioning_payload,
             )
@@ -280,6 +284,7 @@ def activate_customer_service(
 
         network_assignment = network_result.network_assignment
         provisioning_request = network_result.provisioning_request
+        network_password = network_result.network_password
 
     if device_id is not None:
         try:
@@ -380,6 +385,7 @@ def activate_customer_service(
         network_assignment=network_assignment,
         provisioning_request=provisioning_request,
         device_assignment=device_assignment,
+        network_password=network_password,
     )
 
 

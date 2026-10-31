@@ -304,7 +304,11 @@ export default function NetworkPage() {
       <NetworkTopology nodes={nodes} />
 
       <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <NetworkNodesTable nodes={nodes} />
+        <NetworkNodesTable
+          nodes={nodes}
+          pops={pops}
+          onRefresh={() => void loadNetworkData(true)}
+        />
 
         <NetworkEvents
           events={recentProvisioningRequests}

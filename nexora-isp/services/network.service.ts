@@ -3,7 +3,9 @@ import { apiRequest, normalizeList, type ListResponse } from "@/services/api-cli
 import type {
   NetworkAssignment,
   NetworkNode,
+  NetworkNodePayload,
   PointOfPresence,
+  RouterConnectionResult,
   ProvisioningAction,
   ProvisioningRequest,
   ProvisioningStatus,
@@ -77,6 +79,38 @@ export const networkService = {
   getNode(nodeId: string): Promise<NetworkNode> {
     return apiRequest<NetworkNode>(
       `/network/nodes/${nodeId}/`,
+    );
+  },
+
+  createNode(data: NetworkNodePayload): Promise<NetworkNode> {
+    return apiRequest<NetworkNode>(
+      `/network/nodes/`,
+      {
+        method: "POST",
+        body: data,
+      },
+    );
+  },
+
+  updateNode(
+    nodeId: string,
+    data: Partial<NetworkNodePayload>,
+  ): Promise<NetworkNode> {
+    return apiRequest<NetworkNode>(
+      `/network/nodes/${nodeId}/`,
+      {
+        method: "PATCH",
+        body: data,
+      },
+    );
+  },
+
+  testNodeConnection(nodeId: string): Promise<RouterConnectionResult> {
+    return apiRequest<RouterConnectionResult>(
+      `/network/nodes/${nodeId}/test-connection/`,
+      {
+        method: "POST",
+      },
     );
   },
 

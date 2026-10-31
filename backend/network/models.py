@@ -135,6 +135,10 @@ class NetworkNode(TenantScopedModel):
         ACCESS_POINT = "ACCESS_POINT", "Access Point"
         OTHER = "OTHER", "Other"
 
+    class ProvisioningBackend(models.TextChoices):
+        MANUAL = "MANUAL", "Manual (no router integration)"
+        MIKROTIK = "MIKROTIK", "MikroTik RouterOS API"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -161,6 +165,27 @@ class NetworkNode(TenantScopedModel):
         max_length=255,
         blank=True,
     )
+    provisioning_backend = models.CharField(
+        max_length=20,
+        choices=ProvisioningBackend.choices,
+        default=ProvisioningBackend.MANUAL,
+    )
+    router_api_host = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    router_api_port = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+    router_api_username = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+    router_api_password_encrypted = models.TextField(
+        blank=True,
+    )
+    router_api_use_tls = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -210,6 +235,9 @@ class NetworkAssignment(TenantScopedModel):
     )
     username = models.CharField(
         max_length=150,
+        blank=True,
+    )
+    network_password_encrypted = models.TextField(
         blank=True,
     )
     ip_address = models.GenericIPAddressField(

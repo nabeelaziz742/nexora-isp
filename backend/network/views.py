@@ -18,14 +18,19 @@ from network.serializers import (
     ProvisioningRequestSerializer,
     RequestPackageChangeSerializer,
 )
+from network.providers import ProvisioningProviderError
+from network.providers.mikrotik import read_router_identity
 from network.services import (
+    NetworkNodeDomainError,
     PopDomainError,
     ServiceLifecycleError,
+    create_network_node,
     create_pop_site,
     get_pop_statistics,
     request_package_change,
     request_service_restore,
     request_service_suspension,
+    update_network_node,
     update_pop_site,
 )
 from tenancy.permissions import CanManageNetwork, HasActiveTenantContext, IsOrganizationStaffOrOwner
@@ -57,13 +62,42 @@ def apply_customer_service_search(queryset, search):
     return queryset
 
 
+def _get_annotated_node(request, node_id):
+    try:
+        return (
+            NetworkNode.objects
+            .for_organization(request.organization)
+            .select_related("pop_site")
+            .annotate(
+                assignment_count=Count(
+                    "service_assignments",
+                    filter=Q(
+                        service_assignments__is_active=True
+                    ),
+                )
+            )
+            .get(id=node_id)
+        )
+    except NetworkNode.DoesNotExist as exc:
+        raise NotFound(
+            "Network node was not found in this organization."
+        ) from exc
+
+
 class NetworkNodeListView(APIView):
     permission_classes = [IsOrganizationStaffOrOwner]
+
+    def get_permissions(self):
+        # Every staff member can browse nodes; only network operators may register them.
+        if self.request.method == "POST":
+            return [CanManageNetwork()]
+        return super().get_permissions()
 
     def get(self, request):
         nodes = (
             NetworkNode.objects
             .for_organization(request.organization)
+            .select_related("pop_site")
             .annotate(
                 assignment_count=Count(
                     "service_assignments",
@@ -114,33 +148,118 @@ class NetworkNodeListView(APIView):
 
         return Response(serializer.data)
 
+    def post(self, request):
+        serializer = NetworkNodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            node = create_network_node(
+                organization=request.organization,
+                actor=request.user,
+                code=data["code"],
+                name=data["name"],
+                node_type=data["node_type"],
+                pop_site_id=data.get("pop_site").id if data.get("pop_site") else None,
+                management_ip=data.get("management_ip"),
+                location=data.get("location", ""),
+                is_active=data.get("is_active", True),
+                provisioning_backend=data.get(
+                    "provisioning_backend",
+                    NetworkNode.ProvisioningBackend.MANUAL,
+                ),
+                router_api_host=data.get("router_api_host", ""),
+                router_api_port=data.get("router_api_port"),
+                router_api_username=data.get("router_api_username", ""),
+                router_api_password=data.get("router_api_password", ""),
+                router_api_use_tls=data.get("router_api_use_tls", False),
+            )
+        except NetworkNodeDomainError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            NetworkNodeSerializer(_get_annotated_node(request, node.id)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class NetworkNodeDetailView(APIView):
     permission_classes = [IsOrganizationStaffOrOwner]
 
-    def get(self, request, node_id):
-        try:
-            node = (
-                NetworkNode.objects
-                .for_organization(request.organization)
-                .annotate(
-                    assignment_count=Count(
-                        "service_assignments",
-                        filter=Q(
-                            service_assignments__is_active=True
-                        ),
-                    )
-                )
-                .get(id=node_id)
-            )
-        except NetworkNode.DoesNotExist as exc:
-            raise NotFound(
-                "Network node was not found in this organization."
-            ) from exc
+    def get_permissions(self):
+        if self.request.method == "PATCH":
+            return [CanManageNetwork()]
+        return super().get_permissions()
 
-        serializer = NetworkNodeSerializer(node)
+    def get(self, request, node_id):
+        serializer = NetworkNodeSerializer(_get_annotated_node(request, node_id))
 
         return Response(serializer.data)
+
+    def patch(self, request, node_id):
+        _get_annotated_node(request, node_id)
+
+        serializer = NetworkNodeSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        kwargs = {}
+        if "code" in data:
+            kwargs["code"] = data["code"]
+        if "name" in data:
+            kwargs["name"] = data["name"]
+        if "node_type" in data:
+            kwargs["node_type"] = data["node_type"]
+        if "pop_site" in data:
+            kwargs["pop_site_id"] = data["pop_site"].id if data["pop_site"] else None
+        if "management_ip" in data:
+            kwargs["management_ip"] = data["management_ip"]
+        if "location" in data:
+            kwargs["location"] = data["location"]
+        if "is_active" in data:
+            kwargs["is_active"] = data["is_active"]
+        for router_field in (
+            "provisioning_backend",
+            "router_api_host",
+            "router_api_port",
+            "router_api_username",
+            "router_api_password",
+            "router_api_use_tls",
+        ):
+            if router_field in data:
+                kwargs[router_field] = data[router_field]
+
+        try:
+            node = update_network_node(
+                organization=request.organization,
+                actor=request.user,
+                node_id=node_id,
+                **kwargs,
+            )
+        except NetworkNodeDomainError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(NetworkNodeSerializer(_get_annotated_node(request, node.id)).data)
+
+
+class NetworkNodeTestConnectionView(APIView):
+    permission_classes = [CanManageNetwork]
+
+    def post(self, request, node_id):
+        node = _get_annotated_node(request, node_id)
+
+        if node.provisioning_backend != NetworkNode.ProvisioningBackend.MIKROTIK:
+            return Response(
+                {"detail": "Router integration is not enabled for this node."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            router = read_router_identity(node)
+        except ProvisioningProviderError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "Router connection succeeded.", "router": router})
 
 
 class NetworkAssignmentListView(APIView):

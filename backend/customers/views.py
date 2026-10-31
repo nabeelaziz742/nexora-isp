@@ -314,6 +314,8 @@ class CustomerActivationView(APIView):
                     "username": (
                         result.network_assignment.username
                     ),
+                    # Shown once so staff can configure the customer's router.
+                    "password": result.network_password,
                     "ip_address": (
                         result.network_assignment.ip_address
                     ),
@@ -1312,4 +1314,4 @@ class Dealer360View(APIView):
                 "recent_collections": collection_list,
             }
         )
-
+

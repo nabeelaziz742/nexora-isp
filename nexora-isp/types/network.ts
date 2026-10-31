@@ -53,16 +53,58 @@ export interface PointOfPresence {
   nodes?: NetworkNode[];
 }
 
+export type NetworkNodeType =
+  | "ROUTER"
+  | "OLT"
+  | "SWITCH"
+  | "ACCESS_POINT"
+  | "OTHER";
+
+export type ProvisioningBackend = "MANUAL" | "MIKROTIK";
+
+export interface NetworkNodePayload {
+  name: string;
+  code: string;
+  node_type: NetworkNodeType;
+  pop_site: string | null;
+  management_ip: string | null;
+  location: string;
+  is_active: boolean;
+  provisioning_backend: ProvisioningBackend;
+  router_api_host: string;
+  router_api_port: number | null;
+  router_api_username: string;
+  // Write-only; blank on update keeps the stored password.
+  router_api_password?: string;
+  router_api_use_tls: boolean;
+}
+
+export interface RouterConnectionResult {
+  detail: string;
+  router: {
+    identity: string;
+    version: string;
+    board_name: string;
+    uptime: string;
+  };
+}
+
 export interface NetworkNode {
   id: string;
   name: string;
   code: string;
-  node_type: string;
+  node_type: NetworkNodeType;
   pop_site?: string | null;
   pop_site_name?: string | null;
   pop_site_code?: string | null;
   management_ip: string | null;
   location: string;
+  provisioning_backend: ProvisioningBackend;
+  router_api_host: string;
+  router_api_port: number | null;
+  router_api_username: string;
+  router_api_password_set: boolean;
+  router_api_use_tls: boolean;
   is_active: boolean;
   assignment_count: number;
   created_at: string;

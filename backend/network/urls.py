@@ -4,6 +4,7 @@ from network.views import (
     NetworkAssignmentListView,
     NetworkNodeDetailView,
     NetworkNodeListView,
+    NetworkNodeTestConnectionView,
     PopSiteDetailView,
     PopSiteListCreateView,
     ProvisioningRequestListView,
@@ -33,6 +34,11 @@ urlpatterns = [
         "nodes/<uuid:node_id>/",
         NetworkNodeDetailView.as_view(),
         name="network-node-detail",
+    ),
+    path(
+        "nodes/<uuid:node_id>/test-connection/",
+        NetworkNodeTestConnectionView.as_view(),
+        name="network-node-test-connection",
     ),
     path(
         "assignments/",

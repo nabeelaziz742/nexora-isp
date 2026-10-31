@@ -428,6 +428,12 @@ class InternetPackage(TenantScopedModel):
         decimal_places=2,
     )
 
+    # PPP profile name on the router; falls back to the package code when blank.
+    router_profile = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     is_active = models.BooleanField(
         default=True,
     )

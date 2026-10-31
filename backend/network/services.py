@@ -14,6 +14,7 @@ from network.models import (
     PointOfPresence,
     ProvisioningRequest,
 )
+from network.credentials import encrypt_secret, generate_network_password
 from tenancy.models import Organization
 from tenancy.services import record_audit_log
 
@@ -30,6 +31,22 @@ class ServiceLifecycleError(Exception):
 class NetworkActivationResult:
     network_assignment: NetworkAssignment
     provisioning_request: ProvisioningRequest
+    # Plaintext PPPoE password, returned once so staff can configure the customer's router.
+    network_password: str = ""
+
+
+def _schedule_provisioning_execution(provisioning_request: ProvisioningRequest) -> None:
+    """Execute the request once the surrounding transaction commits, so the router never
+    sees a change the database later rolled back."""
+    from network.tasks import execute_provisioning_request_task
+
+    request_id = str(provisioning_request.id)
+    # robust: the data is already committed, so a broker or router hiccup must not
+    # turn the user's request into a 500; the periodic task retries pending requests.
+    transaction.on_commit(
+        lambda: execute_provisioning_request_task.delay(request_id),
+        robust=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -45,6 +62,7 @@ def create_activation_network_request(
     service_account: ServiceAccount,
     network_node_id,
     username: str = "",
+    password: str = "",
     ip_address: str | None = None,
     provisioning_payload: dict[str, Any] | None = None,
 ) -> NetworkActivationResult:
@@ -79,11 +97,31 @@ def create_activation_network_request(
             "Service account already has a network assignment."
         )
 
+    username = username.strip()
+    password = password.strip()
+    if network_node.provisioning_backend == NetworkNode.ProvisioningBackend.MIKROTIK:
+        # A router-managed subscriber always needs PPPoE credentials.
+        username = username or service_account.service_number
+        password = password or generate_network_password()
+
+    if (
+        username
+        and NetworkAssignment.objects
+        .for_organization(organization)
+        .filter(network_node=network_node, username__iexact=username, is_active=True)
+        .exists()
+    ):
+        # Reusing a username would let one subscriber's provisioning overwrite another's secret.
+        raise NetworkAssignmentError(
+            f"Network username '{username}' is already assigned on node {network_node.code}."
+        )
+
     network_assignment = NetworkAssignment.objects.create(
         organization=organization,
         service_account=service_account,
         network_node=network_node,
-        username=username.strip(),
+        username=username,
+        network_password_encrypted=encrypt_secret(password),
         ip_address=ip_address,
     )
 
@@ -96,9 +134,12 @@ def create_activation_network_request(
         requested_payload=provisioning_payload or {},
     )
 
+    _schedule_provisioning_execution(provisioning_request)
+
     return NetworkActivationResult(
         network_assignment=network_assignment,
         provisioning_request=provisioning_request,
+        network_password=password,
     )
 
 
@@ -220,6 +261,8 @@ def request_service_suspension(
         },
     )
 
+    _schedule_provisioning_execution(provisioning_request)
+
     service_account.status = (
         ServiceAccount.Status.SUSPENSION_PENDING
     )
@@ -296,6 +339,8 @@ def request_service_restore(
             "reason": "SERVICE_RESTORE",
         },
     )
+
+    _schedule_provisioning_execution(provisioning_request)
 
     service_account.status = (
         ServiceAccount.Status.RESTORE_PENDING
@@ -401,6 +446,8 @@ def request_package_change(
             "target_package_name": internet_package.name,
         },
     )
+
+    _schedule_provisioning_execution(provisioning_request)
 
     record_audit_log(
         organization=organization,
@@ -650,3 +697,207 @@ def get_pop_statistics(*, organization: Organization, pop: PointOfPresence) -> d
         "active_subscribers_count": active_assignments_count,
         "total_subscribers_count": total_assignments_count,
     }
+
+# ==============================================================================
+# NETWORK NODE INFRASTRUCTURE SERVICES
+# ==============================================================================
+
+class NetworkNodeDomainError(Exception):
+    pass
+
+
+def _resolve_node_pop_site(*, organization: Organization, pop_site_id):
+    if not pop_site_id:
+        return None
+    try:
+        return PointOfPresence.objects.for_organization(organization).get(id=pop_site_id)
+    except PointOfPresence.DoesNotExist as exc:
+        raise NetworkNodeDomainError("The specified POP site was not found in this organization.") from exc
+
+
+def _validate_router_integration(node: NetworkNode) -> None:
+    if node.provisioning_backend != NetworkNode.ProvisioningBackend.MIKROTIK:
+        return
+    if not (node.router_api_host or node.management_ip):
+        raise NetworkNodeDomainError("MikroTik integration needs a router API host or management IP.")
+    if not node.router_api_username:
+        raise NetworkNodeDomainError("MikroTik integration needs a router API username.")
+    if not node.router_api_password_encrypted:
+        raise NetworkNodeDomainError("MikroTik integration needs a router API password.")
+
+
+@transaction.atomic
+def create_network_node(
+    *,
+    organization: Organization,
+    actor,
+    code: str,
+    name: str,
+    node_type: str,
+    pop_site_id=None,
+    management_ip=None,
+    location: str = "",
+    is_active: bool = True,
+    provisioning_backend: str = NetworkNode.ProvisioningBackend.MANUAL,
+    router_api_host: str = "",
+    router_api_port=None,
+    router_api_username: str = "",
+    router_api_password: str = "",
+    router_api_use_tls: bool = False,
+) -> NetworkNode:
+    code_clean = str(code).strip().upper()
+    name_clean = str(name).strip()
+
+    if not code_clean:
+        raise NetworkNodeDomainError("Node code is required.")
+    if not name_clean:
+        raise NetworkNodeDomainError("Node name is required.")
+
+    if NetworkNode.objects.for_organization(organization).filter(code=code_clean).exists():
+        raise NetworkNodeDomainError(f"A network node with code '{code_clean}' already exists in this organization.")
+
+    pop_site = _resolve_node_pop_site(organization=organization, pop_site_id=pop_site_id)
+
+    node = NetworkNode(
+        organization=organization,
+        code=code_clean,
+        name=name_clean,
+        node_type=node_type,
+        pop_site=pop_site,
+        management_ip=management_ip or None,
+        location=location.strip(),
+        is_active=is_active,
+        provisioning_backend=provisioning_backend,
+        router_api_host=router_api_host.strip(),
+        router_api_port=router_api_port or None,
+        router_api_username=router_api_username.strip(),
+        router_api_password_encrypted=encrypt_secret(router_api_password),
+        router_api_use_tls=router_api_use_tls,
+    )
+    _validate_router_integration(node)
+    node.save()
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="NETWORK_NODE_CREATED",
+        resource_type="NetworkNode",
+        resource_id=node.id,
+        metadata={
+            "code": node.code,
+            "name": node.name,
+            "node_type": node.node_type,
+            "pop_site_id": str(pop_site.id) if pop_site else None,
+            "management_ip": node.management_ip,
+            "is_active": node.is_active,
+            "provisioning_backend": node.provisioning_backend,
+        },
+    )
+
+    return node
+
+
+@transaction.atomic
+def update_network_node(
+    *,
+    organization: Organization,
+    actor,
+    node_id,
+    **kwargs,
+) -> NetworkNode:
+    try:
+        node = (
+            NetworkNode.objects
+            .select_for_update()
+            .for_organization(organization)
+            .get(id=node_id)
+        )
+    except NetworkNode.DoesNotExist as exc:
+        raise NetworkNodeDomainError("Network node was not found in this organization.") from exc
+
+    was_active = node.is_active
+
+    if "code" in kwargs:
+        new_code = str(kwargs["code"]).strip().upper()
+        if not new_code:
+            raise NetworkNodeDomainError("Node code cannot be empty.")
+        if (
+            NetworkNode.objects.for_organization(organization)
+            .filter(code=new_code)
+            .exclude(id=node.id)
+            .exists()
+        ):
+            raise NetworkNodeDomainError(f"A network node with code '{new_code}' already exists in this organization.")
+        node.code = new_code
+
+    if "name" in kwargs:
+        new_name = str(kwargs["name"]).strip()
+        if not new_name:
+            raise NetworkNodeDomainError("Node name cannot be empty.")
+        node.name = new_name
+
+    if "node_type" in kwargs:
+        node.node_type = kwargs["node_type"]
+
+    if "pop_site_id" in kwargs:
+        node.pop_site = _resolve_node_pop_site(organization=organization, pop_site_id=kwargs["pop_site_id"])
+
+    if "management_ip" in kwargs:
+        node.management_ip = kwargs["management_ip"] or None
+
+    if "location" in kwargs:
+        node.location = str(kwargs["location"]).strip()
+
+    if "is_active" in kwargs:
+        node.is_active = bool(kwargs["is_active"])
+
+    if "provisioning_backend" in kwargs:
+        node.provisioning_backend = kwargs["provisioning_backend"]
+
+    if "router_api_host" in kwargs:
+        node.router_api_host = str(kwargs["router_api_host"]).strip()
+
+    if "router_api_port" in kwargs:
+        node.router_api_port = kwargs["router_api_port"] or None
+
+    if "router_api_username" in kwargs:
+        node.router_api_username = str(kwargs["router_api_username"]).strip()
+
+    # A blank password on update means "keep the stored one".
+    if kwargs.get("router_api_password"):
+        node.router_api_password_encrypted = encrypt_secret(kwargs["router_api_password"])
+
+    if "router_api_use_tls" in kwargs:
+        node.router_api_use_tls = bool(kwargs["router_api_use_tls"])
+
+    _validate_router_integration(node)
+
+    # Deactivating a node that still carries subscribers would strand their services.
+    if was_active and not node.is_active:
+        active_assignments = node.service_assignments.filter(is_active=True).count()
+        if active_assignments:
+            raise NetworkNodeDomainError(
+                f"This node has {active_assignments} active service assignment(s). "
+                "Move those services to another node before deactivating it."
+            )
+
+    node.save()
+
+    audit_action = "NETWORK_NODE_STATUS_CHANGED" if was_active != node.is_active else "NETWORK_NODE_UPDATED"
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action=audit_action,
+        resource_type="NetworkNode",
+        resource_id=node.id,
+        metadata={
+            "code": node.code,
+            "name": node.name,
+            "node_type": node.node_type,
+            "is_active": node.is_active,
+            "was_active": was_active,
+            "provisioning_backend": node.provisioning_backend,
+        },
+    )
+
+    return node

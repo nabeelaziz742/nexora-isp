@@ -125,6 +125,13 @@ class CustomerActivationSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
     )
+    network_password = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        write_only=True,
+    )
     network_ip_address = serializers.IPAddressField(
         required=False,
         allow_null=True,
@@ -162,6 +169,7 @@ class InternetPackageSerializer(serializers.ModelSerializer):
             "download_speed_mbps",
             "upload_speed_mbps",
             "monthly_price",
+            "router_profile",
             "is_active",
             "subscribers_count",
             "created_at",
@@ -183,6 +191,7 @@ class InternetPackageCreateUpdateSerializer(serializers.ModelSerializer):
             "download_speed_mbps",
             "upload_speed_mbps",
             "monthly_price",
+            "router_profile",
             "is_active",
         ]
 
@@ -771,4 +780,4 @@ class FeasibilityAssessmentCreateUpdateSerializer(serializers.ModelSerializer):
                 {"not_feasible_reason": "Not Feasible reason is strictly required when status is Not Feasible."}
             )
         return attrs
-
+

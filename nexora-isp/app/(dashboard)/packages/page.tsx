@@ -37,6 +37,7 @@ interface FormState {
   download_speed_mbps: string;
   upload_speed_mbps: string;
   monthly_price: string;
+  router_profile: string;
   is_active: boolean;
 }
 
@@ -47,6 +48,7 @@ const initialFormState: FormState = {
   download_speed_mbps: "",
   upload_speed_mbps: "",
   monthly_price: "",
+  router_profile: "",
   is_active: true,
 };
 
@@ -129,6 +131,7 @@ export default function PackagesPage() {
       download_speed_mbps: String(pkg.download_speed_mbps),
       upload_speed_mbps: String(pkg.upload_speed_mbps),
       monthly_price: String(pkg.monthly_price),
+      router_profile: pkg.router_profile || "",
       is_active: pkg.is_active,
     });
     setFormErrors({});
@@ -172,6 +175,7 @@ export default function PackagesPage() {
       download_speed_mbps: Number(form.download_speed_mbps),
       upload_speed_mbps: Number(form.upload_speed_mbps),
       monthly_price: Number(form.monthly_price),
+      router_profile: form.router_profile.trim(),
       is_active: form.is_active,
     };
 
@@ -621,6 +625,24 @@ export default function PackagesPage() {
                     {formErrors.monthly_price}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-300">
+                  Router PPP Profile
+                </label>
+                <input
+                  type="text"
+                  value={form.router_profile}
+                  onChange={(e) =>
+                    setForm({ ...form, router_profile: e.target.value })
+                  }
+                  placeholder={form.code.trim().toUpperCase() || "e.g. 20M-PROFILE"}
+                  className="w-full rounded-md border border-[#202938] bg-[#070A0F] px-3 py-2 font-mono text-xs text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Profile name on your MikroTik router. Leave blank to use the package code.
+                </p>
               </div>
 
               <div>

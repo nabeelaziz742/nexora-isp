@@ -72,10 +72,3 @@ class StubProvisioningProvider(
                 ),
             },
         )
-
-
-def get_provisioning_provider(
-    *,
-    provisioning_request: ProvisioningRequest,
-) -> BaseProvisioningProvider:
-    return StubProvisioningProvider()
