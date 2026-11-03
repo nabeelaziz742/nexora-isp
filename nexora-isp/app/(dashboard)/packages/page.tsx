@@ -714,7 +714,7 @@ export default function PackagesPage() {
 
             <p className="mt-3 text-xs leading-relaxed text-slate-300">
               Are you sure you want to delete the package{" "}
-              <strong className="text-white">"{packageToDelete.name}"</strong>?
+              <strong className="text-white">&quot;{packageToDelete.name}&quot;</strong>?
             </p>
 
             {packageToDelete.subscribers_count &&

@@ -1039,7 +1039,7 @@ export default function SuspensionsManagementPage() {
               {!batchRunResult ? (
                 <>
                   <p className="text-slate-300">
-                    This will evaluate all active service accounts against your organization's policy:
+                    This will evaluate all active service accounts against your organization&apos;s policy:
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-xs text-slate-400">
                     <li>Grace Period: {policy?.grace_period_days ?? 3} days</li>

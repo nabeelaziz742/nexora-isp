@@ -1069,7 +1069,7 @@ export default function AreasPage() {
 
             <p className="mt-3 text-xs leading-relaxed text-slate-300">
               Are you sure you want to delete{" "}
-              <strong className="text-white">"{deleteItem.name}"</strong>?
+              <strong className="text-white">&quot;{deleteItem.name}&quot;</strong>?
             </p>
 
             {deleteItem.warning && (

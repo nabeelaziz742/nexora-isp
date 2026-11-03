@@ -26,7 +26,10 @@ export default function SuperAdminPage() {
   const isPollingRef = useRef(false);
   const isMountedRef = useRef(true);
   const busyIdRef = useRef("");
-  busyIdRef.current = busyId;
+
+  useEffect(() => {
+    busyIdRef.current = busyId;
+  }, [busyId]);
 
   const handleUnauthorized = useCallback(() => {
     localStorage.removeItem("nexora_superadmin_access");

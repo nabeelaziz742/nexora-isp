@@ -12,6 +12,17 @@ interface ErrorStateProps {
   compact?: boolean;
 }
 
+function ErrorIcon({ errorType, className }: { errorType: ErrorType; className: string }) {
+  switch (errorType) {
+    case "network":
+      return <WifiOff className={className} />;
+    case "permission":
+      return <ShieldAlert className={className} />;
+    default:
+      return <AlertTriangle className={className} />;
+  }
+}
+
 export default function ErrorState({
   title,
   message,
@@ -20,18 +31,6 @@ export default function ErrorState({
   className = "",
   compact = false,
 }: ErrorStateProps) {
-  const getIcon = () => {
-    switch (errorType) {
-      case "network":
-        return WifiOff;
-      case "permission":
-        return ShieldAlert;
-      default:
-        return AlertTriangle;
-    }
-  };
-
-  const Icon = getIcon();
 
   if (compact) {
     return (
@@ -40,7 +39,7 @@ export default function ErrorState({
         role="alert"
       >
         <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-          <Icon className="h-4 w-4 shrink-0 text-red-400" />
+          <ErrorIcon errorType={errorType} className="h-4 w-4 shrink-0 text-red-400" />
           <span className="truncate">{message}</span>
         </div>
         {onRetry && (
@@ -70,7 +69,7 @@ export default function ErrorState({
       role="alert"
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 shadow-inner">
-        <Icon className="h-6 w-6 text-red-400" />
+        <ErrorIcon errorType={errorType} className="h-6 w-6 text-red-400" />
       </div>
 
       <h3 className="mt-4 text-sm font-semibold text-slate-100">

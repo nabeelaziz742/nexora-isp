@@ -89,7 +89,7 @@ export default function PromisesPage() {
     deadline: string;
     notes: string;
     status: PromiseStatus;
-  }>({
+  }>(() => ({
     customer_id: "",
     service_account_id: "",
     invoice_id: "",
@@ -98,7 +98,7 @@ export default function PromisesPage() {
     deadline: new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
     notes: "",
     status: "ACTIVE",
-  });
+  }));
 
   // Transition Form State
   const [transitionForm, setTransitionForm] = useState<{
