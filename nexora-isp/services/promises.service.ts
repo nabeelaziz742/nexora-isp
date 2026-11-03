@@ -69,14 +69,14 @@ export const promisesService = {
   createPromise(data: PromiseCreatePayload) {
     return apiRequest<PromiseToPayItem>("/billing/promises/", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
   updatePromise(id: string, data: { notes?: string; deadline?: string }) {
     return apiRequest<PromiseToPayItem>(`/billing/promises/${id}/`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
@@ -86,7 +86,7 @@ export const promisesService = {
   ) {
     return apiRequest<PromiseToPayItem>(`/billing/promises/${id}/status-transitions/`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 };

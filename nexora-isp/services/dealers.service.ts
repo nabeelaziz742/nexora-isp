@@ -101,14 +101,14 @@ export const dealersService = {
   createDealer(data: DealerCreatePayload) {
     return apiRequest<DealerItem>("/customers/dealers/", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
   updateDealer(id: string, data: Partial<DealerCreatePayload>) {
     return apiRequest<DealerItem>(`/customers/dealers/${id}/`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 

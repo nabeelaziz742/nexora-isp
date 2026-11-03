@@ -149,21 +149,21 @@ export const inquiriesService = {
   createInquiry(data: InquiryCreatePayload) {
     return apiRequest<InquiryItem>("/customers/inquiries/", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
   updateInquiry(id: string, data: Partial<InquiryCreatePayload>) {
     return apiRequest<InquiryItem>(`/customers/inquiries/${id}/`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
   transitionStatus(id: string, data: { status: InquiryStatus; notes?: string; follow_up_date?: string | null }) {
     return apiRequest<InquiryItem>(`/customers/inquiries/${id}/status-transitions/`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
@@ -185,7 +185,7 @@ export const inquiriesService = {
       detail: string;
     }>(`/customers/inquiries/${id}/convert/`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
@@ -208,14 +208,14 @@ export const inquiriesService = {
   createFeasibility(data: FeasibilityCreatePayload) {
     return apiRequest<FeasibilityAssessmentItem>("/customers/feasibilities/", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
   updateFeasibility(id: string, data: Partial<FeasibilityAssessmentItem>) {
     return apiRequest<FeasibilityAssessmentItem>(`/customers/feasibilities/${id}/`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 };

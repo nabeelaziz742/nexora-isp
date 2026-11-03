@@ -30,7 +30,7 @@ export const suspensionService = {
   updatePolicy(data: Partial<SuspensionPolicy>): Promise<SuspensionPolicy> {
     return apiRequest<SuspensionPolicy>("/customers/suspensions/policy/", {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: data,
     });
   },
 
@@ -48,7 +48,7 @@ export const suspensionService = {
       `/customers/services/${serviceId}/suspend/`,
       {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       }
     );
   },
@@ -61,7 +61,7 @@ export const suspensionService = {
       `/customers/services/${serviceId}/restore/`,
       {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       }
     );
   },
