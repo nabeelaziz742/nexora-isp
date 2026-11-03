@@ -1,21 +1,14 @@
 "use client";
 
 import {
-  AlertCircle,
   AlertTriangle,
   Ban,
   Banknote,
-  CheckCircle2,
-  ChevronRight,
-  CreditCard,
-  Download,
   Eye,
   FileSpreadsheet,
-  Filter,
   Loader2,
   Plus,
   Printer,
-  Receipt,
   RefreshCw,
   Search,
   Trash2,
@@ -31,7 +24,6 @@ import {
   customersService,
   type CustomerDetail,
   type CustomerListItem,
-  type CustomerServiceAccount,
 } from "@/services/customers.service";
 
 import type {
@@ -206,15 +198,11 @@ export default function InvoicesPage() {
       try {
         const res = await customersService.getCustomers();
         setCustomersList(res);
-      } catch (err) {
+      } catch {
         toast.error("Failed to load customer list.");
       }
     }
   };
-
-  const selectedCustomerRecord = useMemo(() => {
-    return customersList.find((c) => c.id === selectedCustomerId);
-  }, [customersList, selectedCustomerId]);
 
   const handleOpenDetail = async (invoiceId: string) => {
     try {
@@ -222,7 +210,7 @@ export default function InvoicesPage() {
       setIsDetailDrawerOpen(true);
       const detail = await billingService.getInvoice(invoiceId);
       setSelectedInvoice(detail);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load invoice details.");
       setIsDetailDrawerOpen(false);
     } finally {

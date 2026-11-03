@@ -4,29 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  Archive,
-  ArrowDownRight,
-  ArrowUpRight,
   Box,
   CheckCircle2,
-  ChevronRight,
-  CircleDollarSign,
   Clock,
-  Filter,
-  Layers,
-  Loader2,
-  Package,
-  PackageCheck,
-  PackageMinus,
-  PackagePlus,
-  PackageX,
   Plus,
   RefreshCw,
-  RotateCcw,
   Search,
-  ShieldCheck,
-  Tag,
-  Trash2,
   Wrench,
   X,
 } from "lucide-react";
@@ -65,13 +48,11 @@ export default function InventoryPage() {
   const [devices, setDevices] = useState<InventoryDevice[]>([]);
   const [assignments, setAssignments] = useState<DeviceAssignment[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
-  const [deviceSearch, setDeviceSearch] = useState<string>("");
-  const [deviceStatus, setDeviceStatus] = useState<string>("ALL");
 
   // Movements State
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
-  const [movementSearch, setMovementSearch] = useState<string>("");
+  const [movementSearch] = useState<string>("");
 
   // Modals State
   const [showCreateItemModal, setShowCreateItemModal] = useState(false);

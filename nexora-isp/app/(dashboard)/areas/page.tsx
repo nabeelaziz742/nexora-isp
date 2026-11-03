@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Building,
-  CheckCircle2,
   Edit2,
-  Filter,
   Globe,
   MapPin,
   Plus,
@@ -92,7 +90,7 @@ export default function AreasPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Load all reference data
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -117,11 +115,12 @@ export default function AreasPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, selectedCityFilter, statusFilter]);
 
+  // Reload reference data whenever the operator switches tabs.
   useEffect(() => {
     loadData();
-  }, [search, selectedCityFilter, statusFilter, activeTab]);
+  }, [loadData, activeTab]);
 
   // ==================== AREA HANDLERS ====================
   function openCreateArea() {
@@ -181,7 +180,7 @@ export default function AreasPage() {
       setAreas((prev) =>
         prev.map((a) => (a.id === area.id ? { ...a, is_active: res.is_active } : a))
       );
-    } catch (err) {
+    } catch {
       toastError("Failed to update status.");
     }
   }
@@ -242,7 +241,7 @@ export default function AreasPage() {
       setCities((prev) =>
         prev.map((c) => (c.id === city.id ? { ...c, is_active: res.is_active } : c))
       );
-    } catch (err) {
+    } catch {
       toastError("Failed to update city status.");
     }
   }
@@ -303,7 +302,7 @@ export default function AreasPage() {
       setCountries((prev) =>
         prev.map((c) => (c.id === country.id ? { ...c, is_active: res.is_active } : c))
       );
-    } catch (err) {
+    } catch {
       toastError("Failed to update country status.");
     }
   }

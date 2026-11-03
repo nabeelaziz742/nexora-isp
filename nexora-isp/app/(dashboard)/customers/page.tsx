@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Download,
   Filter,
   Plus,
   RefreshCw,
@@ -76,7 +75,7 @@ export default function CustomersPage() {
     }
   }, [cityFilter, cities]);
 
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -102,7 +101,7 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, statusFilter, activeFilter, cityFilter, areaFilter, packageFilter]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -112,7 +111,7 @@ export default function CustomersPage() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [search, statusFilter, activeFilter, cityFilter, areaFilter, packageFilter]);
+  }, [loadCustomers, search]);
 
   const hasActiveFilters = Boolean(
     search || statusFilter || activeFilter || cityFilter || areaFilter || packageFilter

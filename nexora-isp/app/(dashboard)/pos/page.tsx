@@ -1,32 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
-  ChevronRight,
   CircleDollarSign,
-  CreditCard,
   History,
   Minus,
   Package,
   Plus,
   Printer,
-  Receipt,
   RefreshCw,
   Search,
   ShoppingCart,
   Trash2,
-  UserCheck,
-  UserX,
-  Wallet,
   X,
 } from "lucide-react";
 
-import { type InventoryItem, type InventoryItemCategory } from "@/services/inventory.service";
+import { type InventoryItem } from "@/services/inventory.service";
 import {
   posService,
   type CreatePosSalePayload,

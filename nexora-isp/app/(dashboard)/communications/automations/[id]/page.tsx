@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { toast } from "sonner";
@@ -45,11 +45,7 @@ export default function EditAutomationPage() {
     is_enabled: true,
   });
 
-  useEffect(() => {
-    loadPage();
-  }, []);
-
-  async function loadPage() {
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -94,7 +90,11 @@ export default function EditAutomationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [automationId]);
+
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   function updateField(
     key: keyof typeof form,

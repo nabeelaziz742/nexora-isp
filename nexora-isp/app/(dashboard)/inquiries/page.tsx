@@ -27,7 +27,6 @@ import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
 import {
   inquiriesService,
-  type FeasibilityAssessmentItem,
   type FeasibilityStatus,
   type InquiryCreatePayload,
   type InquiryItem,
@@ -220,6 +219,7 @@ export default function InquiriesPage() {
 
   useEffect(() => {
     fetchInquiries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [statusFilter, cityFilter, areaFilter, packageFilter]);
 
   // Handle Search Debounced / Submit

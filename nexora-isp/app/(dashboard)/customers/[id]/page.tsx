@@ -10,15 +10,10 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  BellRing,
-  Check,
-  ChevronRight,
   Copy,
   CreditCard,
   Edit,
-  HardDrive,
   HelpCircle,
-  History,
   Loader2,
   MapPin,
   Network,
@@ -28,11 +23,9 @@ import {
   PlayCircle,
   Plus,
   RefreshCw,
-  RotateCcw,
   Router,
   ShieldAlert,
   ShieldCheck,
-  UserCheck,
   UserRound,
   Wifi,
   X,
@@ -41,7 +34,6 @@ import {
 
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Skeleton from "@/components/ui/Skeleton";
 import { useToast } from "@/hooks/useToast";
 import { billingService } from "@/services/billing.service";
@@ -53,7 +45,6 @@ import {
   type CustomerUpdatePayload,
   type InternetPackage,
 } from "@/services/customers.service";
-import { geoService, type City, type Area } from "@/services/geo.service";
 import {
   inventoryService,
   type InventoryDevice,
@@ -162,7 +153,7 @@ export default function CustomerDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [ledger, setLedger] = useState<FinancialLedger | null>(null);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [provisioningRequests, setProvisioningRequests] = useState<ProvisioningRequest[]>([]);
+  const [, setProvisioningRequests] = useState<ProvisioningRequest[]>([]);
   const [availableDevices, setAvailableDevices] = useState<InventoryDevice[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -192,7 +183,7 @@ export default function CustomerDetailPage() {
   const [billingModeExpiry, setBillingModeExpiry] = useState("");
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentReceipt | null>(null);
-  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [, setReceiptLoading] = useState(false);
 
   // Action loaders
   const [actionLoading, setActionLoading] = useState(false);

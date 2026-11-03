@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -76,7 +76,7 @@ export default function PackagesPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Load packages from real backend
-  async function loadPackages() {
+  const loadPackages = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -94,11 +94,11 @@ export default function PackagesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, statusFilter]);
 
   useEffect(() => {
     loadPackages();
-  }, [search, statusFilter]);
+  }, [loadPackages]);
 
   // Metric computations from real data
   const totalPackages = packages.length;

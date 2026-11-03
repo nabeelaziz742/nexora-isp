@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
-  BadgeAlert,
-  Calendar,
-  CheckCircle2,
   Clock,
   Coins,
-  CreditCard,
   Eye,
   MapPin,
   Phone,
   RefreshCw,
   Search,
-  ShieldAlert,
   UserCheck,
-  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -46,7 +39,7 @@ export default function OperatorsManagementPage() {
   const [workloadDetail, setWorkloadDetail] = useState<OperatorWorkloadDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
-  const loadOperators = async () => {
+  const loadOperators = useCallback(async () => {
     try {
       setIsLoading(true);
       setError("");
@@ -66,7 +59,7 @@ export default function OperatorsManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, areaFilter]);
 
   useEffect(() => {
     geoService
@@ -80,7 +73,7 @@ export default function OperatorsManagementPage() {
       loadOperators();
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery, areaFilter]);
+  }, [loadOperators]);
 
   const viewWorkload = async (userId: string) => {
     try {

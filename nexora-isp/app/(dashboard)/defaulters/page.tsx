@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  BadgeAlert,
-  Calendar,
   CheckCircle2,
   CircleAlert,
   Clock,
   Coins,
-  CreditCard,
   FileSpreadsheet,
-  Filter,
   LoaderCircle,
-  MapPin,
-  Phone,
   RefreshCw,
   Search,
   ShieldAlert,
-  UserCheck,
   UserPlus,
   Users,
   X,
@@ -59,7 +52,7 @@ export default function DefaultersManagementPage() {
   const [isAllocating, setIsAllocating] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const loadDefaulters = async () => {
+  const loadDefaulters = useCallback(async () => {
     try {
       setIsLoading(true);
       setError("");
@@ -81,7 +74,7 @@ export default function DefaultersManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, agingFilter, allocationFilter, areaFilter]);
 
   useEffect(() => {
     staffService
@@ -100,7 +93,7 @@ export default function DefaultersManagementPage() {
       loadDefaulters();
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery, agingFilter, allocationFilter, areaFilter]);
+  }, [loadDefaulters]);
 
   const openAllocateModal = (defaulter: DefaulterItem) => {
     setSelectedDefaulter(defaulter);

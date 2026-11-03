@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -38,11 +38,7 @@ export default function EditCommunicationTemplatePage() {
     communication_provider: "",
   });
 
-  useEffect(() => {
-    void loadPage();
-  }, [id]);
-
-  async function loadPage() {
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -63,7 +59,11 @@ export default function EditCommunicationTemplatePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
 
   function handleChange(
     field: string,

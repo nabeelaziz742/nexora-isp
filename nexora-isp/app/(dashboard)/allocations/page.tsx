@@ -1,33 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowRight,
   ArrowRightLeft,
-  Calendar,
   CheckCircle2,
   CircleAlert,
   Clock,
   Coins,
-  CreditCard,
-  Edit2,
   Eye,
   FileSpreadsheet,
-  Filter,
-  History,
   LoaderCircle,
-  MapPin,
-  Phone,
   Plus,
   RefreshCw,
   Search,
-  ShieldAlert,
-  UserCheck,
-  UserCog,
-  Users,
   X,
 } from "lucide-react";
 
@@ -41,7 +27,6 @@ import {
   ReassignAllocationPayload,
   RecoveryAllocationItem,
   recoveryService,
-  StatusTransitionPayload,
 } from "@/services/recovery.service";
 import { OperatorListItem, staffService } from "@/services/staff-service";
 
@@ -83,7 +68,7 @@ export default function RecoveryAllocationsPage() {
   const [isReassigning, setIsReassigning] = useState(false);
   const [reassignModalError, setReassignModalError] = useState("");
 
-  const loadAllocations = async () => {
+  const loadAllocations = useCallback(async () => {
     try {
       setIsLoading(true);
       setError("");
@@ -105,7 +90,7 @@ export default function RecoveryAllocationsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, statusFilter, priorityFilter, operatorFilter]);
 
   useEffect(() => {
     staffService
@@ -119,7 +104,7 @@ export default function RecoveryAllocationsPage() {
       loadAllocations();
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery, statusFilter, priorityFilter, operatorFilter]);
+  }, [loadAllocations]);
 
   const openStatusModal = (alloc: RecoveryAllocationItem) => {
     setStatusModalAllocation(alloc);

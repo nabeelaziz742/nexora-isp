@@ -315,6 +315,8 @@ export default function SuperAdminPage() {
                 <X />
               </button>
             </div>
+            {/* A blob: object URL from an authenticated download; next/image cannot optimise it. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={receiptUrl}
               alt="Payment receipt"

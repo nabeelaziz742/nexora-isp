@@ -3,20 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  Building2,
-  Calendar,
   CheckCircle2,
   CircleDollarSign,
-  Download,
-  FileSpreadsheet,
   Filter,
-  Layers,
   Plus,
   Receipt,
   RefreshCw,
   Search,
   TrendingDown,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -73,6 +67,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [categoryFilter]);
 
   const expenseAccounts = useMemo(() => {

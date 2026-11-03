@@ -1,26 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertCircle,
   ArrowLeft,
-  Building2,
-  Calendar,
   CheckCircle2,
   ClipboardCheck,
-  ClipboardList,
-  Edit3,
   MapPin,
-  Phone,
   RefreshCw,
   User,
   UserCheck,
-  UserPlus,
   Wifi,
-  X,
-  XCircle,
 } from "lucide-react";
 
 import Skeleton from "@/components/ui/Skeleton";
@@ -57,7 +48,7 @@ export default function InquiryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -72,13 +63,13 @@ export default function InquiryDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [inquiryId]);
 
   useEffect(() => {
     if (inquiryId) {
       loadData();
     }
-  }, [inquiryId]);
+  }, [inquiryId, loadData]);
 
   if (loading) {
     return (

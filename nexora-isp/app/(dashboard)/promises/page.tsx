@@ -1,20 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
   Calendar,
   CheckCircle2,
   Clock,
-  DollarSign,
   Filter,
   Plus,
-  Receipt,
   RefreshCw,
   Search,
-  User,
-  Users,
   X,
   XCircle,
 } from "lucide-react";
@@ -24,7 +19,6 @@ import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
 import {
   promisesService,
-  type PromiseCreatePayload,
   type PromiseStatus,
   type PromiseToPayItem,
 } from "@/services/promises.service";
@@ -143,6 +137,7 @@ export default function PromisesPage() {
 
   useEffect(() => {
     fetchPromises();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [statusFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -461,7 +456,6 @@ export default function PromisesPage() {
                   required
                   value={newPromise.customer_id}
                   onChange={(e) => {
-                    const cust = customers.find((c) => c.id === e.target.value);
                     setNewPromise({
                       ...newPromise,
                       customer_id: e.target.value,

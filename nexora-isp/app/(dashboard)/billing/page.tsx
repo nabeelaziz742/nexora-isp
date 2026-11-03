@@ -423,7 +423,7 @@ export default function BillingPage() {
         await customersService.getCustomers();
 
       setCustomers(data);
-    } catch (error) {
+    } catch {
       setGenerateError("Unable to load customers.");
     } finally {
       setLoadingCustomers(false);

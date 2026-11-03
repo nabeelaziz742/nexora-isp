@@ -1,45 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Activity,
-  AlertCircle,
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-  Award,
-  Banknote,
-  BookOpen,
-  Box,
   Building2,
-  Calendar,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   CircleDollarSign,
-  Clock,
-  CreditCard,
-  Download,
-  Eye,
   FileSpreadsheet,
-  FileText,
-  Filter,
   HardDrive,
   Headphones,
-  Layers,
-  MapPin,
-  Package,
   Printer,
-  Receipt,
   RefreshCw,
   Search,
   ShieldCheck,
-  TrendingDown,
-  TrendingUp,
   UserCheck,
   Users,
-  Wifi,
-  X,
 } from "lucide-react";
 
 import {
@@ -61,7 +36,6 @@ import {
   type PromiseToPayResponse,
   type RecoveryOfficerScorecardRow,
 } from "@/services/reporting-engine.service";
-import Skeleton from "@/components/ui/Skeleton";
 import ErrorState from "@/components/ui/ErrorState";
 
 type DomainTab =
@@ -98,7 +72,7 @@ export default function ReportingCenterPage() {
   const [salesInvSubTab, setSalesInvSubTab] = useState<"inquiries" | "devices">("inquiries");
 
   // Specific filter dropdowns
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter] = useState("ALL");
   const [agingBucketFilter, setAgingBucketFilter] = useState("ALL");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("ALL");
 
@@ -245,6 +219,7 @@ export default function ReportingCenterPage() {
 
   useEffect(() => {
     fetchActiveReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [
     activeTab,
     customerSubTab,

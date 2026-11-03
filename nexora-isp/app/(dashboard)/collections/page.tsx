@@ -2,12 +2,7 @@
 
 import {
   AlertTriangle,
-  Banknote,
-  CheckCircle2,
   CircleDollarSign,
-  CreditCard,
-  Eye,
-  Filter,
   Loader2,
   Plus,
   Printer,
@@ -15,7 +10,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  WalletCards,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -151,7 +145,7 @@ export default function CollectionsPage() {
       setIsReceiptModalOpen(true);
       const receipt = await billingService.getReceipt(paymentId);
       setSelectedReceipt(receipt);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load payment receipt.");
       setIsReceiptModalOpen(false);
     } finally {
@@ -193,7 +187,7 @@ export default function CollectionsPage() {
       try {
         const res = await customersService.getCustomers();
         setCustomersList(res);
-      } catch (err) {
+      } catch {
         toast.error("Failed to load customers.");
       }
     }

@@ -2,21 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
-  ArrowDownLeft,
   ArrowRightLeft,
-  ArrowUpRight,
   BookOpen,
   Building2,
-  Calendar,
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
-  Download,
   Eye,
   FileCheck,
   FileSpreadsheet,
-  Filter,
   Landmark,
   Layers,
   Lock,
@@ -28,7 +22,6 @@ import {
   ShieldCheck,
   TrendingDown,
   TrendingUp,
-  Unlock,
   Wallet,
   X,
 } from "lucide-react";
@@ -76,7 +69,7 @@ export default function AccountingWorkspacePage() {
   const [transfers, setTransfers] = useState<FundTransferRecord[]>([]);
   const [settlements, setSettlements] = useState<DealerSettlementRecord[]>([]);
   const [periods, setPeriods] = useState<FinancialPeriodRecord[]>([]);
-  const [dealers, setDealers] = useState<DealerItem[]>([]);
+  const [, setDealers] = useState<DealerItem[]>([]);
 
   // General Ledger state
   const [selectedLedgerAccount, setSelectedLedgerAccount] = useState<string>("");
@@ -88,13 +81,13 @@ export default function AccountingWorkspacePage() {
   const [tbLoading, setTbLoading] = useState(false);
 
   // Modals
-  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [, setShowAddAccountModal] = useState(false);
   const [showNewJournalModal, setShowNewJournalModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [showAccrualModal, setShowAccrualModal] = useState(false);
+  const [, setShowSettlementModal] = useState(false);
+  const [, setShowAccrualModal] = useState(false);
   const [selectedJournalDetail, setSelectedJournalDetail] = useState<JournalEntry | null>(null);
 
   // Filters & Search
@@ -147,6 +140,7 @@ export default function AccountingWorkspacePage() {
 
   useEffect(() => {
     loadBaseData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- base data loads once on mount
   }, []);
 
   // Load General Ledger when selected account changes

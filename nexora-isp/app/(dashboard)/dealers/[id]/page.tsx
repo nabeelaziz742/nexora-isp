@@ -1,25 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertCircle,
   ArrowLeft,
   Building2,
-  Calendar,
-  CheckCircle2,
-  CircleDollarSign,
-  CreditCard,
-  DollarSign,
-  MapPin,
   Percent,
-  Phone,
   Power,
-  Receipt,
   RefreshCw,
-  Users,
-  Wifi,
 } from "lucide-react";
 
 import Skeleton from "@/components/ui/Skeleton";
@@ -37,7 +26,7 @@ export default function Dealer360Page() {
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -48,13 +37,13 @@ export default function Dealer360Page() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dealerId]);
 
   useEffect(() => {
     if (dealerId) {
       loadData();
     }
-  }, [dealerId]);
+  }, [dealerId, loadData]);
 
   const handleToggleStatus = async () => {
     if (!data) return;

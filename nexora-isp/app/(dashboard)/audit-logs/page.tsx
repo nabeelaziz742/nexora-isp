@@ -6,7 +6,6 @@ import {
   Clock,
   Eye,
   FileCode,
-  Filter,
   RefreshCw,
   Search,
   Shield,

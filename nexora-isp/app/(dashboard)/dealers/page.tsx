@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertCircle,
   Building2,
-  Calendar,
   CheckCircle2,
   DollarSign,
   Filter,
@@ -144,6 +143,7 @@ export default function DealersPage() {
 
   useEffect(() => {
     fetchDealers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [statusFilter, cityFilter, areaFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

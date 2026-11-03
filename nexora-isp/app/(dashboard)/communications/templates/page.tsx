@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -50,15 +50,7 @@ export default function CommunicationTemplatesPage() {
   const [previewData, setPreviewData] =
     useState<{ subject: string; body: string } | null>(null);
 
-  useEffect(() => {
-    loadTemplates();
-  }, [
-    search,
-    providerFilter,
-    statusFilter,
-  ]);
-
-  async function loadTemplates() {
+  const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -99,7 +91,11 @@ export default function CommunicationTemplatesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, providerFilter, statusFilter]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   async function handleDuplicate(id: string) {
     try {

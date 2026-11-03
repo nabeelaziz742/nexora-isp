@@ -29,8 +29,6 @@ export default function ISPHealthScore({
   const isDegraded =
     normalizedScore >= 50 &&
     normalizedScore < 75;
-  const isHealthy =
-    normalizedScore >= 75;
 
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)] p-5">

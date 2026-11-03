@@ -1,18 +1,11 @@
 "use client";
 
 import {
-  AlertCircle,
   AlertTriangle,
-  ArrowRight,
-  Calendar,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Clock3,
-  ExternalLink,
   Eye,
-  FileText,
-  Filter,
   Flame,
   LifeBuoy,
   Loader2,
@@ -20,21 +13,17 @@ import {
   MessageSquare,
   Network,
   Plus,
-  Radio,
   RefreshCw,
   Search,
   Send,
   ShieldAlert,
   Sliders,
   Star,
-  Tag,
   Ticket,
   UserCheck,
   UserPlus,
   Users,
-  Wrench,
   X,
-  Zap,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -48,16 +37,12 @@ import { staffService, OrganizationStaff } from "@/services/staff-service";
 import {
   Complaint,
   ComplaintCategory,
-  ComplaintInternalNote,
   ComplaintPriority,
   ComplaintSLAPolicy,
   ComplaintSource,
   ComplaintStatus,
-  ComplaintTimelineEvent,
   CustomerConfirmation,
   Incident,
-  IncidentStatus,
-  SLAStatus,
   SupportDashboardMetrics,
   supportService,
 } from "@/services/support.service";
@@ -323,7 +308,6 @@ export default function SupportPage() {
   const [feedbackNotes, setFeedbackNotes] = useState("");
 
   // New Complaint Registration
-  const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [newCategory, setNewCategory] = useState<ComplaintCategory>("CONNECTIVITY");

@@ -322,7 +322,7 @@ export const supportService = {
     return apiClient.put<ComplaintSLAPolicy[]>("/support/sla-policies/", { policies });
   },
 
-  async getIncidents(params?: any): Promise<Incident[]> {
+  async getIncidents(): Promise<Incident[]> {
     const res = await apiClient.get<ListResponse<Incident>>("/support/incidents/");
     return normalizeList<Incident>(res);
   },

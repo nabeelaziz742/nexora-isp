@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Building2, CheckCircle2 } from "lucide-react";
 
 import { companyService, CompanyProfile } from "@/services/company.service";
 import { useToast } from "@/hooks/useToast";

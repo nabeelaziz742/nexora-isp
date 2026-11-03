@@ -5,11 +5,8 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
-  Calendar,
   CheckCircle2,
   CircleDollarSign,
-  Filter,
-  History,
   Printer,
   Receipt,
   RefreshCw,
@@ -22,18 +19,8 @@ import {
 import {
   posService,
   type PosSale,
-  type PosSalePaymentMethod,
-  type PosSaleStatus,
 } from "@/services/pos.service";
 import Skeleton from "@/components/ui/Skeleton";
-
-function formatDate(value: string) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat("en-PK", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 export default function PosSalesRegisterPage() {
   const [sales, setSales] = useState<PosSale[]>([]);
@@ -42,8 +29,8 @@ export default function PosSalesRegisterPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("ALL");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate] = useState("");
+  const [endDate] = useState("");
 
   // Modals
   const [selectedReceiptSale, setSelectedReceiptSale] = useState<PosSale | null>(null);
@@ -74,6 +61,7 @@ export default function PosSalesRegisterPage() {
 
   useEffect(() => {
     loadSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search text is applied on submit/Enter, not on every keystroke
   }, [statusFilter, paymentMethodFilter]);
 
   // Metrics

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { communicationsService } from "@/services/communications.service";
@@ -54,15 +54,7 @@ export default function CommunicationAutomationsPage() {
   const [customerId, setCustomerId] =
     useState("");
 
-  useEffect(() => {
-    loadAutomations();
-  }, [
-    search,
-    triggerFilter,
-    enabledFilter,
-  ]);
-
-  async function loadAutomations() {
+  const loadAutomations = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -121,7 +113,11 @@ export default function CommunicationAutomationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, triggerFilter, enabledFilter]);
+
+  useEffect(() => {
+    loadAutomations();
+  }, [loadAutomations]);
 
   async function toggleAutomation(
     automation: any,

@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
   CircleAlert,
   Edit2,
-  Filter,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -49,7 +48,7 @@ export default function StaffManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const loadStaff = async () => {
+  const loadStaff = useCallback(async () => {
     try {
       setIsLoading(true);
       setError("");
@@ -71,7 +70,7 @@ export default function StaffManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, roleFilter, statusFilter, areaFilter]);
 
   useEffect(() => {
     geoService
@@ -85,7 +84,7 @@ export default function StaffManagementPage() {
       loadStaff();
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery, roleFilter, statusFilter, areaFilter]);
+  }, [loadStaff]);
 
   const handleStatusChange = async (
     membership: OrganizationStaff,
