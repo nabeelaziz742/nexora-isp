@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   AlertTriangle,
+  Ban,
   Banknote,
   CheckCircle2,
   ChevronRight,
@@ -18,6 +19,7 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  Undo2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -65,6 +67,11 @@ const statusConfig: Record<
     label: "Cancelled",
     badge: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
     dot: "bg-zinc-400",
+  },
+  WRITTEN_OFF: {
+    label: "Bad Debt",
+    badge: "border-violet-500/30 bg-violet-500/10 text-violet-400",
+    dot: "bg-violet-400",
   },
 };
 
@@ -127,6 +134,19 @@ export default function InvoicesPage() {
   const [cancelModalInvoice, setCancelModalInvoice] = useState<Invoice | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Bad Debt Write-Off Modal
+  const [writeOffModalInvoice, setWriteOffModalInvoice] = useState<Invoice | null>(null);
+  const [writeOffReason, setWriteOffReason] = useState("");
+  const [submittingWriteOff, setSubmittingWriteOff] = useState(false);
+
+  // Bad Debt Recovery Modal
+  const [recoverModalInvoice, setRecoverModalInvoice] = useState<Invoice | null>(null);
+  const [recoverAmount, setRecoverAmount] = useState("");
+  const [recoverMethod, setRecoverMethod] = useState<PaymentMethod>("CASH");
+  const [recoverReference, setRecoverReference] = useState("");
+  const [recoverNotes, setRecoverNotes] = useState("");
+  const [submittingRecovery, setSubmittingRecovery] = useState(false);
 
   // Custom Invoice Modal
   const [isCustomInvoiceOpen, setIsCustomInvoiceOpen] = useState(false);
@@ -254,6 +274,53 @@ export default function InvoicesPage() {
       toast.error(err instanceof Error ? err.message : "Failed to cancel invoice.");
     } finally {
       setSubmittingCancel(false);
+    }
+  };
+
+  const handleWriteOffInvoice = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!writeOffModalInvoice) return;
+    if (!writeOffReason.trim()) {
+      toast.error("Please provide a write-off reason.");
+      return;
+    }
+
+    try {
+      setSubmittingWriteOff(true);
+      await billingService.writeOffInvoice(writeOffModalInvoice.id, writeOffReason);
+      toast.success(`Invoice ${writeOffModalInvoice.invoice_number} written off as bad debt.`);
+      setWriteOffModalInvoice(null);
+      setWriteOffReason("");
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to write off invoice.");
+    } finally {
+      setSubmittingWriteOff(false);
+    }
+  };
+
+  const handleRecoverBadDebt = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!recoverModalInvoice) return;
+
+    try {
+      setSubmittingRecovery(true);
+      await billingService.recoverBadDebt(recoverModalInvoice.id, {
+        amount: recoverAmount,
+        payment_method: recoverMethod,
+        reference: recoverReference.trim(),
+        notes: recoverNotes.trim(),
+      });
+      toast.success(`Recovered PKR ${recoverAmount} on ${recoverModalInvoice.invoice_number}`);
+      setRecoverModalInvoice(null);
+      setRecoverAmount("");
+      setRecoverReference("");
+      setRecoverNotes("");
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to record recovery.");
+    } finally {
+      setSubmittingRecovery(false);
     }
   };
 
@@ -399,7 +466,7 @@ export default function InvoicesPage() {
 
       {/* KPI Cards */}
       {summary && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-8">
           <div className="border border-[var(--border)] bg-[var(--surface)] p-4">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Total Invoiced
@@ -459,6 +526,28 @@ export default function InvoicesPage() {
             </p>
             <span className="text-[10px] text-[var(--text-muted)]">Audit trail preserved</span>
           </div>
+
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-4">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">
+              Bad Debt
+            </span>
+            <p className="mt-1 font-mono text-base font-bold text-violet-400">
+              {formatMoney(summary.total_written_off, summary.currency)}
+            </p>
+            <span className="text-[10px] text-violet-500/80">
+              {formatMoney(summary.total_bad_debt_recovered, summary.currency)} recovered
+            </span>
+          </div>
+
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-4">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-400">
+              Customer Advance
+            </span>
+            <p className="mt-1 font-mono text-base font-bold text-sky-400">
+              {formatMoney(summary.total_advance, summary.currency)}
+            </p>
+            <span className="text-[10px] text-[var(--text-muted)]">Applied to next invoices</span>
+          </div>
         </div>
       )}
 
@@ -487,6 +576,7 @@ export default function InvoicesPage() {
               <option value="PARTIALLY_PAID">Partially Paid Only</option>
               <option value="PAID">Paid Only</option>
               <option value="CANCELLED">Cancelled / Voided Only</option>
+              <option value="WRITTEN_OFF">Bad Debt (Written Off) Only</option>
             </select>
           </div>
 
@@ -553,8 +643,10 @@ export default function InvoicesPage() {
               <tbody className="divide-y divide-[var(--border)]">
                 {invoices.map((inv) => {
                   const cfg = statusConfig[inv.status] || statusConfig.UNPAID;
-                  const canPay = inv.status !== "PAID" && inv.status !== "CANCELLED";
+                  const canPay = inv.status === "UNPAID" || inv.status === "PARTIALLY_PAID";
                   const canCancel = inv.status === "UNPAID" && Number(inv.paid_amount) === 0;
+                  const canWriteOff = canPay && Number(inv.outstanding_amount) > 0;
+                  const canRecover = inv.status === "WRITTEN_OFF";
 
                   return (
                     <tr key={inv.id} className="transition-colors hover:bg-white/[0.02]">
@@ -628,6 +720,33 @@ export default function InvoicesPage() {
                             >
                               <Trash2 className="size-3" />
                               Void
+                            </button>
+                          )}
+
+                          {canWriteOff && (
+                            <button
+                              type="button"
+                              onClick={() => setWriteOffModalInvoice(inv)}
+                              className="flex h-7 items-center gap-1 border border-violet-500/30 bg-violet-500/10 px-2 text-[10px] font-semibold text-violet-400 hover:bg-violet-500/20"
+                              title="Write off as bad debt"
+                            >
+                              <Ban className="size-3" />
+                              Bad Debt
+                            </button>
+                          )}
+
+                          {canRecover && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRecoverModalInvoice(inv);
+                                setRecoverAmount(inv.written_off_amount);
+                              }}
+                              className="flex h-7 items-center gap-1 border border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/20"
+                              title="Record a bad debt recovery"
+                            >
+                              <Undo2 className="size-3" />
+                              Recover
                             </button>
                           )}
                         </div>
@@ -929,6 +1048,168 @@ export default function InvoicesPage() {
                 >
                   {submittingCancel && <Loader2 className="size-3.5 animate-spin" />}
                   Confirm Void
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bad Debt Write-Off Modal */}
+      {writeOffModalInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Ban className="size-5 text-violet-400" />
+                <h3 className="text-base font-bold text-white">Write Off as Bad Debt</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWriteOffModalInvoice(null)}
+                className="text-[var(--text-muted)] hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleWriteOffInvoice} className="mt-4 space-y-4">
+              <div>
+                <span className="text-[10px] uppercase text-[var(--text-muted)]">Balance to Write Off</span>
+                <p className="font-mono text-lg font-bold text-violet-400">
+                  {formatMoney(writeOffModalInvoice.outstanding_amount)}
+                </p>
+              </div>
+
+              <p className="text-xs text-[var(--text-muted)]">
+                Invoice <strong className="text-white font-mono">{writeOffModalInvoice.invoice_number}</strong> leaves
+                collections and defaulter lists and the balance is booked as a bad debt expense. If the customer pays
+                later, record it with <strong className="text-white">Recover</strong>.
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-white">Write-Off Reason *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={writeOffReason}
+                  onChange={(e) => setWriteOffReason(e.target.value)}
+                  placeholder="e.g. Customer relocated and unreachable for 6 months, connection disconnected..."
+                  className="mt-1 w-full border border-[var(--border)] bg-[var(--background)] p-2 text-xs text-white focus:border-violet-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setWriteOffModalInvoice(null)}
+                  className="h-9 px-4 text-xs font-semibold text-[var(--text-muted)] hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingWriteOff}
+                  className="flex h-9 items-center gap-1.5 bg-violet-600 px-4 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                >
+                  {submittingWriteOff && <Loader2 className="size-3.5 animate-spin" />}
+                  Confirm Write-Off
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bad Debt Recovery Modal */}
+      {recoverModalInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white">Record Bad Debt Recovery</h3>
+                <p className="font-mono text-xs text-blue-400">{recoverModalInvoice.invoice_number}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecoverModalInvoice(null)}
+                className="text-[var(--text-muted)] hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecoverBadDebt} className="mt-4 space-y-4">
+              <div>
+                <span className="text-[10px] uppercase text-[var(--text-muted)]">Written-Off Balance</span>
+                <p className="font-mono text-lg font-bold text-violet-400">
+                  {formatMoney(recoverModalInvoice.written_off_amount)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white">Recovered Amount (PKR) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={recoverAmount}
+                  onChange={(e) => setRecoverAmount(e.target.value)}
+                  max={recoverModalInvoice.written_off_amount}
+                  className="mt-1 h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white">Payment Method *</label>
+                <select
+                  value={recoverMethod}
+                  onChange={(e) => setRecoverMethod(e.target.value as PaymentMethod)}
+                  className="mt-1 h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white focus:border-blue-500 focus:outline-none"
+                >
+                  {paymentMethods.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white">Reference / Trx ID</label>
+                <input
+                  type="text"
+                  value={recoverReference}
+                  onChange={(e) => setRecoverReference(e.target.value)}
+                  placeholder="e.g. Bank Ref #, Cheque #, JazzCash TID"
+                  className="mt-1 h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white">Recovery Notes</label>
+                <textarea
+                  rows={2}
+                  value={recoverNotes}
+                  onChange={(e) => setRecoverNotes(e.target.value)}
+                  placeholder="Optional remarks"
+                  className="mt-1 w-full border border-[var(--border)] bg-[var(--background)] p-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRecoverModalInvoice(null)}
+                  className="h-9 px-4 text-xs font-semibold text-[var(--text-muted)] hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingRecovery}
+                  className="flex h-9 items-center gap-1.5 bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {submittingRecovery && <Loader2 className="size-3.5 animate-spin" />}
+                  Confirm Recovery
                 </button>
               </div>
             </form>

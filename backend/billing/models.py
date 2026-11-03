@@ -19,6 +19,7 @@ class Invoice(TenantScopedModel):
         PARTIALLY_PAID = "PARTIALLY_PAID", "Partially Paid"
         PAID = "PAID", "Paid"
         CANCELLED = "CANCELLED", "Cancelled"
+        WRITTEN_OFF = "WRITTEN_OFF", "Written Off (Bad Debt)"
 
     id = models.UUIDField(
         primary_key=True,
@@ -62,6 +63,37 @@ class Invoice(TenantScopedModel):
     )
 
     cancellation_reason = models.TextField(
+        blank=True,
+    )
+
+    # Bad debt: the uncollectible balance is written off but the invoice keeps
+    # its history. Later collections reinstate part of it as a recovery.
+    written_off_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    bad_debt_recovered_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    written_off_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    written_off_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="billing_invoices_written_off",
+    )
+
+    write_off_reason = models.TextField(
         blank=True,
     )
 
@@ -159,7 +191,7 @@ class Invoice(TenantScopedModel):
 
     @property
     def outstanding_amount(self):
-        return self.total_amount - self.paid_amount
+        return self.total_amount - self.paid_amount - self.written_off_amount
 
     def __str__(self):
         return (
@@ -712,4 +744,4 @@ class RecoveryAllocation(TenantScopedModel):
 
     def __str__(self):
         return f"{self.allocation_number} - {self.customer.full_name} ({self.status})"
-
+

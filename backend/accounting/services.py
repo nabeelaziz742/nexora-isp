@@ -206,6 +206,14 @@ DEFAULT_COA_TEMPLATE = [
         "is_system": True,
     },
     {
+        "code": "5070",
+        "name": "Bad Debt Expense",
+        "category": Account.Category.EXPENSE,
+        "account_type": Account.AccountType.OPERATING_EXPENSE,
+        "description": "Subscriber receivables written off as uncollectible, net of recoveries",
+        "is_system": True,
+    },
+    {
         "code": "5090",
         "name": "General & Administrative Expenses",
         "category": Account.Category.EXPENSE,
@@ -1560,4 +1568,104 @@ def post_invoice_cancellation_journal_entry(invoice, actor=None) -> JournalEntry
         )
     except Exception as exc:
         logger.exception("Error creating invoice cancellation journal entry for %s: %s", getattr(invoice, "invoice_number", invoice), exc)
+        return None
+
+
+def _post_bad_debt_entry(*, invoice, amount, reference_type, reference_id, narration, write_off, actor=None):
+    organization = invoice.organization
+
+    existing = (
+        JournalEntry.objects
+        .for_organization(organization)
+        .filter(
+            reference_type=reference_type,
+            reference_id=reference_id,
+            status=JournalEntry.Status.POSTED,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    amount = _normalize_decimal(amount)
+    if amount <= Decimal("0.00"):
+        return None
+
+    coa = get_or_create_default_chart_of_accounts(organization)
+    ar_acc = coa.get("1200") or Account.objects.for_organization(organization).filter(category=Account.Category.ASSET).first()
+    bad_debt_acc = coa.get("5070") or Account.objects.for_organization(organization).filter(category=Account.Category.EXPENSE).first()
+
+    expense_line = {
+        "account": bad_debt_acc,
+        "debit": amount if write_off else Decimal("0.00"),
+        "credit": Decimal("0.00") if write_off else amount,
+        "description": (
+            f"Bad Debt Expense: {invoice.invoice_number}"
+            if write_off
+            else f"Bad Debt Recovered: {invoice.invoice_number}"
+        ),
+    }
+    receivable_line = {
+        "account": ar_acc,
+        "debit": Decimal("0.00") if write_off else amount,
+        "credit": amount if write_off else Decimal("0.00"),
+        "description": (
+            f"Customer Receivable Written Off: {invoice.invoice_number}"
+            if write_off
+            else f"Customer Receivable Reinstated: {invoice.invoice_number}"
+        ),
+    }
+
+    return create_journal_entry(
+        organization=organization,
+        actor=actor,
+        txn_date=timezone.now().date(),
+        narration=narration,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        record_audit=False,
+        lines=[expense_line, receivable_line] if write_off else [receivable_line, expense_line],
+    )
+
+
+def post_bad_debt_write_off_journal_entry(invoice, amount, reference_id=None, actor=None) -> JournalEntry | None:
+    """
+    Idempotent hook for writing off an uncollectible invoice balance:
+    Debit: 5070 Bad Debt Expense
+    Credit: 1200 Accounts Receivable (Subscribers)
+    """
+    try:
+        return _post_bad_debt_entry(
+            invoice=invoice,
+            amount=amount,
+            reference_type=JournalEntry.ReferenceType.BAD_DEBT_WRITE_OFF,
+            reference_id=reference_id or f"WRITE_OFF:{invoice.id}",
+            narration=f"Bad Debt Written Off: {invoice.invoice_number} ({invoice.write_off_reason or 'Uncollectible'})",
+            write_off=True,
+            actor=actor,
+        )
+    except Exception as exc:
+        logger.exception("Error creating bad debt write-off journal entry for %s: %s", getattr(invoice, "invoice_number", invoice), exc)
+        return None
+
+
+def post_bad_debt_recovery_journal_entry(invoice, amount, payment, actor=None) -> JournalEntry | None:
+    """
+    Idempotent hook for reinstating a written-off balance before it is collected:
+    Debit: 1200 Accounts Receivable (Subscribers)
+    Credit: 5070 Bad Debt Expense
+    The payment journal entry then clears the reinstated receivable against cash.
+    """
+    try:
+        return _post_bad_debt_entry(
+            invoice=invoice,
+            amount=amount,
+            reference_type=JournalEntry.ReferenceType.BAD_DEBT_RECOVERY,
+            reference_id=f"RECOVERY:{payment.id}",
+            narration=f"Bad Debt Recovered: {invoice.invoice_number} via {payment.payment_number}",
+            write_off=False,
+            actor=actor,
+        )
+    except Exception as exc:
+        logger.exception("Error creating bad debt recovery journal entry for %s: %s", getattr(invoice, "invoice_number", invoice), exc)
         return None

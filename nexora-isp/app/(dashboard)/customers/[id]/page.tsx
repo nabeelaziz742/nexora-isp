@@ -807,15 +807,27 @@ export default function CustomerDetailPage() {
                 <span className="text-[10px] text-emerald-500/80">{payments.filter((p) => !p.is_reversed).length} payments</span>
               </div>
 
-              <div className="border border-[var(--border)] bg-[var(--background)] p-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
-                  Current Balance Due
-                </span>
-                <p className="mt-1 font-mono text-lg font-bold text-amber-400">
-                  {formatMoney(ledger?.closing_balance || "0.00")}
-                </p>
-                <span className="text-[10px] text-amber-500/80">Net account position</span>
-              </div>
+              {Number(ledger?.advance_balance) > 0 ? (
+                <div className="border border-[var(--border)] bg-[var(--background)] p-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-400">
+                    Advance Credit
+                  </span>
+                  <p className="mt-1 font-mono text-lg font-bold text-sky-400">
+                    {formatMoney(ledger?.advance_balance || "0.00")}
+                  </p>
+                  <span className="text-[10px] text-sky-500/80">Applied to the next invoice automatically</span>
+                </div>
+              ) : (
+                <div className="border border-[var(--border)] bg-[var(--background)] p-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+                    Current Balance Due
+                  </span>
+                  <p className="mt-1 font-mono text-lg font-bold text-amber-400">
+                    {formatMoney(ledger?.closing_balance || "0.00")}
+                  </p>
+                  <span className="text-[10px] text-amber-500/80">Net account position</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -952,6 +964,8 @@ export default function CustomerDetailPage() {
                                 ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
                                 : inv.status === "CANCELLED"
                                 ? "border-zinc-500/30 bg-zinc-500/10 text-zinc-400"
+                                : inv.status === "WRITTEN_OFF"
+                                ? "border-violet-500/30 bg-violet-500/10 text-violet-400"
                                 : "border-rose-500/30 bg-rose-500/10 text-rose-400"
                             }`}>
                               {inv.status}
@@ -1574,7 +1588,7 @@ export default function CustomerDetailPage() {
                 {/* Quick Amount Suggestion Chips */}
                 {(() => {
                   const outstanding = Number(ledger?.closing_balance) || 0;
-                  const latestUnpaid = Number(invoices.find((i) => i.status !== "PAID")?.total_amount) || 0;
+                  const latestUnpaid = Number(invoices.find((i) => i.status === "UNPAID" || i.status === "PARTIALLY_PAID")?.total_amount) || 0;
 
                   return (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -102,7 +102,7 @@ def scan_overdue_invoices_task(organization_id: str | None = None):
                 organization=org,
                 due_date__lt=today,
             )
-            .exclude(status__in=[Invoice.Status.PAID, Invoice.Status.CANCELLED])
+            .exclude(status__in=[Invoice.Status.PAID, Invoice.Status.CANCELLED, Invoice.Status.WRITTEN_OFF])
         )
 
         count = overdue_invoices.count()

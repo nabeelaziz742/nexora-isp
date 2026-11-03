@@ -207,6 +207,8 @@ class JournalEntry(TenantScopedModel):
         DEALER_SETTLEMENT = "DEALER_SETTLEMENT", "Dealer Payout Settlement"
         POS_SALE = "POS_SALE", "POS Hardware Sale"
         POS_SALE_REVERSAL = "POS_SALE_REVERSAL", "POS Sale Cancellation Reversal"
+        BAD_DEBT_WRITE_OFF = "BAD_DEBT_WRITE_OFF", "Bad Debt Write-Off"
+        BAD_DEBT_RECOVERY = "BAD_DEBT_RECOVERY", "Bad Debt Recovery"
 
     id = models.UUIDField(
         primary_key=True,

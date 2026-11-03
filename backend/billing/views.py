@@ -12,12 +12,14 @@ from rest_framework.views import APIView
 from billing.models import Invoice, InvoiceLine, Payment, PaymentAllocation, PromiseToPay
 from billing.revenue_intelligence import build_revenue_intelligence
 from billing.serializers import (
+    BadDebtRecoverySerializer,
     CancelInvoiceSerializer,
     CustomInvoiceCreateSerializer,
     FinancialLedgerSerializer,
     GenerateInvoiceSerializer,
     InvoiceDetailSerializer,
     InvoiceSerializer,
+    InvoiceWriteOffSerializer,
     MonthlyBillingRunSerializer,
     PaymentReceiptSerializer,
     PaymentReversalSerializer,
@@ -40,8 +42,10 @@ from billing.services import (
     get_payment_receipt_data,
     record_invoice_payment,
     record_payment_with_allocations,
+    recover_bad_debt,
     reverse_payment,
     transition_promise_status,
+    write_off_invoice,
 )
 from customers.models import BillingProfile
 from tenancy.pagination import StandardResultsSetPagination
@@ -277,6 +281,9 @@ class BillingSummaryView(APIView):
         paid_count = 0
         overdue_count = 0
         cancelled_count = 0
+        written_off_count = 0
+        total_written_off = Decimal("0.00")
+        total_bad_debt_recovered = Decimal("0.00")
         today = date.today()
 
         for invoice in invoices:
@@ -287,6 +294,8 @@ class BillingSummaryView(APIView):
             total_invoiced += invoice.total_amount
             total_paid += invoice.paid_amount
             total_outstanding += invoice.outstanding_amount
+            total_written_off += invoice.written_off_amount
+            total_bad_debt_recovered += invoice.bad_debt_recovered_amount
 
             if invoice.status == Invoice.Status.UNPAID:
                 unpaid_count += 1
@@ -294,10 +303,25 @@ class BillingSummaryView(APIView):
                 partially_paid_count += 1
             elif invoice.status == Invoice.Status.PAID:
                 paid_count += 1
+            elif invoice.status == Invoice.Status.WRITTEN_OFF:
+                written_off_count += 1
 
-            if invoice.status != Invoice.Status.PAID and invoice.due_date < today:
+            if (
+                invoice.status in [Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID]
+                and invoice.due_date < today
+            ):
                 overdue_count += 1
                 overdue_outstanding += invoice.outstanding_amount
+
+        total_advance = Decimal("0.00")
+        active_payments = (
+            Payment.objects
+            .for_organization(request.organization)
+            .filter(is_reversed=False)
+            .annotate(allocated_total=Sum("allocations__amount"))
+        )
+        for payment in active_payments:
+            total_advance += payment.amount - (payment.allocated_total or Decimal("0.00"))
 
         collection_rate = (
             (total_paid / total_invoiced * Decimal("100.00")).quantize(Decimal("0.01"))
@@ -319,6 +343,10 @@ class BillingSummaryView(APIView):
                 "paid_count": paid_count,
                 "overdue_count": overdue_count,
                 "cancelled_count": cancelled_count,
+                "written_off_count": written_off_count,
+                "total_written_off": total_written_off,
+                "total_bad_debt_recovered": total_bad_debt_recovered,
+                "total_advance": total_advance,
             }
         )
 
@@ -522,6 +550,57 @@ class CancelInvoiceView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(InvoiceSerializer(invoice).data)
+
+
+class InvoiceWriteOffView(APIView):
+    permission_classes = [CanCancelInvoice]
+
+    def post(self, request, invoice_id):
+        serializer = InvoiceWriteOffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            invoice = write_off_invoice(
+                organization=request.organization,
+                actor=request.user,
+                invoice_id=invoice_id,
+                write_off_reason=serializer.validated_data["write_off_reason"],
+            )
+        except BillingDomainError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(InvoiceSerializer(invoice).data)
+
+
+class BadDebtRecoveryView(APIView):
+    permission_classes = [CanManageBilling]
+
+    def post(self, request, invoice_id):
+        serializer = BadDebtRecoverySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            payment = recover_bad_debt(
+                organization=request.organization,
+                actor=request.user,
+                invoice_id=invoice_id,
+                amount=data["amount"],
+                payment_method=data["payment_method"],
+                reference=data.get("reference", ""),
+                notes=data.get("notes", ""),
+                paid_at=data.get("paid_at"),
+            )
+        except BillingDomainError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment = (
+            Payment.objects
+            .select_related("service_account", "service_account__customer", "received_by")
+            .prefetch_related("allocations__invoice")
+            .get(id=payment.id)
+        )
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
 class CustomInvoiceCreateView(APIView):

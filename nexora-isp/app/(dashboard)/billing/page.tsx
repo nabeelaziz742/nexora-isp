@@ -113,6 +113,10 @@ function getStatusStyles(
     return "border-zinc-500/20 bg-zinc-500/10 text-zinc-400";
   }
 
+  if (status === "WRITTEN_OFF") {
+    return "border-violet-500/20 bg-violet-500/10 text-violet-400";
+  }
+
   return "border-red-500/20 bg-red-500/10 text-red-400";
 }
 
@@ -129,6 +133,10 @@ function getStatusLabel(
 
   if (status === "CANCELLED") {
     return "Cancelled";
+  }
+
+  if (status === "WRITTEN_OFF") {
+    return "Bad Debt";
   }
 
   return "Paid";
@@ -821,7 +829,7 @@ export default function BillingPage() {
                     </td>
 
                     <td className="px-4 py-4">
-                      {invoice.status !== "PAID" ? (
+                      {invoice.status === "UNPAID" || invoice.status === "PARTIALLY_PAID" ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -832,8 +840,8 @@ export default function BillingPage() {
                           Record Payment
                         </button>
                       ) : (
-                        <span className="text-[11px] text-green-400">
-                          Settled
+                        <span className={`text-[11px] ${invoice.status === "PAID" ? "text-green-400" : "text-[#64748B]"}`}>
+                          {invoice.status === "PAID" ? "Settled" : getStatusLabel(invoice.status)}
                         </span>
                       )}
                     </td>

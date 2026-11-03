@@ -1,6 +1,7 @@
 import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 import type {
+  BadDebtRecoveryPayload,
   BillingSummary,
   CustomInvoicePayload,
   FinancialLedger,
@@ -76,6 +77,32 @@ export const billingService = {
       {
         method: "POST",
         body: { cancellation_reason: cancellationReason },
+      },
+    );
+  },
+
+  writeOffInvoice(
+    invoiceId: string,
+    writeOffReason: string,
+  ): Promise<Invoice> {
+    return apiRequest<Invoice>(
+      `/billing/invoices/${invoiceId}/write-off/`,
+      {
+        method: "POST",
+        body: { write_off_reason: writeOffReason },
+      },
+    );
+  },
+
+  recoverBadDebt(
+    invoiceId: string,
+    payload: BadDebtRecoveryPayload,
+  ): Promise<Payment> {
+    return apiRequest<Payment>(
+      `/billing/invoices/${invoiceId}/bad-debt-recovery/`,
+      {
+        method: "POST",
+        body: payload,
       },
     );
   },
@@ -192,4 +219,4 @@ export const billingService = {
       },
     );
   },
-};
+};

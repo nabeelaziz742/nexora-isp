@@ -9,6 +9,7 @@ from billing.recovery_views import (
     RecoveryDashboardView,
 )
 from billing.views import (
+    BadDebtRecoveryView,
     BillingSummaryView,
     CancelInvoiceView,
     CustomInvoiceCreateView,
@@ -16,6 +17,7 @@ from billing.views import (
     GenerateInvoiceView,
     InvoiceDetailView,
     InvoiceListView,
+    InvoiceWriteOffView,
     MonthlyBillingRunView,
     PaymentListView,
     PaymentReceiptView,
@@ -74,6 +76,16 @@ urlpatterns = [
         "payments/record/",
         RecordPaymentWithAllocationsView.as_view(),
         name="billing-payment-record-with-allocations",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/write-off/",
+        InvoiceWriteOffView.as_view(),
+        name="billing-invoice-write-off",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/bad-debt-recovery/",
+        BadDebtRecoveryView.as_view(),
+        name="billing-bad-debt-recovery",
     ),
     path(
         "payments/<uuid:payment_id>/reverse/",

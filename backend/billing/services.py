@@ -135,7 +135,10 @@ def _refresh_invoice_status(*, invoice: Invoice) -> Invoice:
     total_amount = invoice.total_amount
     paid_amount = invoice.paid_amount
 
-    if paid_amount <= Decimal("0.00"):
+    if invoice.written_off_amount > Decimal("0.00"):
+        # Part of the balance is still written off as bad debt.
+        status = Invoice.Status.WRITTEN_OFF
+    elif paid_amount <= Decimal("0.00"):
         status = Invoice.Status.UNPAID
     elif paid_amount < total_amount:
         status = Invoice.Status.PARTIALLY_PAID
@@ -147,6 +150,62 @@ def _refresh_invoice_status(*, invoice: Invoice) -> Invoice:
         invoice.save(update_fields=["status", "updated_at"])
 
     return invoice
+
+
+def get_service_advance_balance(*, service_account: ServiceAccount) -> Decimal:
+    """Customer credit: the unallocated remainder of the service's active payments."""
+    payments = (
+        Payment.objects
+        .for_organization(service_account.organization)
+        .filter(service_account=service_account, is_reversed=False)
+        .annotate(allocated_total=Sum("allocations__amount"))
+    )
+    return sum(
+        (payment.amount - (payment.allocated_total or Decimal("0.00")) for payment in payments),
+        Decimal("0.00"),
+    )
+
+
+def _apply_advance_to_invoice(*, invoice: Invoice) -> Decimal:
+    """Settle a new invoice from the customer's advance, oldest payment first.
+
+    The payment journal entry already credited receivables in full, so moving
+    advance onto an invoice needs no further accounting entry.
+    """
+    remaining = invoice.outstanding_amount
+    applied = Decimal("0.00")
+    if remaining <= Decimal("0.00"):
+        return applied
+
+    payments = (
+        Payment.objects
+        .select_for_update()
+        .for_organization(invoice.organization)
+        .filter(service_account=invoice.service_account, is_reversed=False)
+        .order_by("paid_at", "created_at")
+    )
+    for payment in payments:
+        if remaining <= Decimal("0.00"):
+            break
+
+        available = payment.unallocated_amount
+        if available <= Decimal("0.00"):
+            continue
+
+        amount = min(available, remaining)
+        PaymentAllocation.objects.create(
+            organization=invoice.organization,
+            payment=payment,
+            invoice=invoice,
+            amount=amount,
+        )
+        remaining -= amount
+        applied += amount
+
+    if applied > Decimal("0.00"):
+        _refresh_invoice_status(invoice=invoice)
+
+    return applied
 
 
 def _get_month_period(*, billing_year: int, billing_month: int) -> tuple[date, date]:
@@ -268,6 +327,8 @@ def generate_service_invoice(
         amount=package_price,
     )
 
+    advance_applied = _apply_advance_to_invoice(invoice=invoice)
+
     record_audit_log(
         organization=organization,
         actor=actor,
@@ -281,6 +342,7 @@ def generate_service_invoice(
             "billing_period_start": billing_period_start.isoformat(),
             "billing_period_end": billing_period_end.isoformat(),
             "total_amount": str(invoice.total_amount),
+            "advance_applied": str(advance_applied),
         },
     )
 
@@ -794,6 +856,9 @@ def cancel_invoice(
     if invoice.status == Invoice.Status.CANCELLED:
         raise BillingDomainError("Invoice is already cancelled.")
 
+    if invoice.written_off_at is not None:
+        raise BillingDomainError("Cannot cancel an invoice that was written off as bad debt.")
+
     if invoice.allocations.exists():
         raise BillingDomainError("Cannot cancel invoice with recorded payments. Reverse payments first.")
 
@@ -900,6 +965,8 @@ def generate_custom_invoice(
             amount=amount,
         )
 
+    advance_applied = _apply_advance_to_invoice(invoice=invoice)
+
     record_audit_log(
         organization=organization,
         actor=actor,
@@ -912,6 +979,7 @@ def generate_custom_invoice(
             "line_items_count": len(line_items),
             "total_amount": str(invoice.total_amount),
             "notes": notes.strip(),
+            "advance_applied": str(advance_applied),
         },
     )
 
@@ -1151,9 +1219,18 @@ def reverse_payment(
 
     allocations = PaymentAllocation.objects.for_organization(organization).filter(payment=payment).select_related("invoice")
     affected_invoices = []
+    rewritten_off = []
     for alloc in allocations:
         inv = Invoice.objects.select_for_update().get(id=alloc.invoice_id)
         affected_invoices.append(inv)
+
+        # A written-off invoice stays fully settled: whatever this reversal
+        # un-pays (a recovery or an earlier part payment) goes back to bad debt.
+        if inv.written_off_at is not None:
+            inv.bad_debt_recovered_amount -= min(alloc.amount, inv.bad_debt_recovered_amount)
+            inv.written_off_amount += alloc.amount
+            inv.save(update_fields=["bad_debt_recovered_amount", "written_off_amount", "updated_at"])
+            rewritten_off.append((inv, alloc.amount))
 
     allocations.delete()
 
@@ -1185,6 +1262,166 @@ def reverse_payment(
         post_payment_reversal_journal_entry(payment=payment, actor=actor)
     except Exception as exc:
         logger.exception("Error in accounting payment reversal hook for %s: %s", payment.payment_number, exc)
+
+    if rewritten_off:
+        from accounting.services import post_bad_debt_write_off_journal_entry
+        for inv, restored in rewritten_off:
+            post_bad_debt_write_off_journal_entry(
+                invoice=inv,
+                amount=restored,
+                reference_id=f"WRITE_OFF:{inv.id}:REVERSAL:{payment.id}",
+                actor=actor,
+            )
+
+    return payment
+
+
+@transaction.atomic
+def write_off_invoice(
+    *,
+    organization: Organization,
+    actor: User,
+    invoice_id,
+    write_off_reason: str,
+) -> Invoice:
+    if not organization.is_active:
+        raise BillingDomainError("Organization is inactive.")
+
+    if not write_off_reason or not write_off_reason.strip():
+        raise BillingDomainError("Write-off reason is mandatory.")
+
+    try:
+        invoice = (
+            Invoice.objects
+            .select_for_update()
+            .for_organization(organization)
+            .get(id=invoice_id)
+        )
+    except Invoice.DoesNotExist as exc:
+        raise BillingDomainError("Invoice was not found for this organization.") from exc
+
+    if invoice.status not in [Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID]:
+        raise BillingDomainError("Only unpaid or partially paid invoices can be written off.")
+
+    amount = invoice.outstanding_amount
+    if amount <= Decimal("0.00"):
+        raise BillingDomainError("Invoice has no outstanding balance to write off.")
+
+    invoice.written_off_amount = amount
+    invoice.written_off_at = timezone.now()
+    invoice.written_off_by = actor
+    invoice.write_off_reason = write_off_reason.strip()
+    invoice.status = Invoice.Status.WRITTEN_OFF
+    invoice.save(
+        update_fields=[
+            "written_off_amount",
+            "written_off_at",
+            "written_off_by",
+            "write_off_reason",
+            "status",
+            "updated_at",
+        ]
+    )
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="BILLING_INVOICE_WRITTEN_OFF",
+        resource_type="Invoice",
+        resource_id=invoice.id,
+        metadata={
+            "invoice_number": invoice.invoice_number,
+            "written_off_amount": str(amount),
+            "write_off_reason": invoice.write_off_reason,
+        },
+    )
+
+    try:
+        from accounting.services import post_bad_debt_write_off_journal_entry
+        post_bad_debt_write_off_journal_entry(invoice=invoice, amount=amount, actor=actor)
+    except Exception as exc:
+        logger.exception("Error in accounting bad debt write-off hook for %s: %s", invoice.invoice_number, exc)
+
+    return invoice
+
+
+@transaction.atomic
+def recover_bad_debt(
+    *,
+    organization: Organization,
+    actor: User,
+    invoice_id,
+    amount,
+    payment_method: str,
+    reference: str = "",
+    notes: str = "",
+    paid_at=None,
+) -> Payment:
+    if not organization.is_active:
+        raise BillingDomainError("Organization is inactive.")
+
+    # Same lock order as payment recording: organization first, then invoices.
+    organization = _lock_organization_for_numbering(organization=organization)
+
+    normalized_amount = _normalize_amount(
+        amount=amount,
+        error_message="Recovery amount must be greater than zero.",
+    )
+
+    try:
+        invoice = (
+            Invoice.objects
+            .select_for_update()
+            .for_organization(organization)
+            .get(id=invoice_id)
+        )
+    except Invoice.DoesNotExist as exc:
+        raise BillingDomainError("Invoice was not found for this organization.") from exc
+
+    if invoice.status != Invoice.Status.WRITTEN_OFF:
+        raise BillingDomainError("Only written-off invoices can receive a bad debt recovery.")
+
+    if normalized_amount > invoice.written_off_amount:
+        raise BillingDomainError(
+            f"Recovery amount {normalized_amount} exceeds the written-off balance of {invoice.written_off_amount}."
+        )
+
+    # Reinstate the recovered part as receivable, then collect it like a normal payment.
+    invoice.written_off_amount -= normalized_amount
+    invoice.bad_debt_recovered_amount += normalized_amount
+    invoice.save(update_fields=["written_off_amount", "bad_debt_recovered_amount", "updated_at"])
+
+    payment = record_payment_with_allocations(
+        organization=organization,
+        actor=actor,
+        service_account_id=invoice.service_account_id,
+        amount=normalized_amount,
+        payment_method=payment_method,
+        reference=reference,
+        notes=notes or f"Bad debt recovery for {invoice.invoice_number}",
+        allocations=[{"invoice_id": invoice.id, "amount": normalized_amount}],
+        paid_at=paid_at,
+    )
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="BILLING_BAD_DEBT_RECOVERED",
+        resource_type="Invoice",
+        resource_id=invoice.id,
+        metadata={
+            "invoice_number": invoice.invoice_number,
+            "payment_number": payment.payment_number,
+            "recovered_amount": str(normalized_amount),
+            "remaining_written_off": str(invoice.written_off_amount),
+        },
+    )
+
+    try:
+        from accounting.services import post_bad_debt_recovery_journal_entry
+        post_bad_debt_recovery_journal_entry(invoice=invoice, amount=normalized_amount, payment=payment, actor=actor)
+    except Exception as exc:
+        logger.exception("Error in accounting bad debt recovery hook for %s: %s", invoice.invoice_number, exc)
 
     return payment
 
@@ -1247,6 +1484,25 @@ def get_financial_ledger(
             "object_id": str(inv.id),
         })
 
+    for inv in invoices_qs:
+        if inv.written_off_amount <= Decimal("0.00"):
+            continue
+        entries.append({
+            "type": "WRITE_OFF",
+            "date": str(inv.written_off_at.date()),
+            "timestamp": inv.written_off_at,
+            "reference": inv.invoice_number,
+            "description": f"Bad Debt Written Off: {inv.write_off_reason or 'Uncollectible'}",
+            "debit": Decimal("0.00"),
+            "credit": inv.written_off_amount,
+            "status": "WRITTEN_OFF",
+            "service_number": inv.service_account.service_number,
+            "customer_name": inv.service_account.customer.full_name,
+            "customer_id": str(inv.service_account.customer_id),
+            "service_account_id": str(inv.service_account_id),
+            "object_id": str(inv.id),
+        })
+
     for pay in payments_qs:
         if pay.is_reversed:
             entries.append({
@@ -1298,6 +1554,8 @@ def get_financial_ledger(
         "total_debit": total_debit,
         "total_credit": total_credit,
         "closing_balance": running_balance,
+        # A negative closing balance is money the customer has paid in advance.
+        "advance_balance": max(-running_balance, Decimal("0.00")),
         "entries": entries,
     }
 

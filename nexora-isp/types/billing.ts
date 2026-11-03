@@ -2,7 +2,8 @@ export type InvoiceStatus =
   | "UNPAID"
   | "PARTIALLY_PAID"
   | "PAID"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "WRITTEN_OFF";
 
 export type PaymentMethod =
   | "CASH"
@@ -30,6 +31,10 @@ export interface BillingSummary {
   paid_count: number;
   overdue_count: number;
   cancelled_count?: number;
+  written_off_count: number;
+  total_written_off: string;
+  total_bad_debt_recovered: string;
+  total_advance: string;
 }
 
 export interface Invoice {
@@ -51,8 +56,19 @@ export interface Invoice {
   total_amount: string;
   paid_amount: string;
   outstanding_amount: string;
+  written_off_amount: string;
+  bad_debt_recovered_amount: string;
+  written_off_at: string | null;
+  write_off_reason: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface BadDebtRecoveryPayload {
+  amount: string;
+  payment_method: PaymentMethod;
+  reference?: string;
+  notes?: string;
 }
 
 export interface InvoiceLine {
@@ -165,7 +181,7 @@ export interface MonthlyBillingRunResult {
 }
 
 export interface FinancialLedgerEntry {
-  type: "INVOICE" | "PAYMENT" | "PAYMENT_REVERSED";
+  type: "INVOICE" | "PAYMENT" | "PAYMENT_REVERSED" | "WRITE_OFF";
   date: string;
   timestamp: string;
   reference: string;
@@ -186,6 +202,8 @@ export interface FinancialLedger {
   total_debit: string;
   total_credit: string;
   closing_balance: string;
+  // Credit the customer has paid ahead; applied to the next invoice automatically.
+  advance_balance: string;
   entries: FinancialLedgerEntry[];
 }
 

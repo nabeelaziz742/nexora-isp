@@ -120,6 +120,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "total_amount",
             "paid_amount",
             "outstanding_amount",
+            "written_off_amount",
+            "bad_debt_recovered_amount",
+            "written_off_at",
+            "write_off_reason",
             "created_at",
             "updated_at",
         ]
@@ -397,6 +401,18 @@ class RecordPaymentWithAllocationsSerializer(serializers.Serializer):
     paid_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
+class InvoiceWriteOffSerializer(serializers.Serializer):
+    write_off_reason = serializers.CharField(required=True, min_length=3)
+
+
+class BadDebtRecoverySerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    payment_method = serializers.ChoiceField(choices=Payment.Method.choices)
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=150)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    paid_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
 class PaymentReversalSerializer(serializers.Serializer):
     reversal_reason = serializers.CharField(required=True, min_length=3)
     reversal_reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=150)
@@ -429,6 +445,7 @@ class FinancialLedgerSerializer(serializers.Serializer):
     total_debit = serializers.DecimalField(max_digits=12, decimal_places=2)
     total_credit = serializers.DecimalField(max_digits=12, decimal_places=2)
     closing_balance = serializers.DecimalField(max_digits=12, decimal_places=2)
+    advance_balance = serializers.DecimalField(max_digits=12, decimal_places=2)
     entries = FinancialLedgerEntrySerializer(many=True)
 
 
@@ -451,4 +468,4 @@ class PaymentReceiptSerializer(serializers.Serializer):
     service_number = serializers.CharField()
     allocations = serializers.ListField()
     customer_remaining_balance = serializers.CharField()
-
+
