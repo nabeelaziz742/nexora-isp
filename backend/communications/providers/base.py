@@ -21,6 +21,10 @@ class BaseCommunicationProvider(ABC):
         """
         raise NotImplementedError
 
+    def is_configured(self, *, provider):
+        """Return True when the provider has what it needs to send externally."""
+        return True
+
     def health_check(self, *, provider):
         """Validate provider connectivity without sending a customer message."""
         return {

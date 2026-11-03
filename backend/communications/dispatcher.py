@@ -102,12 +102,17 @@ class CommunicationDispatcher:
         """Send one queue item through its configured provider."""
         try:
             provider = ProviderFactory.get(queue.provider)
-            result = provider.send(
-                recipient=queue.recipient,
-                subject=queue.rendered_subject,
-                message=queue.rendered_body,
-                provider=queue.provider,
-            )
+            if not provider.is_configured(provider=queue.provider):
+                # Fail closed without calling the external API so the
+                # attempt stays visible in communication logs.
+                result = cls.not_configured_result()
+            else:
+                result = provider.send(
+                    recipient=queue.recipient,
+                    subject=queue.rendered_subject,
+                    message=queue.rendered_body,
+                    provider=queue.provider,
+                )
         except Exception as exc:
             logger.exception(
                 "Communication %s provider error.",
@@ -124,6 +129,17 @@ class CommunicationDispatcher:
             return cls.mark_success(queue, result)
 
         return cls.mark_failure(queue, result)
+
+    @staticmethod
+    def not_configured_result():
+        return {
+            "success": False,
+            "provider_message_id": "",
+            "status_code": None,
+            "retryable": False,
+            "response": {"status": "not_configured"},
+            "error": "Communication provider is not configured.",
+        }
 
     @classmethod
     def mark_success(cls, queue, result):

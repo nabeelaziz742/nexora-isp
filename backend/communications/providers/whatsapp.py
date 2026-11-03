@@ -32,6 +32,13 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                     safe[key] = value
         return safe
 
+    def is_configured(self, *, provider):
+        return bool(
+            provider.is_connected
+            and provider.phone_number_id
+            and provider.access_token
+        )
+
     def health_check(self, *, provider):
         if not provider.phone_number_id or not provider.access_token:
             return {

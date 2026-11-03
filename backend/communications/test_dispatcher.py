@@ -212,3 +212,138 @@ class CommunicationDispatcherTests(TestCase):
 
         self.assertIsNone(result)
         self.assertEqual(queue.status, CommunicationQueue.Status.PENDING)
+
+
+class UnconfiguredProviderDispatchTests(TestCase):
+    def setUp(self):
+        self.organization = Organization.objects.create(
+            name="Unconfigured ISP",
+            code="UNCONF-ISP",
+        )
+        self.customer = Customer.objects.create(
+            organization=self.organization,
+            customer_number="CUST-UNCONF",
+            first_name="Test",
+            last_name="Customer",
+            phone="03000000000",
+            address_line="Test Address",
+            city="Lahore",
+        )
+
+    def create_whatsapp_queue(self, **provider_values):
+        provider = CommunicationProvider.objects.create(
+            organization=self.organization,
+            name="WhatsApp",
+            provider_type=CommunicationProvider.ProviderType.WHATSAPP,
+            **provider_values,
+        )
+        template = CommunicationTemplate.objects.create(
+            organization=self.organization,
+            name="WhatsApp Template",
+            body="Test message",
+            communication_provider=provider,
+        )
+        queue = CommunicationQueue.objects.create(
+            organization=self.organization,
+            customer=self.customer,
+            template=template,
+            provider=provider,
+            recipient=self.customer.phone,
+            rendered_body="Test message",
+            scheduled_at=timezone.now() - timedelta(minutes=1),
+        )
+        CommunicationLog.objects.create(
+            organization=self.organization,
+            queue=queue,
+            recipient=queue.recipient,
+            message=queue.rendered_body,
+        )
+        return queue
+
+    def assert_not_configured(self, queue):
+        queue.refresh_from_db()
+        log = CommunicationLog.objects.get(queue=queue)
+        self.assertEqual(queue.status, CommunicationQueue.Status.FAILED)
+        self.assertIsNone(queue.next_retry_at)
+        self.assertEqual(queue.provider_response, {"status": "not_configured"})
+        self.assertEqual(
+            queue.last_error,
+            "Communication provider is not configured.",
+        )
+        self.assertEqual(log.status, CommunicationLog.Status.FAILED)
+        self.assertIn("not_configured", log.provider_response)
+
+    @patch("communications.providers.whatsapp.requests.post")
+    def test_placeholder_whatsapp_provider_is_not_called(self, mock_post):
+        queue = self.create_whatsapp_queue(is_connected=False)
+
+        result = CommunicationDispatcher.process(queue)
+
+        self.assertFalse(result)
+        mock_post.assert_not_called()
+        self.assert_not_configured(queue)
+
+    @patch("communications.providers.whatsapp.requests.post")
+    def test_connected_whatsapp_without_credentials_is_not_called(self, mock_post):
+        queue = self.create_whatsapp_queue(is_connected=True)
+
+        CommunicationDispatcher.process(queue)
+
+        mock_post.assert_not_called()
+        self.assert_not_configured(queue)
+
+    @patch("communications.providers.whatsapp.requests.post")
+    def test_disconnected_whatsapp_with_credentials_is_not_called(self, mock_post):
+        queue = self.create_whatsapp_queue(
+            is_connected=False,
+            phone_number_id="123456",
+            access_token="token",
+        )
+
+        CommunicationDispatcher.process(queue)
+
+        mock_post.assert_not_called()
+        self.assert_not_configured(queue)
+
+    @patch("communications.providers.whatsapp.requests.post")
+    def test_configured_whatsapp_provider_is_called(self, mock_post):
+        mock_post.return_value = Mock(
+            ok=True,
+            status_code=200,
+            json=Mock(return_value={"messages": [{"id": "wamid.test"}]}),
+        )
+        queue = self.create_whatsapp_queue(
+            is_connected=True,
+            phone_number_id="123456",
+            access_token="token",
+        )
+
+        result = CommunicationDispatcher.process(queue)
+
+        self.assertTrue(result)
+        mock_post.assert_called_once()
+        queue.refresh_from_db()
+        self.assertEqual(queue.status, CommunicationQueue.Status.SENT)
+
+    @patch("communications.providers.whatsapp.requests.post")
+    def test_notification_event_without_provider_skips_external_call(self, mock_post):
+        from communications.notification_engine import (
+            NotificationEvent,
+            dispatch_notification_event,
+        )
+
+        result = dispatch_notification_event(
+            organization=self.organization,
+            customer=self.customer,
+            event_type=NotificationEvent.PAYMENT_RECEIVED,
+            context={"paid_amount": "100.00"},
+            preferred_channel="WHATSAPP",
+        )
+
+        mock_post.assert_not_called()
+        self.assertEqual(len(result["queued_items"]), 1)
+        queue = CommunicationQueue.objects.get(
+            id=result["queued_items"][0]["queue_id"],
+        )
+        self.assertEqual(queue.status, CommunicationQueue.Status.FAILED)
+        self.assertEqual(queue.provider_response, {"status": "not_configured"})
