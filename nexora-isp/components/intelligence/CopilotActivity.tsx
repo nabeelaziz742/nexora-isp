@@ -17,9 +17,17 @@ export default function CopilotActivity({
         </h2>
 
         <p className="mt-1 text-xs text-slate-500">
-          Recent operational questions and intelligence summaries
+          Questions asked in this session. Answers are not stored after you leave the page.
         </p>
       </div>
+
+      {activities.length === 0 && (
+        <div className="px-5 py-8">
+          <p className="text-[11px] leading-5 text-slate-500">
+            Ask the Copilot a question and its answers will appear here.
+          </p>
+        </div>
+      )}
 
       <div className="divide-y divide-[#202938]">
         {activities.map((activity) => (
@@ -34,7 +42,7 @@ export default function CopilotActivity({
                   “{activity.query}”
                 </p>
 
-                <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                <p className="mt-2 whitespace-pre-line text-[11px] leading-5 text-slate-500">
                   {activity.summary}
                 </p>
 

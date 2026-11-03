@@ -5,6 +5,7 @@ import {
   Lightbulb,
   TriangleAlert,
 } from "lucide-react";
+import Link from "next/link";
 
 import type {
   IntelligenceDomain,
@@ -76,9 +77,18 @@ export default function OperationalInsights({
         </div>
 
         <span className="text-xs font-medium text-violet-400">
-          AI Analysis
+          Live Alerts
         </span>
       </div>
+
+      {insights.length === 0 && (
+        <div className="flex min-h-48 items-center justify-center px-5 py-10">
+          <p className="text-xs text-slate-500">
+            No operational alerts right now. Provisioning, incidents, complaints, work orders and
+            notifications are all clear.
+          </p>
+        </div>
+      )}
 
       <div className="divide-y divide-[#202938]">
         {insights.map((insight) => {
@@ -124,34 +134,41 @@ export default function OperationalInsights({
                       </h3>
                     </div>
 
-                    <button className="flex shrink-0 items-center gap-1 text-xs font-medium text-blue-400 transition hover:text-blue-300">
-                      {insight.actionLabel}
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </button>
+                    {insight.actionHref && (
+                      <Link
+                        href={insight.actionHref}
+                        className="flex shrink-0 items-center gap-1 text-xs font-medium text-blue-400 transition hover:text-blue-300"
+                      >
+                        {insight.actionLabel}
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
                   </div>
 
                   <p className="mt-2 max-w-5xl text-xs leading-5 text-slate-500">
                     {insight.description}
                   </p>
 
-                  <div className="mt-4 flex items-center gap-3">
-                    <span className="text-[10px] uppercase tracking-[0.08em] text-slate-600">
-                      Confidence
-                    </span>
+                  {insight.confidence !== undefined && (
+                    <div className="mt-4 flex items-center gap-3">
+                      <span className="text-[10px] uppercase tracking-[0.08em] text-slate-600">
+                        Confidence
+                      </span>
 
-                    <div className="h-1.5 w-28 overflow-hidden bg-[#121821]">
-                      <div
-                        className="h-full bg-violet-500"
-                        style={{
-                          width: `${insight.confidence}%`,
-                        }}
-                      />
+                      <div className="h-1.5 w-28 overflow-hidden bg-[#121821]">
+                        <div
+                          className="h-full bg-violet-500"
+                          style={{
+                            width: `${insight.confidence}%`,
+                          }}
+                        />
+                      </div>
+
+                      <span className="font-mono text-[11px] font-medium text-violet-400">
+                        {insight.confidence}%
+                      </span>
                     </div>
-
-                    <span className="font-mono text-[11px] font-medium text-violet-400">
-                      {insight.confidence}%
-                    </span>
-                  </div>
+                  )}
                 </div>
               </div>
             </article>

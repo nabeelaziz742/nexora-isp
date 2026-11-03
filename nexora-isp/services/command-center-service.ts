@@ -93,7 +93,7 @@ export const commandCenterService = {
     question: string,
   ): Promise<OperationsCopilotResponse> {
     return apiClient.post<OperationsCopilotResponse>(
-      "/command-center/copilot/",
+      "/command-center/copilot/ask/",
       {
         question,
       },

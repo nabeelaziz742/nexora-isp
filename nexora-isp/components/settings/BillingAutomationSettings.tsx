@@ -1,14 +1,79 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
-import type { BillingAutomationSettingsData } from "@/types/settings";
+import ErrorState from "@/components/ui/ErrorState";
+import { SkeletonCard } from "@/components/ui/Skeleton";
+import { useToast } from "@/hooks/useToast";
+import { suspensionService } from "@/services/suspension.service";
+import type { SuspensionPolicy } from "@/types/suspension";
 
-interface BillingAutomationSettingsProps {
-  settings: BillingAutomationSettingsData;
+type PolicyForm = Pick<
+  SuspensionPolicy,
+  | "grace_period_days"
+  | "warning_days_before_suspension"
+  | "auto_suspension_enabled"
+  | "auto_restoration_enabled"
+  | "restore_on_partial_payment"
+  | "send_suspension_warning"
+  | "ptp_exemption_enabled"
+>;
+
+function toForm(policy: SuspensionPolicy): PolicyForm {
+  return {
+    grace_period_days: policy.grace_period_days,
+    warning_days_before_suspension: policy.warning_days_before_suspension,
+    auto_suspension_enabled: policy.auto_suspension_enabled,
+    auto_restoration_enabled: policy.auto_restoration_enabled,
+    restore_on_partial_payment: policy.restore_on_partial_payment,
+    send_suspension_warning: policy.send_suspension_warning,
+    ptp_exemption_enabled: policy.ptp_exemption_enabled,
+  };
 }
 
-export default function BillingAutomationSettings({
-  settings,
-}: BillingAutomationSettingsProps) {
+export default function BillingAutomationSettings() {
+  const { success, error: toastError } = useToast();
+
+  const [form, setForm] = useState<PolicyForm | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function loadPolicy() {
+    try {
+      setLoading(true);
+      setError(null);
+      setForm(toForm(await suspensionService.getPolicy()));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load the automation policy.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPolicy();
+  }, []);
+
+  async function handleSave() {
+    if (!form) return;
+
+    try {
+      setSaving(true);
+      setForm(toForm(await suspensionService.updatePolicy(form)));
+      success("Billing automation policy saved.");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Failed to save the automation policy.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function update<K extends keyof PolicyForm>(key: K, value: PolicyForm[K]) {
+    setForm((current) => (current ? { ...current, [key]: value } : current));
+  }
+
   return (
     <section className="border border-[#202938] bg-[#0D1117]">
       <div className="border-b border-[#202938] px-5 py-4">
@@ -37,49 +102,79 @@ export default function BillingAutomationSettings({
         </p>
       </div>
 
-      <div className="grid gap-5 p-5 xl:grid-cols-2">
-        <NumberSetting
-          label="Grace Period Days"
-          description="Number of days after due date before suspension workflow progresses."
-          value={settings.gracePeriodDays}
-        />
+      {loading ? (
+        <div className="p-5">
+          <SkeletonCard />
+        </div>
+      ) : error || !form ? (
+        <div className="p-5">
+          <ErrorState message={error ?? "Unable to load the automation policy."} onRetry={() => void loadPolicy()} />
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-5 p-5 xl:grid-cols-2">
+            <NumberSetting
+              label="Grace Period Days"
+              description="Number of days after due date before suspension workflow progresses."
+              value={form.grace_period_days}
+              onChange={(value) => update("grace_period_days", value)}
+            />
 
-        <NumberSetting
-          label="Final Warning Timing"
-          description="Days before planned suspension when the final customer warning is triggered."
-          value={settings.finalWarningDaysBeforeSuspension}
-        />
+            <NumberSetting
+              label="Final Warning Timing"
+              description="Days before planned suspension when the final customer warning is triggered."
+              value={form.warning_days_before_suspension}
+              onChange={(value) => update("warning_days_before_suspension", value)}
+            />
 
-        <ToggleSetting
-          label="Automatic Suspension"
-          description="Allow eligible unpaid services to progress into automatic network suspension workflow."
-          enabled={settings.autoSuspensionEnabled}
-        />
+            <ToggleSetting
+              label="Automatic Suspension"
+              description="Allow eligible unpaid services to progress into automatic network suspension workflow."
+              enabled={form.auto_suspension_enabled}
+              onToggle={() => update("auto_suspension_enabled", !form.auto_suspension_enabled)}
+            />
 
-        <ToggleSetting
-          label="Auto Restore After Payment"
-          description="Queue network access restoration after successful payment verification."
-          enabled={settings.autoRestoreAfterPayment}
-        />
+            <ToggleSetting
+              label="Auto Restore After Payment"
+              description="Queue network access restoration after successful payment verification."
+              enabled={form.auto_restoration_enabled}
+              onToggle={() => update("auto_restoration_enabled", !form.auto_restoration_enabled)}
+            />
 
-        <ToggleSetting
-          label="Bill Notifications"
-          description="Trigger configured customer notification channels when bills are generated."
-          enabled={settings.billNotificationsEnabled}
-        />
+            <ToggleSetting
+              label="Restore on Partial Payment"
+              description="Restore service even when the customer clears only part of the outstanding balance."
+              enabled={form.restore_on_partial_payment}
+              onToggle={() => update("restore_on_partial_payment", !form.restore_on_partial_payment)}
+            />
 
-        <ToggleSetting
-          label="Payment Reminders"
-          description="Send configured reminders during unpaid billing lifecycle stages."
-          enabled={settings.paymentRemindersEnabled}
-        />
-      </div>
+            <ToggleSetting
+              label="Send Suspension Warning"
+              description="Notify customers on configured channels before their service is suspended."
+              enabled={form.send_suspension_warning}
+              onToggle={() => update("send_suspension_warning", !form.send_suspension_warning)}
+            />
 
-      <div className="flex justify-end border-t border-[#202938] px-5 py-4">
-        <button className="bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-500">
-          Save Automation Policy
-        </button>
-      </div>
+            <ToggleSetting
+              label="Promise-to-Pay Exemption"
+              description="Skip automatic suspension while a customer has an active promise to pay."
+              enabled={form.ptp_exemption_enabled}
+              onToggle={() => update("ptp_exemption_enabled", !form.ptp_exemption_enabled)}
+            />
+          </div>
+
+          <div className="flex justify-end border-t border-[#202938] px-5 py-4">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Automation Policy"}
+            </button>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -88,12 +183,14 @@ interface NumberSettingProps {
   label: string;
   description: string;
   value: number;
+  onChange: (value: number) => void;
 }
 
 function NumberSetting({
   label,
   description,
   value,
+  onChange,
 }: NumberSettingProps) {
   return (
     <div className="border border-[#202938] bg-[#121821] p-4">
@@ -109,7 +206,8 @@ function NumberSetting({
         <input
           type="number"
           min={0}
-          defaultValue={value}
+          value={value}
+          onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
           className="mt-4 h-10 w-full border border-[#202938] bg-[#070A0F] px-3 text-sm font-medium text-slate-200 outline-none transition focus:border-blue-500"
         />
       </label>
@@ -121,12 +219,14 @@ interface ToggleSettingProps {
   label: string;
   description: string;
   enabled: boolean;
+  onToggle: () => void;
 }
 
 function ToggleSetting({
   label,
   description,
   enabled,
+  onToggle,
 }: ToggleSettingProps) {
   return (
     <div className="flex items-start justify-between gap-4 border border-[#202938] bg-[#121821] p-4">
@@ -140,7 +240,12 @@ function ToggleSetting({
         </p>
       </div>
 
-      <div
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={label}
+        onClick={onToggle}
         className={`relative mt-1 h-5 w-9 shrink-0 ${
           enabled ? "bg-blue-600" : "bg-slate-700"
         }`}
@@ -150,7 +255,7 @@ function ToggleSetting({
             enabled ? "left-[18px]" : "left-0.5"
           }`}
         />
-      </div>
+      </button>
     </div>
   );
 }

@@ -67,12 +67,13 @@ class CommunicationTemplateSerializer(serializers.ModelSerializer):
 class CommunicationAutomationSerializer(serializers.ModelSerializer):
     template_name = serializers.CharField(source="template.name", read_only=True)
     provider_name = serializers.CharField(source="template.communication_provider.name", read_only=True)
+    provider_type = serializers.CharField(source="template.communication_provider.provider_type", read_only=True)
 
     class Meta:
         model = CommunicationAutomation
         fields = [
             "id", "organization", "name", "description", "trigger", "template", "template_name",
-            "provider_name", "execution_order", "delay_minutes", "max_retry_attempts", "is_enabled",
+            "provider_name", "provider_type", "execution_order", "delay_minutes", "max_retry_attempts", "is_enabled",
             "last_executed_at", "last_execution_status", "created_at", "updated_at",
         ]
         read_only_fields = [

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   ArrowUp,
+  LoaderCircle,
   BadgeDollarSign,
   BrainCircuit,
   CircleAlert,
@@ -14,6 +15,10 @@ import {
   Users,
 } from "lucide-react";
 
+import {
+  commandCenterService,
+  type OperationsCopilotResponse,
+} from "@/services/command-center-service";
 import type {
   CopilotPromptIcon,
   CopilotSuggestedPrompt,
@@ -21,6 +26,7 @@ import type {
 
 interface CopilotPromptProps {
   prompts: CopilotSuggestedPrompt[];
+  onAnswered?: (question: string, response: OperationsCopilotResponse) => void;
 }
 
 const promptIcons = {
@@ -34,36 +40,45 @@ const promptIcons = {
 
 export default function CopilotPrompt({
   prompts,
+  onAnswered,
 }: CopilotPromptProps) {
   const [query, setQuery] = useState("");
+  const [answer, setAnswer] = useState<OperationsCopilotResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function handleSuggestedPrompt(prompt: string) {
     setQuery(prompt);
   }
 
-  function handleSubmit(
+  async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (!query.trim()) {
+    const question = query.trim();
+    if (!question || loading) {
       return;
     }
 
-    /*
-     * Frontend checkpoint only.
-     *
-     * Later:
-     * UI
-     * ↓
-     * Copilot API Service
-     * ↓
-     * Django Intelligence Endpoint
-     * ↓
-     * Operational Context Retrieval
-     * ↓
-     * AI Engine
-     */
+    try {
+      setLoading(true);
+      setError(null);
+      setAnswer(null);
+
+      const response = await commandCenterService.askCopilot(question);
+
+      setAnswer(response);
+      onAnswered?.(question, response);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "The Copilot could not answer right now.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -134,14 +149,40 @@ export default function CopilotPrompt({
 
               <button
                 type="submit"
-                disabled={!query.trim()}
+                disabled={!query.trim() || loading}
                 className="flex h-9 items-center gap-2 bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Analyze ISP
-                <ArrowUp className="h-3.5 w-3.5" />
+                {loading ? "Analyzing" : "Analyze ISP"}
+                {loading ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowUp className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </form>
+
+          {error && (
+            <div className="mt-4 border border-red-500/20 bg-red-500/5 px-4 py-3">
+              <p className="text-xs font-medium text-red-400">
+                Copilot unavailable
+              </p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                {error}
+              </p>
+            </div>
+          )}
+
+          {answer && (
+            <div className="mt-4 border border-violet-500/20 bg-violet-500/5 px-4 py-4">
+              <p className="whitespace-pre-line text-sm leading-6 text-slate-200">
+                {answer.answer}
+              </p>
+              <p className="mt-3 text-[10px] uppercase tracking-[0.08em] text-slate-600">
+                Read-only analysis · {answer.provider} {answer.model}
+              </p>
+            </div>
+          )}
 
           <div className="mt-5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">

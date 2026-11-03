@@ -516,6 +516,7 @@ export interface CommunicationAutomation {
   template: string;
   template_name: string;
   provider_name: string;
+  provider_type?: "WHATSAPP" | "SMS" | "EMAIL";
 
   execution_order: number;
   delay_minutes: number;

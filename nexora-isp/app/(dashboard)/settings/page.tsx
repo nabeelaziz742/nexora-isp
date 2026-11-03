@@ -1,15 +1,7 @@
-"use client";
-
 import BillingAutomationSettings from "@/components/settings/BillingAutomationSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import OrganizationSettings from "@/components/settings/OrganizationSettings";
 import StaffRoleManagement from "@/components/settings/StaffRoleManagement";
-
-import {
-  billingAutomationSettings,
-  notificationChannels,
-  notificationEvents,
-} from "@/data/mock/settings";
 
 export default function SettingsPage() {
   return (
@@ -34,14 +26,11 @@ export default function SettingsPage() {
       {/* Staff & RBAC Role Management */}
       <StaffRoleManagement />
 
-      {/* Billing Automation Preferences */}
-      <BillingAutomationSettings settings={billingAutomationSettings} />
+      {/* Billing Automation Preferences (tenant suspension policy) */}
+      <BillingAutomationSettings />
 
-      {/* Notification Channel Policies */}
-      <NotificationSettings
-        channels={notificationChannels}
-        events={notificationEvents}
-      />
+      {/* Notification Channels & Event Automations */}
+      <NotificationSettings />
     </div>
   );
 }

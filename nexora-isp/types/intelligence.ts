@@ -33,9 +33,10 @@ export interface OperationalInsight {
   description: string;
   severity: IntelligenceSeverity;
   domain: IntelligenceDomain;
-  confidence: number;
+  confidence?: number;
   detectedAt: string;
   actionLabel: string;
+  actionHref?: string;
 }
 
 export interface CopilotActivityItem {
