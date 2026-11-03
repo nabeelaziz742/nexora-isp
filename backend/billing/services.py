@@ -390,6 +390,8 @@ def generate_monthly_invoices(
             is_active=True,
             service_account__status__in=["ACTIVE", "GRACE_PERIOD"],
         )
+        # Prepaid services are invoiced on recharge, not by the monthly run.
+        .exclude(billing_cycle=BillingProfile.BillingCycle.PREPAID)
         .filter(
             Q(service_account__activated_at__isnull=True)
             | Q(service_account__activated_at__date__lte=billing_period_end)

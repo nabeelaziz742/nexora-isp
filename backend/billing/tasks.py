@@ -184,3 +184,32 @@ def scan_ptp_breaches_task(organization_id: str | None = None):
         "fulfilled_count": fulfilled_count,
         "broken_count": broken_count,
     }
+
+
+@shared_task
+def expire_prepaid_services_task(organization_id: str | None = None):
+    """
+    Scheduled daily run suspending prepaid services past their expiry date.
+    Idempotent and tenant-scoped; recharged services are skipped.
+    """
+    from billing.recharge_services import expire_prepaid_services
+
+    org_queryset = Organization.objects.filter(is_active=True)
+    if organization_id:
+        org_queryset = org_queryset.filter(id=organization_id)
+
+    suspended_count = 0
+    failed_count = 0
+
+    for org in org_queryset:
+        result = expire_prepaid_services(organization=org)
+        suspended_count += result["suspended_count"]
+        failed_count += result["failed_count"]
+        if result["suspended_count"]:
+            logger.info(f"Org {org.code}: suspended {result['suspended_count']} expired prepaid services.")
+
+    return {
+        "scanned_organizations": org_queryset.count(),
+        "suspended_services": suspended_count,
+        "failed_services": failed_count,
+    }

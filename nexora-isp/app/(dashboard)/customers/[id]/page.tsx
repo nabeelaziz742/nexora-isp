@@ -36,6 +36,7 @@ import {
   UserRound,
   Wifi,
   X,
+  Zap,
 } from "lucide-react";
 
 import EmptyState from "@/components/ui/EmptyState";
@@ -107,6 +108,38 @@ function formatMoney(value: string | number | null | undefined) {
   return `Rs. ${amount.toLocaleString()}`;
 }
 
+function daysUntil(value: string | null | undefined) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const target = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target - today) / 86_400_000);
+}
+
+// Mirrors billing.recharge_services.calculate_recharge_period on the backend.
+function previewRechargeExpiry(expiryDate: string | null | undefined, months: number) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let start = today;
+  if (expiryDate) {
+    const [year, month, day] = expiryDate.split("-").map(Number);
+    const expiry = new Date(year, month - 1, day);
+    if (expiry >= today) {
+      start = new Date(year, month - 1, day + 1);
+    }
+  }
+  const targetMonth = start.getMonth() + months;
+  const lastDay = new Date(start.getFullYear(), targetMonth + 1, 0).getDate();
+  const end = new Date(start.getFullYear(), targetMonth, Math.min(start.getDate(), lastDay));
+  end.setDate(end.getDate() - 1);
+  return [
+    end.getFullYear(),
+    String(end.getMonth() + 1).padStart(2, "0"),
+    String(end.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
@@ -150,6 +183,13 @@ export default function CustomerDetailPage() {
   const [collectPayMethod, setCollectPayMethod] = useState<PaymentMethod>("CASH");
   const [collectPayRef, setCollectPayRef] = useState("");
   const [collectPayNotes, setCollectPayNotes] = useState("");
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+  const [rechargeMonths, setRechargeMonths] = useState(1);
+  const [rechargeMethod, setRechargeMethod] = useState<PaymentMethod>("CASH");
+  const [rechargeRef, setRechargeRef] = useState("");
+  const [isBillingModeModalOpen, setIsBillingModeModalOpen] = useState(false);
+  const [billingModeTarget, setBillingModeTarget] = useState<"MONTHLY" | "PREPAID">("PREPAID");
+  const [billingModeExpiry, setBillingModeExpiry] = useState("");
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentReceipt | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -280,6 +320,53 @@ export default function CustomerDetailPage() {
       await loadCustomerData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Restore request failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Prepaid Recharge
+  const handleRechargeService = async () => {
+    if (!selectedServiceId) return;
+    try {
+      setActionLoading(true);
+      const result = await billingService.rechargeService(selectedServiceId, {
+        months: rechargeMonths,
+        payment_method: rechargeMethod,
+        reference: rechargeRef.trim(),
+      });
+      setIsRechargeModalOpen(false);
+      setRechargeMonths(1);
+      setRechargeRef("");
+      toast.success(
+        `Recharged until ${formatDate(result.new_expiry_date)}${result.restored ? ". Service restored." : "."}`,
+      );
+      await loadCustomerData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Recharge failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Billing Mode
+  const handleChangeBillingMode = async () => {
+    if (!selectedServiceId) return;
+    try {
+      setActionLoading(true);
+      await billingService.changeBillingMode(selectedServiceId, {
+        billing_cycle: billingModeTarget,
+        expiry_date: billingModeTarget === "PREPAID" && billingModeExpiry ? billingModeExpiry : null,
+      });
+      setIsBillingModeModalOpen(false);
+      toast.success(
+        billingModeTarget === "PREPAID"
+          ? "Service switched to prepaid recharge."
+          : "Service switched to monthly billing.",
+      );
+      await loadCustomerData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Billing mode change failed");
     } finally {
       setActionLoading(false);
     }
@@ -510,6 +597,8 @@ export default function CustomerDetailPage() {
               const canSuspend = service.status === "ACTIVE" || service.status === "GRACE_PERIOD";
               const canRestore = service.status === "SUSPENDED_NON_PAYMENT";
               const canChangePlan = service.status === "ACTIVE";
+              const isPrepaid = service.billing_profile?.billing_cycle === "PREPAID";
+              const daysLeft = isPrepaid ? daysUntil(service.expiry_date) : null;
 
               return (
                 <div key={service.id} className="border border-[var(--border)] bg-[var(--surface)]">
@@ -532,6 +621,36 @@ export default function CustomerDetailPage() {
 
                     {/* Service Lifecycle Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2">
+                      {isPrepaid && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedServiceId(service.id);
+                            setIsRechargeModalOpen(true);
+                          }}
+                          className="flex h-8 items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20"
+                        >
+                          <Zap className="size-3.5" />
+                          Recharge
+                        </button>
+                      )}
+
+                      {service.billing_profile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedServiceId(service.id);
+                            setBillingModeTarget(isPrepaid ? "MONTHLY" : "PREPAID");
+                            setBillingModeExpiry(service.expiry_date ?? "");
+                            setIsBillingModeModalOpen(true);
+                          }}
+                          className="flex h-8 items-center gap-1.5 border border-[var(--border)] bg-[var(--background)] px-3 text-xs font-semibold text-slate-300 hover:text-white"
+                        >
+                          <CreditCard className="size-3.5" />
+                          {isPrepaid ? "Switch to Monthly" : "Switch to Prepaid"}
+                        </button>
+                      )}
+
                       {canSuspend && (
                         <button
                           type="button"
@@ -613,6 +732,35 @@ export default function CustomerDetailPage() {
                             <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Activated On</span>
                             <p className="text-slate-300">{formatDate(service.activated_at)}</p>
                           </div>
+                          <div className="border-t border-[var(--border)] pt-2">
+                            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Billing Mode</span>
+                            <p className="text-slate-300">{isPrepaid ? "Prepaid Recharge" : "Monthly Invoice"}</p>
+                          </div>
+                          {isPrepaid && (
+                            <div className="border-t border-[var(--border)] pt-2">
+                              <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Expires On</span>
+                              <p className="flex flex-wrap items-center gap-2 text-slate-300">
+                                {formatDate(service.expiry_date)}
+                                {daysLeft !== null && (
+                                  <span
+                                    className={`border px-1.5 py-0.5 text-[10px] font-semibold ${
+                                      daysLeft < 0
+                                        ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                                        : daysLeft <= 3
+                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                    }`}
+                                  >
+                                    {daysLeft < 0
+                                      ? `Expired ${Math.abs(daysLeft)}d ago`
+                                      : daysLeft === 0
+                                      ? "Last day"
+                                      : `${daysLeft}d left`}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1263,6 +1411,173 @@ export default function CustomerDetailPage() {
               >
                 {actionLoading && <Loader2 className="size-3.5 animate-spin" />}
                 Confirm Suspension
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Prepaid Recharge */}
+      {isRechargeModalOpen && (() => {
+        const rechargeTarget = customer.service_accounts.find((svc) => svc.id === selectedServiceId);
+        if (!rechargeTarget) return null;
+        const rechargeAmount = Number(rechargeTarget.internet_package.monthly_price) * rechargeMonths;
+        const newExpiry = previewRechargeExpiry(rechargeTarget.expiry_date, rechargeMonths);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-white">Recharge Prepaid Service</h3>
+                  <p className="font-mono text-xs text-blue-400">{rechargeTarget.service_number}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRechargeModalOpen(false)}
+                  className="text-[var(--text-muted)] hover:text-white"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div className="border border-[var(--border)] bg-[var(--background)] p-3">
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Current Expiry</span>
+                  <p className="mt-1 font-semibold text-white">{formatDate(rechargeTarget.expiry_date)}</p>
+                </div>
+                <div className="border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <span className="text-[10px] uppercase tracking-wider text-emerald-300">New Expiry</span>
+                  <p className="mt-1 font-semibold text-emerald-300">{formatDate(newExpiry)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    Recharge Period *
+                  </label>
+                  <select
+                    value={rechargeMonths}
+                    onChange={(e) => setRechargeMonths(Number(e.target.value))}
+                    className="h-10 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+                  >
+                    {[1, 2, 3, 6, 12].map((months) => (
+                      <option key={months} value={months}>
+                        {months} {months === 1 ? "Month" : "Months"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    Payment Method *
+                  </label>
+                  <select
+                    value={rechargeMethod}
+                    onChange={(e) => setRechargeMethod(e.target.value as PaymentMethod)}
+                    className="h-10 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CARD">Debit / Credit Card</option>
+                    <option value="MOBILE_WALLET">Mobile Wallet</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    Reference / Trx ID
+                  </label>
+                  <input
+                    type="text"
+                    value={rechargeRef}
+                    onChange={(e) => setRechargeRef(e.target.value)}
+                    placeholder="e.g. JazzCash TID, Bank Ref #"
+                    className="h-10 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {rechargeTarget.internet_package.name} × {rechargeMonths}
+                  </span>
+                  <span className="font-mono text-base font-bold text-emerald-400">{formatMoney(rechargeAmount)}</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Creates a paid invoice and receipt. Customer advance is used first. A suspended service is restored automatically.
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsRechargeModalOpen(false)}
+                  className="border border-[var(--border)] px-4 py-2 text-xs font-medium text-slate-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRechargeService}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {actionLoading && <Loader2 className="size-3.5 animate-spin" />}
+                  Confirm Recharge
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Modal: Billing Mode */}
+      {isBillingModeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6">
+            <h3 className="text-base font-bold text-white">
+              {billingModeTarget === "PREPAID" ? "Switch to Prepaid Recharge" : "Switch to Monthly Billing"}
+            </h3>
+            <p className="mt-2 text-xs text-slate-300">
+              {billingModeTarget === "PREPAID"
+                ? "The monthly billing run will skip this service. Staff recharge it for one or more months, and it is suspended automatically the day after it expires."
+                : "This service returns to monthly invoices from the next billing run. Its expiry date is cleared."}
+            </p>
+
+            {billingModeTarget === "PREPAID" && (
+              <div className="mt-4">
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  Paid Until (Expiry Date)
+                </label>
+                <input
+                  type="date"
+                  value={billingModeExpiry}
+                  onChange={(e) => setBillingModeExpiry(e.target.value)}
+                  className="h-10 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+                />
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">Leave empty to expire at the end of today.</p>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsBillingModeModalOpen(false)}
+                className="border border-[var(--border)] px-4 py-2 text-xs font-medium text-slate-300 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleChangeBillingMode}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {actionLoading && <Loader2 className="size-3.5 animate-spin" />}
+                Confirm
               </button>
             </div>
           </div>

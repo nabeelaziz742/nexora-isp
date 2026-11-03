@@ -71,6 +71,54 @@ export interface BadDebtRecoveryPayload {
   notes?: string;
 }
 
+export type BillingCycle = "MONTHLY" | "PREPAID";
+
+export interface ServiceRechargePayload {
+  months: number;
+  payment_method: PaymentMethod;
+  reference?: string;
+  notes?: string;
+}
+
+export interface ServiceRechargeResult {
+  service_account_id: string;
+  service_number: string;
+  service_status: string;
+  invoice_id: string;
+  invoice_number: string;
+  payment_id: string | null;
+  payment_number: string | null;
+  months: number;
+  amount: string;
+  previous_expiry_date: string | null;
+  new_expiry_date: string;
+  restored: boolean;
+}
+
+export interface BillingModePayload {
+  billing_cycle: BillingCycle;
+  expiry_date?: string | null;
+}
+
+export interface ExpiringService {
+  service_account_id: string;
+  service_number: string;
+  customer_id: string;
+  customer_name: string;
+  customer_phone: string;
+  package_name: string;
+  monthly_price: string;
+  status: string;
+  expiry_date: string;
+  days_left: number;
+}
+
+export interface ExpiringServicesResponse {
+  days: number;
+  count: number;
+  results: ExpiringService[];
+}
+
 export interface InvoiceLine {
   id: string;
   description: string;

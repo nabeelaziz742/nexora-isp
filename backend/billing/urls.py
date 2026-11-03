@@ -1,5 +1,10 @@
 from django.urls import path
 
+from billing.recharge_views import (
+    ExpiringServicesView,
+    ServiceBillingModeView,
+    ServiceRechargeView,
+)
 from billing.recovery_views import (
     DefaulterListView,
     RecoveryAllocationDetailView,
@@ -156,5 +161,20 @@ urlpatterns = [
         "revenue-intelligence/",
         RevenueIntelligenceView.as_view(),
         name="billing-revenue-intelligence",
+    ),
+    path(
+        "services/<uuid:service_account_id>/recharge/",
+        ServiceRechargeView.as_view(),
+        name="billing-service-recharge",
+    ),
+    path(
+        "services/<uuid:service_account_id>/billing-mode/",
+        ServiceBillingModeView.as_view(),
+        name="billing-service-billing-mode",
+    ),
+    path(
+        "prepaid/expiring/",
+        ExpiringServicesView.as_view(),
+        name="billing-prepaid-expiring",
     ),
 ]

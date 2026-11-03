@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from billing.models import Invoice
+from billing.recharge_services import expire_prepaid_services
 from billing.services import (
     BillingDomainError,
     generate_service_invoice,
@@ -105,6 +106,19 @@ class Command(BaseCommand):
             )
         )
 
+        expired = 0
+        expiry_failed = 0
+        for organization in organizations:
+            result = expire_prepaid_services(organization=organization)
+            expired += result["suspended_count"]
+            expiry_failed += result["failed_count"]
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Prepaid expiry: suspended={expired}, failed={expiry_failed}"
+            )
+        )
+
         call_command(
             "run_collections",
             as_of=as_of_date.isoformat(),
@@ -114,7 +128,8 @@ class Command(BaseCommand):
             organization_code=organization_code,
         )
 
-        call_command("process_communication_queue")
+        # --once: the daily cron run must exit instead of looping forever.
+        call_command("process_communication_queue", once=True)
 
     def _generate_due_invoices(
         self,
@@ -139,6 +154,7 @@ class Command(BaseCommand):
                     "GRACE_PERIOD",
                 ],
             )
+            .exclude(billing_cycle=BillingProfile.BillingCycle.PREPAID)
             .select_related(
                 "service_account",
                 "service_account__internet_package",

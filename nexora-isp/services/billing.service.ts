@@ -2,8 +2,10 @@ import { apiRequest, normalizeList, type ListResponse } from "@/services/api-cli
 
 import type {
   BadDebtRecoveryPayload,
+  BillingModePayload,
   BillingSummary,
   CustomInvoicePayload,
+  ExpiringServicesResponse,
   FinancialLedger,
   Invoice,
   InvoiceDetail,
@@ -16,6 +18,8 @@ import type {
   PaymentReversalPayload,
   RecordInvoicePaymentPayload,
   RecordPaymentWithAllocationsPayload,
+  ServiceRechargePayload,
+  ServiceRechargeResult,
 } from "@/types/billing";
 
 function buildQuery(
@@ -104,6 +108,38 @@ export const billingService = {
         method: "POST",
         body: payload,
       },
+    );
+  },
+
+  rechargeService(
+    serviceAccountId: string,
+    payload: ServiceRechargePayload,
+  ): Promise<ServiceRechargeResult> {
+    return apiRequest<ServiceRechargeResult>(
+      `/billing/services/${serviceAccountId}/recharge/`,
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+  },
+
+  changeBillingMode(
+    serviceAccountId: string,
+    payload: BillingModePayload,
+  ): Promise<{ service_account_id: string; billing_cycle: string; expiry_date: string | null }> {
+    return apiRequest(
+      `/billing/services/${serviceAccountId}/billing-mode/`,
+      {
+        method: "PUT",
+        body: payload,
+      },
+    );
+  },
+
+  getExpiringServices(days = 3): Promise<ExpiringServicesResponse> {
+    return apiRequest<ExpiringServicesResponse>(
+      `/billing/prepaid/expiring/?days=${days}`,
     );
   },
 

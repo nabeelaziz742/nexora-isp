@@ -175,6 +175,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "billing.tasks.scan_ptp_breaches_task",
         "schedule": crontab(hour=2, minute=0),
     },
+    # 19:05 UTC is 00:05 in Pakistan, just after a prepaid expiry day ends.
+    "daily-expire-prepaid-services": {
+        "task": "billing.tasks.expire_prepaid_services_task",
+        "schedule": crontab(hour=19, minute=5),
+    },
     "process-pending-provisioning": {
         "task": "network.tasks.process_pending_provisioning_task",
         "schedule": 60.0,

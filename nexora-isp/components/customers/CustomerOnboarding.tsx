@@ -70,6 +70,7 @@ interface OnboardingForm {
   deviceAssignmentNotes: string;
   billingDay: string;
   dueDay: string;
+  billingCycle: "MONTHLY" | "PREPAID";
   smsEnabled: boolean;
   whatsappEnabled: boolean;
 }
@@ -92,6 +93,7 @@ const initialForm: OnboardingForm = {
   deviceAssignmentNotes: "",
   billingDay: "1",
   dueDay: "10",
+  billingCycle: "MONTHLY",
   smsEnabled: true,
   whatsappEnabled: true,
 };
@@ -372,6 +374,7 @@ export default function CustomerOnboarding() {
         form.deviceAssignmentNotes.trim(),
       billing_day: Number(form.billingDay),
       due_day: Number(form.dueDay),
+      billing_cycle: form.billingCycle,
       sms_enabled: form.smsEnabled,
       whatsapp_enabled: form.whatsappEnabled,
     };
@@ -964,18 +967,35 @@ export default function CustomerOnboarding() {
                 }
               />
 
+              <div className="md:col-span-2">
+                <SelectField
+                  label="Billing Mode"
+                  value={form.billingCycle}
+                  onChange={(value) =>
+                    updateField(
+                      "billingCycle",
+                      value as OnboardingForm["billingCycle"],
+                    )
+                  }
+                >
+                  <option value="MONTHLY">Monthly Invoice</option>
+                  <option value="PREPAID">Prepaid Recharge (Expiry Date)</option>
+                </SelectField>
+              </div>
+
               <div className="md:col-span-2 border border-[var(--border)] bg-[var(--background)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
                   Billing Cycle
                 </p>
 
                 <p className="mt-2 text-[12px] font-medium text-white">
-                  Monthly
+                  {form.billingCycle === "PREPAID" ? "Prepaid Recharge" : "Monthly"}
                 </p>
 
                 <p className="mt-1 text-[10px] text-[var(--text-muted)]">
-                  Billing profile state is created by the backend activation
-                  service.
+                  {form.billingCycle === "PREPAID"
+                    ? "No first-month invoice is created. Recharge the service from the customer page after activation; it expires at the end of today otherwise."
+                    : "Billing profile state is created by the backend activation service."}
                 </p>
               </div>
             </div>

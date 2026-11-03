@@ -83,6 +83,7 @@ export interface CustomerServiceAccount {
   service_number: string;
   status: CustomerServiceStatus;
   activated_at: string | null;
+  expiry_date: string | null;
   internet_package: InternetPackage;
   network_assignment: CustomerNetworkAssignment | null;
   device_assignments: CustomerDeviceAssignment[];
@@ -131,6 +132,7 @@ export interface CustomerActivationPayload {
   device_assignment_notes?: string;
   billing_day: number;
   due_day: number;
+  billing_cycle?: "MONTHLY" | "PREPAID";
   sms_enabled?: boolean;
   whatsapp_enabled?: boolean;
 }

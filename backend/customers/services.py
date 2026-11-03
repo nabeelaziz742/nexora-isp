@@ -162,6 +162,7 @@ def activate_customer_service(
     city: str,
     billing_day: int,
     due_day: int,
+    billing_cycle: str = BillingProfile.BillingCycle.MONTHLY,
     sms_enabled: bool = True,
     whatsapp_enabled: bool = True,
     network_node_id=None,
@@ -208,6 +209,11 @@ def activate_customer_service(
 
     if due_day < 1 or due_day > 28:
         raise CustomerActivationError("Due day must be between 1 and 28.")
+
+    if billing_cycle not in BillingProfile.BillingCycle.values:
+        raise CustomerActivationError("Invalid billing mode.")
+
+    is_prepaid = billing_cycle == BillingProfile.BillingCycle.PREPAID
 
     dealer = None
     if dealer_id:
@@ -261,6 +267,9 @@ def activate_customer_service(
         internet_package=internet_package,
         status=ServiceAccount.Status.ACTIVE,
         activated_at=timezone.now(),
+        # A prepaid service is usable on its activation day; the first
+        # recharge extends it, otherwise the nightly expiry run suspends it.
+        expiry_date=timezone.localdate() if is_prepaid else None,
     )
 
     network_assignment = None
@@ -303,7 +312,7 @@ def activate_customer_service(
     billing_profile = BillingProfile.objects.create(
         organization=organization,
         service_account=service_account,
-        billing_cycle=BillingProfile.BillingCycle.MONTHLY,
+        billing_cycle=billing_cycle,
         billing_day=billing_day,
         due_day=due_day,
     )
@@ -324,25 +333,27 @@ def activate_customer_service(
         due_day=due_day,
     )
 
-    try:
-        generate_service_invoice(
-            organization=organization,
-            actor=actor,
-            service_account_id=service_account.id,
-            billing_period_start=activation_date.replace(day=1),
-            billing_period_end=activation_date.replace(
-                day=__import__("calendar").monthrange(
-                    activation_date.year,
-                    activation_date.month,
-                )[1]
-            ),
-            issue_date=activation_date,
-            due_date=first_due_date,
-        )
-    except BillingDomainError as exc:
-        raise CustomerActivationError(
-            f"Customer was not activated because the first monthly invoice could not be generated: {exc}"
-        ) from exc
+    # Prepaid services are invoiced by their recharges instead.
+    if not is_prepaid:
+        try:
+            generate_service_invoice(
+                organization=organization,
+                actor=actor,
+                service_account_id=service_account.id,
+                billing_period_start=activation_date.replace(day=1),
+                billing_period_end=activation_date.replace(
+                    day=__import__("calendar").monthrange(
+                        activation_date.year,
+                        activation_date.month,
+                    )[1]
+                ),
+                issue_date=activation_date,
+                due_date=first_due_date,
+            )
+        except BillingDomainError as exc:
+            raise CustomerActivationError(
+                f"Customer was not activated because the first monthly invoice could not be generated: {exc}"
+            ) from exc
 
     record_audit_log(
         organization=organization,
@@ -372,7 +383,10 @@ def activate_customer_service(
                 else None
             ),
             "activation_date": activation_date.isoformat(),
-            "first_invoice_month": activation_date.strftime("%Y-%m"),
+            "first_invoice_month": (
+                None if is_prepaid else activation_date.strftime("%Y-%m")
+            ),
+            "billing_cycle": billing_cycle,
             **(activation_metadata or {}),
         },
     )

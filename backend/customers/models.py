@@ -521,6 +521,12 @@ class ServiceAccount(TenantScopedModel):
         blank=True,
     )
 
+    # Last day of paid access for prepaid (recharge) services.
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -549,6 +555,10 @@ class ServiceAccount(TenantScopedModel):
                 fields=["organization", "customer"],
                 name="service_org_customer_idx",
             ),
+            models.Index(
+                fields=["organization", "expiry_date"],
+                name="service_org_expiry_idx",
+            ),
         ]
 
     def __str__(self):
@@ -561,6 +571,7 @@ class ServiceAccount(TenantScopedModel):
 class BillingProfile(TenantScopedModel):
     class BillingCycle(models.TextChoices):
         MONTHLY = "MONTHLY", "Monthly"
+        PREPAID = "PREPAID", "Prepaid (Recharge / Expiry)"
 
     id = models.UUIDField(
         primary_key=True,
@@ -1094,6 +1105,7 @@ class ServiceSuspensionLog(TenantScopedModel):
         MANUAL_STAFF = "MANUAL_STAFF", "Manual Staff Action"
         PAYMENT_TRIGGERED = "PAYMENT_TRIGGERED", "Payment Triggered"
         PTP_EXEMPTION = "PTP_EXEMPTION", "Promise-to-Pay Exemption"
+        PREPAID_EXPIRY = "PREPAID_EXPIRY", "Prepaid Expiry"
 
     id = models.UUIDField(
         primary_key=True,

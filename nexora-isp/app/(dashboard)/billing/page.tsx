@@ -13,7 +13,9 @@ import {
   Search,
   WalletCards,
   X,
+  Zap,
 } from "lucide-react";
+import Link from "next/link";
 import {
   FormEvent,
   useCallback,
@@ -31,6 +33,7 @@ import {
 
 import type {
   BillingSummary,
+  ExpiringService,
   Invoice,
   InvoiceDueState,
   InvoiceStatus,
@@ -150,6 +153,7 @@ export default function BillingPage() {
     Invoice[]
   >([]);
 
+  const [expiringServices, setExpiringServices] = useState<ExpiringService[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [refreshing, setRefreshing] =
@@ -251,6 +255,12 @@ export default function BillingPage() {
 
         setSummary(summaryData);
         setInvoices(invoiceData);
+
+        // Prepaid expiry list is supplementary; it must not block billing.
+        billingService
+          .getExpiringServices(3)
+          .then((data) => setExpiringServices(data.results))
+          .catch(() => setExpiringServices([]));
       } catch (requestError) {
         setError(
           requestError instanceof Error
@@ -601,6 +611,68 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      {expiringServices.length > 0 ? (
+        <div className="border border-[#202938] bg-[#0D1117]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#202938] p-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-[#F8FAFC]">
+                <Zap className="h-3.5 w-3.5 text-amber-400" />
+                Prepaid Expiring Soon
+              </h2>
+
+              <p className="mt-1 text-xs text-[#64748B]">
+                Expired or expiring within 3 days. Recharge from the customer page.
+              </p>
+            </div>
+
+            <span className="border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-400">
+              {expiringServices.length}
+            </span>
+          </div>
+
+          <div className="divide-y divide-[#202938]">
+            {expiringServices.map((service) => (
+              <div
+                key={service.service_account_id}
+                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-xs font-semibold text-[#F8FAFC]">
+                    {service.customer_name}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[#64748B]">
+                    {service.service_number} • {service.package_name} • {service.customer_phone}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`border px-2 py-0.5 text-[11px] font-semibold ${
+                      service.days_left < 0
+                        ? "border-red-500/20 bg-red-500/10 text-red-400"
+                        : "border-amber-500/20 bg-amber-500/10 text-amber-400"
+                    }`}
+                  >
+                    {service.days_left < 0
+                      ? `Expired ${Math.abs(service.days_left)}d ago`
+                      : service.days_left === 0
+                      ? "Last day"
+                      : `${service.days_left}d left`}
+                  </span>
+
+                  <Link
+                    href={`/customers/${service.customer_id}`}
+                    className="flex h-7 items-center gap-1 border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/20"
+                  >
+                    Recharge
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="border border-[#202938] bg-[#0D1117]">
         <div className="border-b border-[#202938] p-4">

@@ -19,7 +19,7 @@ export interface ServiceSuspensionLog {
   customer: string;
   customer_name: string;
   event_type: 'SUSPENSION' | 'RESTORATION' | 'WARNING';
-  trigger_type: 'SYSTEM_AUTOMATED' | 'MANUAL_STAFF' | 'PAYMENT_RESTORE' | 'ADMIN_OVERRIDE';
+  trigger_type: 'SYSTEM_AUTOMATED' | 'MANUAL_STAFF' | 'PAYMENT_TRIGGERED' | 'PTP_EXEMPTION' | 'PREPAID_EXPIRY';
   previous_status: string;
   new_status: string;
   outstanding_amount: string;

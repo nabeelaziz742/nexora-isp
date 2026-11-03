@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from customers.models import (
     Area,
+    BillingProfile,
     City,
     Country,
     Customer,
@@ -150,6 +151,10 @@ class CustomerActivationSerializer(serializers.Serializer):
     due_day = serializers.IntegerField(
         min_value=1,
         max_value=28,
+    )
+    billing_cycle = serializers.ChoiceField(
+        choices=BillingProfile.BillingCycle.choices,
+        default=BillingProfile.BillingCycle.MONTHLY,
     )
 
     sms_enabled = serializers.BooleanField(default=True)
@@ -340,6 +345,7 @@ class CustomerDetailSerializer(serializers.ModelSerializer):
                 "service_number": service.service_number,
                 "status": service.status,
                 "activated_at": service.activated_at,
+                "expiry_date": service.expiry_date,
                 "internet_package": {
                     "id": str(service.internet_package.id),
                     "name": service.internet_package.name,
