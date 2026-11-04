@@ -7,7 +7,7 @@ import requests
 from django.conf import settings
 from django.core.mail import get_connection
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, ProtectedError, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -55,6 +55,15 @@ class CommunicationBaseViewSet(viewsets.ModelViewSet):
 class CommunicationProviderViewSet(CommunicationBaseViewSet):
     queryset = CommunicationProvider.objects.all()
     serializer_class = CommunicationProviderSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This provider is used by templates or messages. Set it inactive instead."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @action(detail=True, methods=["post"])
     def test_connection(self, request, pk=None):

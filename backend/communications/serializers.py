@@ -15,15 +15,39 @@ from .models import (
 class CommunicationProviderSerializer(serializers.ModelSerializer):
     access_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
     webhook_verify_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    has_access_token = serializers.SerializerMethodField()
+
+    # Changing any of these means the last health check no longer applies.
+    CREDENTIAL_FIELDS = ("business_id", "phone_number_id", "access_token", "api_url", "sender_id")
+    SECRET_FIELDS = ("access_token", "webhook_verify_token")
 
     class Meta:
         model = CommunicationProvider
         fields = [
             "id", "name", "provider_type", "status", "business_id", "phone_number_id",
-            "access_token", "webhook_verify_token", "api_url", "sender_id", "is_default",
-            "is_connected", "last_health_check", "created_at", "updated_at",
+            "access_token", "webhook_verify_token", "has_access_token", "api_url", "sender_id",
+            "is_default", "is_connected", "last_health_check", "created_at", "updated_at",
         ]
         read_only_fields = ["is_connected", "last_health_check", "created_at", "updated_at"]
+
+    def get_has_access_token(self, obj):
+        return bool(obj.access_token)
+
+    def update(self, instance, validated_data):
+        # Secrets are write-only, so forms resubmit them blank: keep the stored value.
+        for field in self.SECRET_FIELDS:
+            if field in validated_data and not validated_data[field]:
+                validated_data.pop(field)
+
+        credentials_changed = any(
+            field in validated_data and validated_data[field] != getattr(instance, field)
+            for field in self.CREDENTIAL_FIELDS
+        )
+        if credentials_changed:
+            # Require a fresh Test Connection before messages are sent again.
+            instance.is_connected = False
+
+        return super().update(instance, validated_data)
 
 
 class CommunicationTemplateSerializer(serializers.ModelSerializer):

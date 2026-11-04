@@ -20,10 +20,34 @@ export interface CommunicationProvider {
   name: string;
   provider_type: "WHATSAPP" | "SMS" | "EMAIL";
   status: string;
+  business_id?: string;
+  phone_number_id?: string;
+  api_url?: string;
+  sender_id?: string;
+  has_access_token?: boolean;
   is_default: boolean;
   is_connected: boolean;
+  last_health_check?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Write payload: access_token is write-only; leave it blank to keep the saved token.
+export interface CommunicationProviderPayload {
+  name: string;
+  provider_type: "WHATSAPP" | "SMS" | "EMAIL";
+  status?: string;
+  business_id?: string;
+  phone_number_id?: string;
+  access_token?: string;
+  api_url?: string;
+  sender_id?: string;
+}
+
+export interface ProviderTestResult {
+  success: boolean;
+  connected: boolean;
+  message: string;
 }
 
 export interface BroadcastChannel {
@@ -93,6 +117,19 @@ export const communicationsService = {
   getProviders() {
     return apiClient.get<CommunicationProvider[]>(
       "/communications/providers/",
+    );
+  },
+
+  createProvider(data: CommunicationProviderPayload) {
+    return apiClient.post<CommunicationProvider>(
+      "/communications/providers/",
+      data,
+    );
+  },
+
+  deleteProvider(id: string) {
+    return apiClient.delete(
+      `/communications/providers/${id}/`,
     );
   },
 

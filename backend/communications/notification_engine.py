@@ -402,11 +402,12 @@ def dispatch_notification_event(
 
     for channel in channels_to_send:
         # Find active provider for channel
+        # Prefer the ISP's connected/default provider over an auto-created placeholder.
         provider = CommunicationProvider.objects.filter(
             organization=organization,
             provider_type=channel,
             status=CommunicationProvider.Status.ACTIVE,
-        ).first()
+        ).order_by("-is_connected", "-is_default", "created_at").first()
 
         recipient = customer.phone if channel in [
             CommunicationProvider.ProviderType.WHATSAPP,

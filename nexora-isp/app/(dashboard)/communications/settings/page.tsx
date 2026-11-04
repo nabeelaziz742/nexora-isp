@@ -8,9 +8,12 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/useToast";
+import { ApiError } from "@/services/api-error";
 import { communicationsService } from "@/services/communications.service";
 
 export default function CommunicationSettingsPage() {
+  const toast = useToast();
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,18 +63,44 @@ export default function CommunicationSettingsPage() {
         )
       );
 
+      toast.success("Provider settings saved. Run Test Connection to connect.");
       await loadProviders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save provider settings.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleTestConnection(id: string) {
+  async function setupWhatsApp() {
     try {
-      await communicationsService.testProviderConnection(id);
+      await communicationsService.createProvider({
+        name: "WhatsApp",
+        provider_type: "WHATSAPP",
+        status: "ACTIVE",
+      });
+      toast.success("WhatsApp provider created. Enter the Meta details and save.");
       await loadProviders();
     } catch (error) {
-      console.error("Test connection failed:", error);
+      toast.error(error instanceof Error ? error.message : "Unable to create WhatsApp provider.");
+    }
+  }
+
+  async function handleTestConnection(id: string) {
+    try {
+      const result = (await communicationsService.testProviderConnection(id)) as {
+        message?: string;
+      };
+      toast.success(result?.message || "Provider connected.");
+    } catch (error) {
+      const payload =
+        error instanceof ApiError ? (error.payload as { message?: string } | null) : null;
+      toast.error(
+        payload?.message ||
+          (error instanceof Error ? error.message : "Connection test failed."),
+      );
+    } finally {
+      await loadProviders();
     }
   }
 
@@ -138,6 +167,16 @@ export default function CommunicationSettingsPage() {
               </div>
 
               <div className="space-y-4 p-5">
+                {!whatsapp && (
+                  <button
+                    type="button"
+                    onClick={setupWhatsApp}
+                    className="w-full bg-green-500 py-3 text-sm font-medium text-black hover:bg-green-400"
+                  >
+                    Set up WhatsApp
+                  </button>
+                )}
+
                 <input
                   placeholder="Business ID"
                   value={whatsapp?.business_id ?? ""}
@@ -167,7 +206,13 @@ export default function CommunicationSettingsPage() {
                 />
 
                 <input
-                  placeholder="Access Token"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={
+                    whatsapp?.has_access_token
+                      ? "Access Token (saved - leave blank to keep)"
+                      : "Access Token"
+                  }
                   value={whatsapp?.access_token ?? ""}
                   onChange={(e) =>
                     whatsapp &&
