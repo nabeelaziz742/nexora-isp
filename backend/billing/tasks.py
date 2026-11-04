@@ -213,3 +213,37 @@ def expire_prepaid_services_task(organization_id: str | None = None):
         "suspended_services": suspended_count,
         "failed_services": failed_count,
     }
+
+
+@shared_task
+def run_suspension_cycle_task(organization_id: str | None = None):
+    """
+    Scheduled daily run of each tenant's suspension policy engine, plus retries
+    of router restores that failed. Idempotent and tenant-scoped.
+    """
+    from customers.suspension_services import run_daily_suspension_cycle
+
+    org_queryset = Organization.objects.filter(is_active=True)
+    if organization_id:
+        org_queryset = org_queryset.filter(id=organization_id)
+
+    suspended_count = 0
+    retried_count = 0
+    failed_organizations = 0
+
+    for org in org_queryset:
+        try:
+            result = run_daily_suspension_cycle(org)
+        except Exception:
+            failed_organizations += 1
+            logger.exception(f"Suspension cycle failed for org {org.code}.")
+            continue
+        suspended_count += result.get("suspended_count", 0)
+        retried_count += result.get("retried_count", 0)
+
+    return {
+        "scanned_organizations": org_queryset.count(),
+        "suspended_services": suspended_count,
+        "retried_restores": retried_count,
+        "failed_organizations": failed_organizations,
+    }

@@ -180,6 +180,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "billing.tasks.expire_prepaid_services_task",
         "schedule": crontab(hour=19, minute=5),
     },
+    # 19:15 UTC is 00:15 in Pakistan: apply each tenant's suspension policy.
+    "daily-suspension-cycle": {
+        "task": "billing.tasks.run_suspension_cycle_task",
+        "schedule": crontab(hour=19, minute=15),
+    },
     "process-pending-provisioning": {
         "task": "network.tasks.process_pending_provisioning_task",
         "schedule": 60.0,

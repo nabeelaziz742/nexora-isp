@@ -329,9 +329,15 @@ export default function CustomerDetailPage() {
       setIsRechargeModalOpen(false);
       setRechargeMonths(1);
       setRechargeRef("");
-      toast.success(
-        `Recharged until ${formatDate(result.new_expiry_date)}${result.restored ? ". Service restored." : "."}`,
-      );
+      if (result.service_status === "SUSPENDED_NON_PAYMENT") {
+        toast.warning(
+          `Recharged until ${formatDate(result.new_expiry_date)}, but the service stays suspended until the older outstanding balance is cleared.`,
+        );
+      } else {
+        toast.success(
+          `Recharged until ${formatDate(result.new_expiry_date)}${result.restored ? ". Restore sent to the router." : "."}`,
+        );
+      }
       await loadCustomerData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Recharge failed");

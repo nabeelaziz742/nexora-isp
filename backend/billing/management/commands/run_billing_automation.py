@@ -12,6 +12,7 @@ from billing.services import (
     generate_service_invoice,
 )
 from customers.models import BillingProfile
+from customers.suspension_services import run_daily_suspension_cycle
 from tenancy.models import Organization
 
 
@@ -116,6 +117,27 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Prepaid expiry: suspended={expired}, failed={expiry_failed}"
+            )
+        )
+
+        policy_suspended = 0
+        restores_retried = 0
+        for organization in organizations:
+            try:
+                result = run_daily_suspension_cycle(organization)
+            except Exception as exc:
+                self.stderr.write(
+                    self.style.ERROR(
+                        f"{organization.code}: suspension cycle failed: {exc}"
+                    )
+                )
+                continue
+            policy_suspended += result.get("suspended_count", 0)
+            restores_retried += result.get("retried_count", 0)
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Suspension policy: suspended={policy_suspended}, restores_retried={restores_retried}"
             )
         )
 

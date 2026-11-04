@@ -24,6 +24,48 @@ from tenancy.services import record_audit_log
 logger = logging.getLogger(__name__)
 
 
+def _queue_router_action(*, service_account: ServiceAccount, action: str, payload: dict) -> ProvisioningRequest | None:
+    """Queue a suspend/restore for the provisioning worker so the router applies it.
+
+    Returns None when the service has no active network assignment (nothing to
+    change on a router). Reuses an in-flight request for the same action instead
+    of queueing a duplicate.
+    """
+    from network.services import _schedule_provisioning_execution
+
+    organization = service_account.organization
+    network_assignment = NetworkAssignment.objects.filter(
+        organization=organization,
+        service_account=service_account,
+        is_active=True,
+    ).first()
+    if not network_assignment:
+        return None
+
+    in_flight = ProvisioningRequest.objects.filter(
+        organization=organization,
+        service_account=service_account,
+        action=action,
+        status__in=[
+            ProvisioningRequest.Status.PENDING,
+            ProvisioningRequest.Status.PROCESSING,
+        ],
+    ).first()
+    if in_flight:
+        return in_flight
+
+    provisioning_request = ProvisioningRequest.objects.create(
+        organization=organization,
+        service_account=service_account,
+        network_assignment=network_assignment,
+        action=action,
+        status=ProvisioningRequest.Status.PENDING,
+        requested_payload=payload,
+    )
+    _schedule_provisioning_execution(provisioning_request)
+    return provisioning_request
+
+
 def get_or_create_suspension_policy(organization) -> SuspensionPolicy:
     policy, _ = SuspensionPolicy.objects.get_or_create(
         organization=organization,
@@ -216,8 +258,11 @@ def execute_service_suspension(
     """
     organization = service_account.organization
 
-    # Idempotency check
-    if service_account.status == ServiceAccount.Status.SUSPENDED_NON_PAYMENT:
+    # Idempotency check: already suspended, or a suspension is on its way to the router.
+    if service_account.status in [
+        ServiceAccount.Status.SUSPENDED_NON_PAYMENT,
+        ServiceAccount.Status.SUSPENSION_PENDING,
+    ]:
         latest_log = ServiceSuspensionLog.objects.filter(
             organization=organization,
             service_account=service_account,
@@ -236,26 +281,20 @@ def execute_service_suspension(
     total_outstanding, invoices_snapshot, _ = calculate_service_outstanding(service_account)
     prev_status = service_account.status
 
-    # Transition state
-    service_account.status = ServiceAccount.Status.SUSPENDED_NON_PAYMENT
-    service_account.save(update_fields=["status", "updated_at"])
-
-    # Create network provisioning request if network assignment exists
-    network_assignment = NetworkAssignment.objects.filter(
-        organization=organization,
+    router_request = _queue_router_action(
         service_account=service_account,
-    ).first()
+        action=ProvisioningRequest.Action.SUSPEND,
+        payload={"reason": reason, "trigger": trigger_type},
+    )
 
-    if network_assignment:
-        ProvisioningRequest.objects.create(
-            organization=organization,
-            service_account=service_account,
-            network_assignment=network_assignment,
-            action=ProvisioningRequest.Action.SUSPEND,
-            status=ProvisioningRequest.Status.COMPLETED,
-            requested_payload={"reason": reason, "trigger": trigger_type},
-            executed_at=timezone.now(),
-        )
+    # With a router assignment the provisioning worker confirms the suspension
+    # (and reverts to the previous state if the router rejects it).
+    service_account.status = (
+        ServiceAccount.Status.SUSPENSION_PENDING
+        if router_request
+        else ServiceAccount.Status.SUSPENDED_NON_PAYMENT
+    )
+    service_account.save(update_fields=["status", "updated_at"])
 
     # Log suspension history
     suspension_log = ServiceSuspensionLog.objects.create(
@@ -265,7 +304,7 @@ def execute_service_suspension(
         event_type=ServiceSuspensionLog.EventType.SUSPENSION,
         trigger_type=trigger_type,
         previous_status=prev_status,
-        new_status=ServiceAccount.Status.SUSPENDED_NON_PAYMENT,
+        new_status=service_account.status,
         outstanding_amount=total_outstanding,
         reason=reason,
         actor=actor,
@@ -285,6 +324,7 @@ def execute_service_suspension(
             "previous_status": prev_status,
             "outstanding_amount": str(total_outstanding),
             "reason": reason,
+            "provisioning_request_id": str(router_request.id) if router_request else None,
         },
     )
 
@@ -347,8 +387,11 @@ def execute_service_restoration(
     """
     organization = service_account.organization
 
-    # Idempotency check
-    if service_account.status == ServiceAccount.Status.ACTIVE:
+    # Idempotency check: already active, or a restore is on its way to the router.
+    if service_account.status in [
+        ServiceAccount.Status.ACTIVE,
+        ServiceAccount.Status.RESTORE_PENDING,
+    ]:
         latest_log = ServiceSuspensionLog.objects.filter(
             organization=organization,
             service_account=service_account,
@@ -367,30 +410,24 @@ def execute_service_restoration(
     total_outstanding, _, _ = calculate_service_outstanding(service_account)
     prev_status = service_account.status
 
-    # Transition state
-    service_account.status = ServiceAccount.Status.ACTIVE
-    service_account.save(update_fields=["status", "updated_at"])
-
-    # Create network provisioning request if network assignment exists
-    network_assignment = NetworkAssignment.objects.filter(
-        organization=organization,
+    router_request = _queue_router_action(
         service_account=service_account,
-    ).first()
+        action=ProvisioningRequest.Action.RESTORE,
+        payload={
+            "reason": reason,
+            "trigger": trigger_type,
+            "payment_id": str(linked_payment.id) if linked_payment else None,
+        },
+    )
 
-    if network_assignment:
-        ProvisioningRequest.objects.create(
-            organization=organization,
-            service_account=service_account,
-            network_assignment=network_assignment,
-            action=ProvisioningRequest.Action.RESTORE,
-            status=ProvisioningRequest.Status.COMPLETED,
-            requested_payload={
-                "reason": reason,
-                "trigger": trigger_type,
-                "payment_id": str(linked_payment.id) if linked_payment else None,
-            },
-            executed_at=timezone.now(),
-        )
+    # With a router assignment the provisioning worker confirms the restore
+    # (and returns the service to suspended if the router rejects it).
+    service_account.status = (
+        ServiceAccount.Status.RESTORE_PENDING
+        if router_request
+        else ServiceAccount.Status.ACTIVE
+    )
+    service_account.save(update_fields=["status", "updated_at"])
 
     # Log restoration history
     restoration_log = ServiceSuspensionLog.objects.create(
@@ -400,7 +437,7 @@ def execute_service_restoration(
         event_type=ServiceSuspensionLog.EventType.RESTORATION,
         trigger_type=trigger_type,
         previous_status=prev_status,
-        new_status=ServiceAccount.Status.ACTIVE,
+        new_status=service_account.status,
         outstanding_amount=total_outstanding,
         reason=reason,
         actor=actor,
@@ -420,6 +457,7 @@ def execute_service_restoration(
             "previous_status": prev_status,
             "linked_payment_id": str(linked_payment.id) if linked_payment else None,
             "reason": reason,
+            "provisioning_request_id": str(router_request.id) if router_request else None,
         },
     )
 
@@ -468,6 +506,10 @@ def run_automated_suspension_engine(organization) -> dict:
     for item in evaluated_items:
         if item["is_ptp_exempt"]:
             exempt_count += 1
+            continue
+
+        # A suspension is already waiting for the router.
+        if item["current_status"] == ServiceAccount.Status.SUSPENSION_PENDING:
             continue
 
         service_account = ServiceAccount.objects.get(id=item["service_account_id"])
@@ -530,6 +572,61 @@ def run_automated_suspension_engine(organization) -> dict:
         "warning_count": warning_count,
         "exempt_count": exempt_count,
     }
+
+
+def retry_failed_restorations(organization) -> dict:
+    """Re-queue restores the router rejected for services that are still suspended.
+
+    Only services whose latest provisioning action is a FAILED restore are retried,
+    so a deliberate staff suspension is never undone here.
+    """
+    retried_count = 0
+
+    suspended_services = ServiceAccount.objects.filter(
+        organization=organization,
+        status=ServiceAccount.Status.SUSPENDED_NON_PAYMENT,
+    )
+
+    for service_account in suspended_services:
+        latest_request = (
+            ProvisioningRequest.objects
+            .filter(organization=organization, service_account=service_account)
+            .order_by("-requested_at")
+            .first()
+        )
+        if not (
+            latest_request
+            and latest_request.action == ProvisioningRequest.Action.RESTORE
+            and latest_request.status == ProvisioningRequest.Status.FAILED
+        ):
+            continue
+
+        try:
+            with transaction.atomic():
+                router_request = _queue_router_action(
+                    service_account=service_account,
+                    action=ProvisioningRequest.Action.RESTORE,
+                    payload={
+                        "reason": "Retry of failed restore",
+                        "trigger": ServiceSuspensionLog.TriggerType.SYSTEM_AUTOMATED,
+                        "retry_of": str(latest_request.id),
+                    },
+                )
+                if router_request:
+                    service_account.status = ServiceAccount.Status.RESTORE_PENDING
+                    service_account.save(update_fields=["status", "updated_at"])
+                    retried_count += 1
+        except Exception:
+            logger.exception("Failed to retry restore for %s", service_account.service_number)
+
+    return {"retried_count": retried_count}
+
+
+def run_daily_suspension_cycle(organization) -> dict:
+    """Daily policy-driven suspension run plus retries of failed router restores."""
+    engine_result = run_automated_suspension_engine(organization)
+    retry_result = retry_failed_restorations(organization)
+    return {**engine_result, **retry_result}
 
 
 def get_suspension_dashboard_metrics(organization) -> dict:

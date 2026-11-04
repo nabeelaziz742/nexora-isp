@@ -17,7 +17,7 @@ from notifications.services import (
 )
 from tenancy.models import Organization
 
-from billing.models import Invoice
+from billing.models import Invoice, PromiseToPay
 
 
 @dataclass(frozen=True)
@@ -255,6 +255,35 @@ def process_fully_paid_invoice_lifecycle(
     )
 
 
+def _suspension_policy_block_reason(
+    *,
+    organization: Organization,
+    service_account: ServiceAccount,
+    days_overdue: int,
+    as_of_date: date,
+) -> str | None:
+    """Return why the suspension policy forbids suspending now, or None."""
+    from customers.suspension_services import get_or_create_suspension_policy
+
+    policy = get_or_create_suspension_policy(organization)
+
+    if not policy.auto_suspension_enabled:
+        return "AUTO_SUSPENSION_DISABLED"
+
+    if days_overdue < policy.grace_period_days + policy.suspension_threshold_days:
+        return "WITHIN_POLICY_GRACE_PERIOD"
+
+    if policy.ptp_exemption_enabled and PromiseToPay.objects.filter(
+        organization=organization,
+        service_account=service_account,
+        status__in=[PromiseToPay.Status.PENDING, PromiseToPay.Status.ACTIVE],
+        deadline__gte=as_of_date,
+    ).exists():
+        return "PROMISE_TO_PAY_EXEMPT"
+
+    return None
+
+
 def process_invoice_collection(
     *,
     organization: Organization,
@@ -281,6 +310,15 @@ def process_invoice_collection(
             notification_job=None,
             provisioning_request_id=None,
             reason="INVOICE_ALREADY_PAID",
+        )
+
+    if invoice.status in [Invoice.Status.CANCELLED, Invoice.Status.WRITTEN_OFF]:
+        return InvoiceCollectionAutomationResult(
+            invoice=invoice,
+            action="SKIPPED",
+            notification_job=None,
+            provisioning_request_id=None,
+            reason="INVOICE_NOT_COLLECTABLE",
         )
 
     days_overdue = (
@@ -351,6 +389,22 @@ def process_invoice_collection(
                 reason=(
                     "SERVICE_NOT_ELIGIBLE_FOR_SUSPENSION"
                 ),
+            )
+
+        # The tenant's suspension policy has the final say on suspension.
+        policy_block_reason = _suspension_policy_block_reason(
+            organization=organization,
+            service_account=service_account,
+            days_overdue=days_overdue,
+            as_of_date=as_of_date,
+        )
+        if policy_block_reason:
+            return InvoiceCollectionAutomationResult(
+                invoice=invoice,
+                action="SKIPPED",
+                notification_job=None,
+                provisioning_request_id=None,
+                reason=policy_block_reason,
             )
 
         try:
@@ -468,7 +522,8 @@ def run_collection_automation(
     invoices = (
         Invoice.objects
         .for_organization(organization)
-        .exclude(status=Invoice.Status.PAID)
+        # Cancelled and written-off invoices are not collectable.
+        .filter(status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID])
         .filter(due_date__lt=as_of_date)
         .select_related(
             "service_account",

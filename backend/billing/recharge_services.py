@@ -321,10 +321,10 @@ def expire_prepaid_services(*, organization) -> dict:
         _prepaid_services(organization=organization)
         .filter(
             expiry_date__lt=today,
+            # SUSPENSION_PENDING is already on its way to the router.
             status__in=[
                 ServiceAccount.Status.ACTIVE,
                 ServiceAccount.Status.GRACE_PERIOD,
-                ServiceAccount.Status.SUSPENSION_PENDING,
             ],
         )
         .order_by("expiry_date", "service_number")
