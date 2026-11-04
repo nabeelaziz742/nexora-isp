@@ -1,4 +1,4 @@
-import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
+import { apiBlob, apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 import type {
   BadDebtRecoveryPayload,
@@ -109,6 +109,21 @@ export const billingService = {
         body: payload,
       },
     );
+  },
+
+  uploadPaymentProof(paymentId: string, file: File): Promise<Payment> {
+    const form = new FormData();
+    form.append("proof_file", file);
+    return apiRequest<Payment>(`/billing/payments/${paymentId}/proof/`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  // Object URL for the proof file; revoke it with URL.revokeObjectURL when done.
+  async getPaymentProofUrl(paymentId: string): Promise<string> {
+    const blob = await apiBlob(`/billing/payments/${paymentId}/proof/`);
+    return URL.createObjectURL(blob);
   },
 
   rechargeService(

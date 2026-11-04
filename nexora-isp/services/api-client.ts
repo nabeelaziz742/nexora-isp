@@ -191,6 +191,33 @@ export async function apiRequest<T>(
   return payload as T;
 }
 
+// Authenticated file download (e.g. images/PDFs behind JWT) returned as a Blob.
+export async function apiBlob(path: string): Promise<Blob> {
+  const fetchWith = (token: string | null) =>
+    fetch(buildUrl(path), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+  let response = await fetchWith(getAccessToken());
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      response = await fetchWith(refreshed);
+    }
+  }
+
+  if (!response.ok) {
+    const payload = await parseResponseBody(response);
+    throw new ApiError(
+      normalizeApiErrorMessage(payload, "Unable to download the file."),
+      response.status,
+      payload,
+    );
+  }
+
+  return response.blob();
+}
+
 export interface PaginatedResponse<T> {
   count?: number;
   next?: string | null;

@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import Link from "next/link";
@@ -175,6 +176,10 @@ export default function CustomerDetailPage() {
   const [collectPayMethod, setCollectPayMethod] = useState<PaymentMethod>("CASH");
   const [collectPayRef, setCollectPayRef] = useState("");
   const [collectPayNotes, setCollectPayNotes] = useState("");
+  const [collectPayProof, setCollectPayProof] = useState<File | null>(null);
+  const [rechargeProof, setRechargeProof] = useState<File | null>(null);
+  const proofInputRef = useRef<HTMLInputElement>(null);
+  const [proofTargetPaymentId, setProofTargetPaymentId] = useState<string | null>(null);
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [rechargeMonths, setRechargeMonths] = useState(1);
   const [rechargeMethod, setRechargeMethod] = useState<PaymentMethod>("CASH");
@@ -331,6 +336,45 @@ export default function CustomerDetailPage() {
     }
   };
 
+  // Payment proof (JazzCash / Easypaisa / bank screenshot or PDF)
+  const uploadProof = async (paymentId: string, file: File) => {
+    try {
+      await billingService.uploadPaymentProof(paymentId, file);
+      return true;
+    } catch (err) {
+      toast.error(
+        `Payment saved, but the proof was not attached: ${
+          err instanceof Error ? err.message : "upload failed"
+        }`,
+      );
+      return false;
+    }
+  };
+
+  const handleViewProof = async (paymentId: string) => {
+    try {
+      const url = await billingService.getPaymentProofUrl(paymentId);
+      window.open(url, "_blank", "noopener");
+      // Keep the object URL alive long enough for the new tab to load it.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to open proof.");
+    }
+  };
+
+  const handleAttachProofFile = async (file: File | undefined) => {
+    const paymentId = proofTargetPaymentId;
+    setProofTargetPaymentId(null);
+    if (!file || !paymentId) return;
+    setActionLoading(true);
+    const ok = await uploadProof(paymentId, file);
+    setActionLoading(false);
+    if (ok) {
+      toast.success("Proof attached.");
+      await loadCustomerData();
+    }
+  };
+
   // Prepaid Recharge
   const handleRechargeService = async () => {
     if (!selectedServiceId) return;
@@ -341,9 +385,13 @@ export default function CustomerDetailPage() {
         payment_method: rechargeMethod,
         reference: rechargeRef.trim(),
       });
+      if (rechargeProof && result.payment_id) {
+        await uploadProof(result.payment_id, rechargeProof);
+      }
       setIsRechargeModalOpen(false);
       setRechargeMonths(1);
       setRechargeRef("");
+      setRechargeProof(null);
       if (result.service_status === "SUSPENDED_NON_PAYMENT") {
         toast.warning(
           `Recharged until ${formatDate(result.new_expiry_date)}, but the service stays suspended until the older outstanding balance is cleared.`,
@@ -1191,6 +1239,17 @@ export default function CustomerDetailPage() {
                 />
               ) : (
                 <div className="overflow-x-auto border border-[var(--border)]">
+                  {/* Shared picker for attaching proof to an existing payment. */}
+                  <input
+                    ref={proofInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      void handleAttachProofFile(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
                   <table className="w-full min-w-[700px] border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-white/[0.02] text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -1242,6 +1301,29 @@ export default function CustomerDetailPage() {
                             >
                               Receipt
                             </button>
+                            {pay.has_proof ? (
+                              <button
+                                type="button"
+                                onClick={() => handleViewProof(pay.id)}
+                                className="ml-1.5 border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300"
+                              >
+                                Proof
+                              </button>
+                            ) : (
+                              !pay.is_reversed && (
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={() => {
+                                    setProofTargetPaymentId(pay.id);
+                                    proofInputRef.current?.click();
+                                  }}
+                                  className="ml-1.5 border border-dashed border-[var(--border)] px-2.5 py-1 text-[10px] font-semibold text-[var(--text-muted)] hover:text-white disabled:opacity-50"
+                                >
+                                  Attach
+                                </button>
+                              )
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1543,6 +1625,18 @@ export default function CustomerDetailPage() {
                     onChange={(e) => setRechargeRef(e.target.value)}
                     placeholder="e.g. JazzCash TID, Bank Ref #"
                     className="h-10 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    Payment Proof (screenshot or PDF)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => setRechargeProof(e.target.files?.[0] ?? null)}
+                    className="block w-full text-xs text-slate-300 file:mr-3 file:border file:border-[var(--border)] file:bg-[var(--background)] file:px-3 file:py-1.5 file:text-xs file:text-slate-200"
                   />
                 </div>
 
@@ -1886,18 +1980,22 @@ export default function CustomerDetailPage() {
                 }
                 try {
                   setActionLoading(true);
-                  await billingService.recordPaymentWithAllocations({
+                  const payment = await billingService.recordPaymentWithAllocations({
                     service_account_id: selectedServiceId,
                     amount: collectPayAmount,
                     payment_method: collectPayMethod,
                     reference: collectPayRef.trim(),
                     notes: collectPayNotes.trim(),
                   });
+                  if (collectPayProof) {
+                    await uploadProof(payment.id, collectPayProof);
+                  }
                   toast.success("Payment recorded successfully.");
                   setIsCollectPaymentOpen(false);
                   setCollectPayAmount("");
                   setCollectPayRef("");
                   setCollectPayNotes("");
+                  setCollectPayProof(null);
                   await loadCustomerData();
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : "Payment recording failed");
@@ -2013,6 +2111,19 @@ export default function CustomerDetailPage() {
                   placeholder="e.g. Bank Ref #, JazzCash TID"
                   className="h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  Payment Proof (screenshot or PDF)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={(e) => setCollectPayProof(e.target.files?.[0] ?? null)}
+                  className="block w-full text-xs text-slate-300 file:mr-3 file:border file:border-[var(--border)] file:bg-[var(--background)] file:px-3 file:py-1.5 file:text-xs file:text-slate-200"
+                />
+                <p className="mt-1 text-[10px] text-[var(--text-muted)]">JPG, PNG, WEBP or PDF, up to 5 MB.</p>
               </div>
 
               <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-4">

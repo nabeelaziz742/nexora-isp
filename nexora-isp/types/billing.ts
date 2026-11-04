@@ -164,6 +164,8 @@ export interface Payment {
   reversal_reference?: string;
   received_by_email: string | null;
   paid_at: string;
+  has_proof?: boolean;
+  proof_uploaded_at?: string | null;
   created_at: string;
   updated_at: string;
   allocations?: PaymentAllocation[];

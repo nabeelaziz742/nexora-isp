@@ -25,6 +25,7 @@ from billing.views import (
     InvoiceWriteOffView,
     MonthlyBillingRunView,
     PaymentListView,
+    PaymentProofView,
     PaymentReceiptView,
     PaymentReversalView,
     PromiseToPayDetailView,
@@ -101,6 +102,11 @@ urlpatterns = [
         "payments/<uuid:payment_id>/receipt/",
         PaymentReceiptView.as_view(),
         name="billing-payment-receipt",
+    ),
+    path(
+        "payments/<uuid:payment_id>/proof/",
+        PaymentProofView.as_view(),
+        name="billing-payment-proof",
     ),
     path(
         "ledger/",

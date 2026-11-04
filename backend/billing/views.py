@@ -4,8 +4,10 @@ import calendar
 
 from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
+from django.http import FileResponse
 from rest_framework import status
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,8 +35,10 @@ from billing.serializers import (
 )
 from billing.services import (
     BillingDomainError,
+    attach_payment_proof,
     cancel_invoice,
     create_promise_to_pay,
+    detect_payment_proof_type,
     generate_custom_invoice,
     generate_monthly_invoices,
     generate_service_invoice,
@@ -713,6 +717,44 @@ class PaymentReversalView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(PaymentSerializer(payment).data)
+
+
+class PaymentProofView(APIView):
+    """Upload or view the transfer screenshot / PDF attached to a payment."""
+
+    parser_classes = [MultiPartParser]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [CanManageBilling()]
+        return [IsOrganizationStaffOrOwner()]
+
+    def get(self, request, payment_id):
+        payment = (
+            Payment.objects
+            .for_organization(request.organization)
+            .filter(id=payment_id)
+            .first()
+        )
+        if payment is None or not payment.proof_file:
+            return Response({"detail": "Proof not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        handle = payment.proof_file.open("rb")
+        content_type = detect_payment_proof_type(handle) or "application/octet-stream"
+        return FileResponse(handle, content_type=content_type)
+
+    def post(self, request, payment_id):
+        try:
+            payment = attach_payment_proof(
+                organization=request.organization,
+                actor=request.user,
+                payment_id=payment_id,
+                uploaded_file=request.FILES.get("proof_file"),
+            )
+        except BillingDomainError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
 class PaymentReceiptView(APIView):

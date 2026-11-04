@@ -333,6 +333,27 @@ class Payment(TenantScopedModel):
 
     paid_at = models.DateTimeField()
 
+    # Screenshot or PDF of the transfer (JazzCash, Easypaisa, bank slip).
+    # Served only through the authenticated proof endpoint, never as a public URL.
+    proof_file = models.FileField(
+        upload_to="payment_proofs/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+
+    proof_uploaded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    proof_uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="billing_payment_proofs_uploaded",
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )

@@ -180,6 +180,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
+    has_proof = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
@@ -203,9 +204,14 @@ class PaymentSerializer(serializers.ModelSerializer):
             "reversal_reference",
             "received_by_email",
             "paid_at",
+            "has_proof",
+            "proof_uploaded_at",
             "created_at",
             "updated_at",
         ]
+
+    def get_has_proof(self, obj):
+        return bool(obj.proof_file)
 
 
 class RecordInvoicePaymentSerializer(

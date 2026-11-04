@@ -1623,3 +1623,76 @@ def get_payment_receipt_data(*, organization: Organization, payment_id) -> dict:
     }
 
 
+
+
+PAYMENT_PROOF_MAX_BYTES = 5 * 1024 * 1024
+
+# Leading bytes of the file types accepted as payment proof.
+PAYMENT_PROOF_SIGNATURES = {
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "application/pdf": (b"%PDF-",),
+}
+
+
+def detect_payment_proof_type(uploaded_file) -> str | None:
+    """Content type of an accepted proof file, judged by its bytes, or None."""
+    uploaded_file.seek(0)
+    head = uploaded_file.read(16)
+    uploaded_file.seek(0)
+
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    for content_type, signatures in PAYMENT_PROOF_SIGNATURES.items():
+        if any(head.startswith(signature) for signature in signatures):
+            return content_type
+    return None
+
+
+@transaction.atomic
+def attach_payment_proof(*, organization: Organization, actor, payment_id, uploaded_file) -> Payment:
+    """Attach (or replace) the transfer screenshot / PDF for a payment."""
+    if uploaded_file is None:
+        raise BillingDomainError("Choose a screenshot or PDF to upload.")
+
+    if uploaded_file.size > PAYMENT_PROOF_MAX_BYTES:
+        raise BillingDomainError("Proof file must be 5 MB or smaller.")
+
+    if detect_payment_proof_type(uploaded_file) is None:
+        raise BillingDomainError("Upload a JPG, PNG, WEBP image or a PDF.")
+
+    try:
+        payment = (
+            Payment.objects
+            .select_for_update()
+            .for_organization(organization)
+            .get(id=payment_id)
+        )
+    except Payment.DoesNotExist as exc:
+        raise BillingDomainError("Payment was not found for this organization.") from exc
+
+    previous_name = payment.proof_file.name if payment.proof_file else ""
+
+    payment.proof_file.save(uploaded_file.name, uploaded_file, save=False)
+    payment.proof_uploaded_at = timezone.now()
+    payment.proof_uploaded_by = actor
+    payment.save(update_fields=["proof_file", "proof_uploaded_at", "proof_uploaded_by", "updated_at"])
+
+    if previous_name and previous_name != payment.proof_file.name:
+        storage = payment.proof_file.storage
+        # Remove the replaced file only once the new reference is committed.
+        transaction.on_commit(lambda: storage.delete(previous_name))
+
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="PAYMENT_PROOF_UPLOADED",
+        resource_type="Payment",
+        resource_id=payment.id,
+        metadata={
+            "payment_number": payment.payment_number,
+            "replaced": bool(previous_name),
+        },
+    )
+
+    return payment
