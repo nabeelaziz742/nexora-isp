@@ -12,9 +12,14 @@ class BaseCommunicationProvider(ABC):
         subject="",
         message="",
         provider,
+        template_message=None,
     ):
         """
         Send a communication.
+
+        `template_message` is an optional pre-approved template
+        ({"name", "language", "parameters"}) for channels that support it;
+        other channels ignore it and send `message`.
 
         Must return a dictionary containing at least:
         success, provider_message_id, response, error, retryable.

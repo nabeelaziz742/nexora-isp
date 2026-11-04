@@ -492,6 +492,9 @@ export interface CommunicationTemplate {
   communication_provider: string;
   communication_provider_name: string;
   communication_provider_type: "WHATSAPP" | "SMS" | "EMAIL";
+  whatsapp_template_name: string;
+  whatsapp_template_language: string;
+  whatsapp_template_params: string[];
   created_at: string;
   updated_at: string;
 }

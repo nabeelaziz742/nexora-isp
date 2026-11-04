@@ -139,6 +139,26 @@ class CommunicationTemplate(TenantScopedModel):
         blank=True,
     )
 
+    # Meta (WhatsApp Cloud API) approved template. Business-initiated
+    # messages outside the 24-hour customer window must use one; when empty
+    # the rendered body is sent as plain text.
+    whatsapp_template_name = models.CharField(
+        max_length=512,
+        blank=True,
+    )
+
+    whatsapp_template_language = models.CharField(
+        max_length=20,
+        default="en",
+        blank=True,
+    )
+
+    # Context variable names, in the order of the template's {{1}}, {{2}}, ...
+    whatsapp_template_params = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

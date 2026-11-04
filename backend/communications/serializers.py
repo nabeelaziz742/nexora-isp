@@ -36,9 +36,32 @@ class CommunicationTemplateSerializer(serializers.ModelSerializer):
         fields = [
             "id", "organization", "name", "subject", "body", "variables", "status",
             "communication_provider", "communication_provider_name", "communication_provider_type",
+            "whatsapp_template_name", "whatsapp_template_language", "whatsapp_template_params",
             "created_at", "updated_at",
         ]
         read_only_fields = ("organization", "variables", "created_at", "updated_at")
+
+    META_NAME_REGEX = re.compile(r"^[a-z0-9_]+$")
+    PARAM_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
+
+    def validate_whatsapp_template_name(self, value):
+        value = (value or "").strip()
+        if value and not self.META_NAME_REGEX.match(value):
+            raise serializers.ValidationError(
+                "Use the exact Meta template name: lowercase letters, numbers and underscores."
+            )
+        return value
+
+    def validate_whatsapp_template_params(self, value):
+        if value in (None, ""):
+            return []
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and self.PARAM_REGEX.match(item.strip()) for item in value
+        ):
+            raise serializers.ValidationError(
+                "Provide variable names such as customer_name, in template order."
+            )
+        return [item.strip() for item in value]
 
     def validate_name(self, value):
         organization = self.context["request"].organization

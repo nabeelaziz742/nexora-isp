@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import TemplateForm from "@/components/communications/template-form";
+import TemplateForm, {
+  parseTemplateParams,
+} from "@/components/communications/template-form";
 import {
   communicationsService,
   type CommunicationTemplate,
@@ -20,8 +22,16 @@ interface Provider {
 
 type TemplateFormState = Pick<
   CommunicationTemplate,
-  "name" | "subject" | "body" | "status" | "communication_provider"
->;
+  | "name"
+  | "subject"
+  | "body"
+  | "status"
+  | "communication_provider"
+  | "whatsapp_template_name"
+  | "whatsapp_template_language"
+> & {
+  whatsapp_template_params: string;
+};
 
 export default function CreateCommunicationTemplatePage() {
   const router = useRouter();
@@ -36,6 +46,9 @@ export default function CreateCommunicationTemplatePage() {
     body: "",
     status: "DRAFT",
     communication_provider: "",
+    whatsapp_template_name: "",
+    whatsapp_template_language: "en",
+    whatsapp_template_params: "",
   });
 
   useEffect(() => {
@@ -76,7 +89,10 @@ export default function CreateCommunicationTemplatePage() {
     try {
       setLoading(true);
 
-      await communicationsService.createTemplate(form);
+      await communicationsService.createTemplate({
+        ...form,
+        whatsapp_template_params: parseTemplateParams(form.whatsapp_template_params),
+      });
 
       toast.success("Template created successfully.");
       router.push("/communications/templates");

@@ -71,7 +71,28 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
                 "message": "WhatsApp provider is unreachable.",
             }
 
-    def send(self, *, recipient, subject="", message="", provider):
+    @staticmethod
+    def _template_payload(template_message):
+        """Build the Cloud API `template` object for an approved Meta template."""
+        template = {
+            "name": template_message["name"],
+            "language": {"code": template_message.get("language") or "en"},
+        }
+        parameters = template_message.get("parameters") or []
+        if parameters:
+            template["components"] = [
+                {
+                    "type": "body",
+                    # Meta rejects empty text parameters.
+                    "parameters": [
+                        {"type": "text", "text": str(value) if str(value).strip() else "-"}
+                        for value in parameters
+                    ],
+                }
+            ]
+        return template
+
+    def send(self, *, recipient, subject="", message="", provider, template_message=None):
         recipient = (
             str(recipient)
             .replace("+", "")
@@ -81,7 +102,9 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
         if recipient.startswith("0"):
             recipient = "92" + recipient[1:]
 
-        if not message:
+        use_template = bool(template_message and template_message.get("name"))
+
+        if not use_template and not message:
             return {
                 "success": False,
                 "provider_message_id": "",
@@ -99,12 +122,22 @@ class WhatsAppCloudProvider(BaseCommunicationProvider):
             "Authorization": f"Bearer {provider.access_token}",
             "Content-Type": "application/json",
         }
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": recipient,
-            "type": "text",
-            "text": {"body": message},
-        }
+        if use_template:
+            # Approved templates may be sent at any time; plain text only
+            # reaches customers who messaged the business in the last 24 hours.
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": recipient,
+                "type": "template",
+                "template": self._template_payload(template_message),
+            }
+        else:
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": recipient,
+                "type": "text",
+                "text": {"body": message},
+            }
 
         try:
             response = requests.post(

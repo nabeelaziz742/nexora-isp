@@ -112,6 +112,7 @@ class CommunicationDispatcher:
                     subject=queue.rendered_subject,
                     message=queue.rendered_body,
                     provider=queue.provider,
+                    template_message=cls.build_template_message(queue),
                 )
         except Exception as exc:
             logger.exception(
@@ -129,6 +130,27 @@ class CommunicationDispatcher:
             return cls.mark_success(queue, result)
 
         return cls.mark_failure(queue, result)
+
+    @staticmethod
+    def build_template_message(queue):
+        """Approved-template details for this queue item, or None for plain text.
+
+        Parameter values come from the queue payload (the event context) in the
+        order the template declares, so they match Meta's {{1}}, {{2}}, ...
+        """
+        template = queue.template
+        if not template or not template.whatsapp_template_name:
+            return None
+
+        payload = queue.payload if isinstance(queue.payload, dict) else {}
+        return {
+            "name": template.whatsapp_template_name.strip(),
+            "language": (template.whatsapp_template_language or "en").strip(),
+            "parameters": [
+                "" if payload.get(variable) is None else str(payload.get(variable))
+                for variable in (template.whatsapp_template_params or [])
+            ],
+        }
 
     @staticmethod
     def not_configured_result():

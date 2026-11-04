@@ -229,6 +229,53 @@ DEFAULT_TEMPLATES = {
 }
 
 
+# Suggested Meta (WhatsApp Cloud API) template names and the order of their
+# body variables ({{1}}, {{2}}, ...). The ISP creates templates with these
+# names in Meta Business Manager; see docs/WHATSAPP_TEMPLATES.md.
+WHATSAPP_TEMPLATE_DEFAULTS = {
+    NotificationEvent.INVOICE_GENERATED: (
+        "nexora_invoice_generated",
+        ["customer_name", "invoice_number", "total_amount", "due_date"],
+    ),
+    NotificationEvent.BILL_DUE_REMINDER: (
+        "nexora_bill_due_reminder",
+        ["customer_name", "outstanding_amount", "invoice_number", "due_date"],
+    ),
+    NotificationEvent.BILL_OVERDUE_REMINDER: (
+        "nexora_bill_overdue",
+        ["customer_name", "outstanding_amount", "invoice_number", "due_date"],
+    ),
+    NotificationEvent.SUSPENSION_WARNING: (
+        "nexora_suspension_warning",
+        ["customer_name", "service_number", "suspension_date", "outstanding_amount"],
+    ),
+    NotificationEvent.SERVICE_SUSPENDED: (
+        "nexora_service_suspended",
+        ["customer_name", "service_number", "outstanding_amount"],
+    ),
+    NotificationEvent.SERVICE_RESTORED: (
+        "nexora_service_restored",
+        ["customer_name", "service_number"],
+    ),
+    NotificationEvent.PAYMENT_RECEIVED: (
+        "nexora_payment_received",
+        ["customer_name", "paid_amount", "payment_number", "outstanding_amount"],
+    ),
+    NotificationEvent.PAYMENT_PARTIAL_RECEIVED: (
+        "nexora_payment_received",
+        ["customer_name", "paid_amount", "payment_number", "outstanding_amount"],
+    ),
+    NotificationEvent.PTP_CREATED: (
+        "nexora_promise_to_pay",
+        ["customer_name", "promised_amount", "deadline"],
+    ),
+    NotificationEvent.COMPLAINT_CREATED: (
+        "nexora_complaint_received",
+        ["customer_name", "complaint_number"],
+    ),
+}
+
+
 def make_json_safe(obj):
     if isinstance(obj, dict):
         return {str(k): make_json_safe(v) for k, v in obj.items()}
@@ -282,12 +329,18 @@ def get_or_create_default_template(organization, provider, event_type: str) -> C
         "body": f"Notification regarding your account with {organization.name}. Context: {{{{service_number}}}}",
     })
 
+    meta_name, meta_params = "", []
+    if provider.provider_type == CommunicationProvider.ProviderType.WHATSAPP:
+        meta_name, meta_params = WHATSAPP_TEMPLATE_DEFAULTS.get(event_type, ("", []))
+
     return CommunicationTemplate.objects.create(
         organization=organization,
         communication_provider=provider,
         name=template_name,
         subject=default_data.get("subject", ""),
         body=default_data.get("body", ""),
+        whatsapp_template_name=meta_name,
+        whatsapp_template_params=list(meta_params),
         status=CommunicationTemplate.Status.ACTIVE,
     )
 

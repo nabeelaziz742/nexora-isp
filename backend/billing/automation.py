@@ -1,5 +1,6 @@
+import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from customers.models import (
     NotificationPreference,
@@ -18,6 +19,8 @@ from notifications.services import (
 from tenancy.models import Organization
 
 from billing.models import Invoice, PromiseToPay
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -172,11 +175,130 @@ def _queue_invoice_notification(
             reason=str(exc),
         )
 
+    _deliver_invoice_notification(
+        organization=organization,
+        invoice=invoice,
+        event_type=event_type,
+        notification_job=result.notification_job,
+        actor=actor,
+    )
+
     return InvoiceNotificationAutomationResult(
         queued=True,
         notification_job=result.notification_job,
         reason="QUEUED",
     )
+
+
+# Billing notification job event -> communications event (and Meta template).
+INVOICE_JOB_EVENTS = {
+    "BILL_GENERATED": "INVOICE_GENERATED",
+    "OVERDUE_REMINDER": "BILL_OVERDUE_REMINDER",
+    "FINAL_WARNING": "SUSPENSION_WARNING",
+}
+
+
+def _deliver_invoice_notification(
+    *,
+    organization: Organization,
+    invoice: Invoice,
+    event_type: str,
+    notification_job,
+    actor=None,
+) -> None:
+    """Send a billing notification job through the communications providers.
+
+    Notification jobs were recorded but never handed to a provider, so
+    reminders and warnings never reached customers. Delivery uses the same
+    dispatcher (and WhatsApp templates) as payment and suspension notices, and
+    the job records the outcome. Failures never interrupt billing.
+    """
+    from communications.models import CommunicationAutomation, CommunicationQueue
+    from communications.notification_engine import dispatch_notification_event
+    from customers.suspension_services import get_or_create_suspension_policy
+    from notifications.services import (
+        mark_notification_failed,
+        mark_notification_sent,
+        start_notification_processing,
+    )
+
+    communication_event = INVOICE_JOB_EVENTS.get(event_type)
+    if not communication_event or notification_job is None:
+        return
+
+    try:
+        if communication_event == "INVOICE_GENERATED" and CommunicationAutomation.objects.filter(
+            organization=organization,
+            trigger=CommunicationAutomation.Trigger.INVOICE_GENERATED,
+            is_enabled=True,
+        ).exists():
+            # A configured automation already sends the invoice notice.
+            notification_job.status = NotificationJob.Status.CANCELLED
+            notification_job.failure_reason = "Delivered by communication automation."
+            notification_job.save(update_fields=["status", "failure_reason", "updated_at"])
+            return
+
+        service_account = invoice.service_account
+        policy = get_or_create_suspension_policy(organization)
+        suspension_date = invoice.due_date + timedelta(
+            days=policy.grace_period_days + policy.suspension_threshold_days
+        )
+
+        dispatch = dispatch_notification_event(
+            organization=organization,
+            customer=service_account.customer,
+            event_type=communication_event,
+            preferred_channel=notification_job.channel,
+            context={
+                "invoice_number": invoice.invoice_number,
+                "billing_month": invoice.billing_period_start.strftime("%B %Y"),
+                "due_date": invoice.due_date.isoformat(),
+                "total_amount": invoice.total_amount,
+                "outstanding_amount": invoice.outstanding_amount,
+                "service_number": service_account.service_number,
+                "package_name": service_account.internet_package.name,
+                "suspension_date": suspension_date.isoformat(),
+            },
+        )
+
+        start_notification_processing(
+            organization=organization,
+            notification_job_id=notification_job.id,
+            provider_name="communications",
+            actor=actor,
+        )
+
+        queued = dispatch.get("queued_items") or []
+        queue_item = (
+            CommunicationQueue.objects.filter(id=queued[0]["queue_id"]).first()
+            if queued
+            else None
+        )
+
+        if queue_item and queue_item.status == CommunicationQueue.Status.SENT:
+            mark_notification_sent(
+                organization=organization,
+                notification_job_id=notification_job.id,
+                provider_message_id=(
+                    (queue_item.provider_response or {}).get("message_id")
+                    or str(queue_item.id)
+                ),
+                actor=actor,
+            )
+        else:
+            reason = (
+                (queue_item.last_error if queue_item else "")
+                or "; ".join(error.get("error", "") for error in dispatch.get("errors", []))
+                or "No communication provider accepted the message."
+            )
+            mark_notification_failed(
+                organization=organization,
+                notification_job_id=notification_job.id,
+                failure_reason=reason,
+                actor=actor,
+            )
+    except Exception:
+        logger.exception("Failed to deliver %s for invoice %s", event_type, invoice.invoice_number)
 
 
 def queue_invoice_generated_notification(

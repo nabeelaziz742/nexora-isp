@@ -16,6 +16,7 @@ class EmailProvider(BaseCommunicationProvider):
         subject="",
         message="",
         provider,
+        template_message=None,
     ):
         try:
             email = EmailMessage(

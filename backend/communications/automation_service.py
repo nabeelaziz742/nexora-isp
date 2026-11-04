@@ -172,6 +172,9 @@ class CommunicationAutomationService:
                 {
                     "invoice_number": invoice.invoice_number,
                     "due_date": invoice.due_date.isoformat() if invoice.due_date else "",
+                    # Strings so the JSON queue payload can feed template parameters.
+                    "total_amount": str(invoice.total_amount),
+                    "outstanding_amount": str(invoice.outstanding_amount),
                 }
             )
         if complaint:

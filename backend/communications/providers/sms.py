@@ -17,6 +17,7 @@ class SMSProvider(BaseCommunicationProvider):
         subject="",
         message="",
         provider,
+        template_message=None,
     ):
         return {
             "success": False,

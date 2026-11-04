@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import TemplateForm, {
+  parseTemplateParams,
   Provider,
 } from "@/components/communications/template-form";
 
@@ -18,8 +19,16 @@ import {
 
 type TemplateFormState = Pick<
   CommunicationTemplate,
-  "name" | "subject" | "body" | "status" | "communication_provider"
->;
+  | "name"
+  | "subject"
+  | "body"
+  | "status"
+  | "communication_provider"
+  | "whatsapp_template_name"
+  | "whatsapp_template_language"
+> & {
+  whatsapp_template_params: string;
+};
 
 export default function EditCommunicationTemplatePage() {
   const router = useRouter();
@@ -36,6 +45,9 @@ export default function EditCommunicationTemplatePage() {
     body: "",
     status: "DRAFT",
     communication_provider: "",
+    whatsapp_template_name: "",
+    whatsapp_template_language: "en",
+    whatsapp_template_params: "",
   });
 
   const loadPage = useCallback(async () => {
@@ -55,6 +67,9 @@ export default function EditCommunicationTemplatePage() {
         body: template.body ?? "",
         status: template.status,
         communication_provider: template.communication_provider,
+        whatsapp_template_name: template.whatsapp_template_name ?? "",
+        whatsapp_template_language: template.whatsapp_template_language || "en",
+        whatsapp_template_params: (template.whatsapp_template_params ?? []).join(", "),
       });
     } finally {
       setLoading(false);
@@ -89,7 +104,10 @@ export default function EditCommunicationTemplatePage() {
       field !== "name" &&
       field !== "subject" &&
       field !== "body" &&
-      field !== "communication_provider"
+      field !== "communication_provider" &&
+      field !== "whatsapp_template_name" &&
+      field !== "whatsapp_template_language" &&
+      field !== "whatsapp_template_params"
     ) {
       return;
     }
@@ -104,7 +122,10 @@ export default function EditCommunicationTemplatePage() {
     try {
       setSaving(true);
 
-      await communicationsService.updateTemplate(id, form);
+      await communicationsService.updateTemplate(id, {
+        ...form,
+        whatsapp_template_params: parseTemplateParams(form.whatsapp_template_params),
+      });
 
       toast.success("Template updated successfully.");
       router.push("/communications/templates");

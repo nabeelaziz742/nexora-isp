@@ -31,6 +31,7 @@ from network.models import (
     ProvisioningRequest,
 )
 from network.services import NetworkAssignmentError
+from notifications.models import NotificationJob
 from tenancy.models import (
     AuditLog,
     Organization,
@@ -164,7 +165,13 @@ class CustomerActivationTests(APITestCase):
         self.assertEqual(NetworkAssignment.objects.count(), 1)
         self.assertEqual(ProvisioningRequest.objects.count(), 1)
         self.assertEqual(Invoice.objects.count(), 1)
-        self.assertEqual(AuditLog.objects.count(), 4)
+        # 4 activation/billing entries plus the first-invoice notice delivery
+        # attempt (processing started, then failed: no WhatsApp is connected).
+        self.assertEqual(AuditLog.objects.count(), 6)
+        self.assertEqual(
+            NotificationJob.objects.get(event_type="BILL_GENERATED").status,
+            NotificationJob.Status.FAILED,
+        )
         self.assertTrue(AuditLog.objects.filter(organization=self.organization, action="INVENTORY_DEVICE_ASSIGNED").exists())
         self.assertTrue(AuditLog.objects.filter(organization=self.organization, action="CUSTOMER_SERVICE_ACTIVATED").exists())
         self.assertTrue(AuditLog.objects.filter(organization=self.organization, action="BILLING_INVOICE_GENERATED").exists())

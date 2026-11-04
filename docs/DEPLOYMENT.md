@@ -158,6 +158,7 @@ private link). Verify activate, suspend and restore on one real router before on
 - [ ] A receipt uploaded before a redeploy is still viewable after it (volume works)
 - [ ] `run_billing_automation` is scheduled daily
 - [ ] On a MikroTik node, Test Router Connection succeeds and activate/suspend/restore work
+- [ ] Each ISP has created and got approval for its WhatsApp templates in Meta (see [WHATSAPP_TEMPLATES.md](WHATSAPP_TEMPLATES.md)) and its WhatsApp provider shows Connected
 
 ## 9. Known limitations
 

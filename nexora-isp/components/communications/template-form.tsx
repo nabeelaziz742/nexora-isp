@@ -8,6 +8,14 @@ export interface Provider {
   provider_type: "WHATSAPP" | "SMS" | "EMAIL";
 }
 
+// "customer_name, due_date" -> ["customer_name", "due_date"]
+export function parseTemplateParams(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 interface TemplateFormProps {
   form: {
     name: string;
@@ -15,6 +23,10 @@ interface TemplateFormProps {
     body: string;
     status: string;
     communication_provider: string;
+    whatsapp_template_name?: string;
+    whatsapp_template_language?: string;
+    // Comma-separated variable names, in the Meta template's {{1}}, {{2}} order.
+    whatsapp_template_params?: string;
   };
 
   providers: Provider[];
@@ -60,6 +72,10 @@ export default function TemplateForm({
     );
 
   }, [form.body]);
+
+  const isWhatsApp =
+    providers.find((provider) => provider.id === form.communication_provider)
+      ?.provider_type === "WHATSAPP";
 
   return (
 
@@ -168,6 +184,63 @@ export default function TemplateForm({
             />
 
           </div>
+
+          {isWhatsApp && (
+            <div className="space-y-4 border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  WhatsApp (Meta) Template
+                </h3>
+                <p className="mt-1 text-xs text-[#94A3B8]">
+                  Meta only delivers business-initiated messages through approved templates.
+                  Without one, the message above is sent as plain text and reaches only
+                  customers who messaged you in the last 24 hours.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-sm text-white">
+                    Approved Template Name
+                  </label>
+                  <input
+                    value={form.whatsapp_template_name ?? ""}
+                    onChange={(e) => onChange("whatsapp_template_name", e.target.value)}
+                    placeholder="e.g. nexora_bill_overdue"
+                    className="w-full border border-[#202938] bg-[#080B10] px-4 py-2 font-mono text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm text-white">
+                    Language Code
+                  </label>
+                  <input
+                    value={form.whatsapp_template_language ?? "en"}
+                    onChange={(e) => onChange("whatsapp_template_language", e.target.value)}
+                    placeholder="en"
+                    className="w-full border border-[#202938] bg-[#080B10] px-4 py-2 font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-white">
+                  Template Variables (in order)
+                </label>
+                <input
+                  value={form.whatsapp_template_params ?? ""}
+                  onChange={(e) => onChange("whatsapp_template_params", e.target.value)}
+                  placeholder="customer_name, outstanding_amount, invoice_number, due_date"
+                  className="w-full border border-[#202938] bg-[#080B10] px-4 py-2 font-mono text-white"
+                />
+                <p className="mt-1 text-xs text-[#64748B]">
+                  First name fills {"{{1}}"}, second fills {"{{2}}"}, and so on. Use the same
+                  variable names as the message above.
+                </p>
+              </div>
+            </div>
+          )}
 
                     <div>
 
