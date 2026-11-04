@@ -24,6 +24,7 @@ import {
   Plus,
   RefreshCw,
   Router,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   UserRound,
@@ -153,7 +154,7 @@ export default function CustomerDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [ledger, setLedger] = useState<FinancialLedger | null>(null);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [, setProvisioningRequests] = useState<ProvisioningRequest[]>([]);
+  const [provisioningRequests, setProvisioningRequests] = useState<ProvisioningRequest[]>([]);
   const [availableDevices, setAvailableDevices] = useState<InventoryDevice[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -311,6 +312,20 @@ export default function CustomerDetailPage() {
       await loadCustomerData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Restore request failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Retry a router action that failed (e.g. activation on MikroTik)
+  const handleRetryProvisioning = async (request: ProvisioningRequest) => {
+    try {
+      setActionLoading(true);
+      await networkService.retryProvisioningRequest(request.id);
+      toast.success("Sent to the router again.");
+      await loadCustomerData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setActionLoading(false);
     }
@@ -596,6 +611,11 @@ export default function CustomerDetailPage() {
               const canChangePlan = service.status === "ACTIVE";
               const isPrepaid = service.billing_profile?.billing_cycle === "PREPAID";
               const daysLeft = isPrepaid ? daysUntil(service.expiry_date) : null;
+              const latestRouterRequest = provisioningRequests
+                .filter((request) => request.service_account === service.id)
+                .sort((a, b) => b.requested_at.localeCompare(a.requested_at))[0];
+              const routerFailure =
+                latestRouterRequest?.status === "FAILED" ? latestRouterRequest : null;
 
               return (
                 <div key={service.id} className="border border-[var(--border)] bg-[var(--surface)]">
@@ -692,6 +712,35 @@ export default function CustomerDetailPage() {
                       )}
                     </div>
                   </div>
+
+                  {routerFailure && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rose-500/30 bg-rose-500/10 px-6 py-3">
+                      <div className="flex min-w-0 items-start gap-2">
+                        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-rose-400" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-rose-300">
+                            Router {routerFailure.action.toLowerCase().replace("_", " ")} failed
+                          </p>
+                          <p className="truncate text-[11px] text-rose-200/80" title={routerFailure.error_message}>
+                            {routerFailure.error_message || "The router did not accept the request."}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRetryProvisioning(routerFailure)}
+                        disabled={actionLoading}
+                        className="flex h-8 items-center gap-1.5 border border-rose-500/40 bg-rose-500/15 px-3 text-xs font-semibold text-rose-300 hover:bg-rose-500/25 disabled:opacity-50"
+                      >
+                        {actionLoading ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="size-3.5" />
+                        )}
+                        Retry
+                      </button>
+                    </div>
+                  )}
 
                   {/* Service Cards Grid */}
                   <div className="grid grid-cols-1 divide-y divide-[var(--border)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">

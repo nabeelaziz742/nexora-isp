@@ -8,6 +8,7 @@ from network.views import (
     PopSiteDetailView,
     PopSiteListCreateView,
     ProvisioningRequestListView,
+    ProvisioningRequestRetryView,
     ServicePackageChangeRequestView,
     ServiceRestoreRequestView,
     ServiceSuspensionRequestView,
@@ -49,6 +50,11 @@ urlpatterns = [
         "provisioning-requests/",
         ProvisioningRequestListView.as_view(),
         name="provisioning-request-list",
+    ),
+    path(
+        "provisioning-requests/<uuid:provisioning_request_id>/retry/",
+        ProvisioningRequestRetryView.as_view(),
+        name="provisioning-request-retry",
     ),
     path(
         (

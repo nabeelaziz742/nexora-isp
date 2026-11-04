@@ -155,6 +155,17 @@ export const networkService = {
     );
   },
 
+  retryProvisioningRequest(
+    provisioningRequestId: string,
+  ): Promise<ProvisioningRequest> {
+    return apiRequest<ProvisioningRequest>(
+      `/network/provisioning-requests/${provisioningRequestId}/retry/`,
+      {
+        method: "POST",
+      },
+    );
+  },
+
   requestRestore(
     serviceAccountId: string,
   ): Promise<ProvisioningRequest> {

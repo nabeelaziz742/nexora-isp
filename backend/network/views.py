@@ -30,6 +30,7 @@ from network.services import (
     request_package_change,
     request_service_restore,
     request_service_suspension,
+    retry_provisioning_request,
     update_network_node,
     update_pop_site,
 )
@@ -430,6 +431,34 @@ class ProvisioningRequestListView(APIView):
         )
 
         return Response(serializer.data)
+
+
+class ProvisioningRequestRetryView(APIView):
+    permission_classes = [IsOrganizationStaffOrOwner]
+
+    def post(self, request, provisioning_request_id):
+        try:
+            result = retry_provisioning_request(
+                organization=request.organization,
+                provisioning_request_id=provisioning_request_id,
+                requested_by=request.user,
+            )
+        except ServiceLifecycleError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = ProvisioningRequestSerializer(
+            result.provisioning_request
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ServiceSuspensionRequestView(APIView):

@@ -10,11 +10,13 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  RotateCcw,
   Search,
   ServerCog,
   XCircle,
 } from "lucide-react";
 
+import { useToast } from "@/hooks/useToast";
 import { networkService } from "@/services/network.service";
 
 import type {
@@ -180,6 +182,26 @@ export default function ProvisioningRequestsTable({
   useEffect(() => {
     void loadRequests();
   }, [loadRequests]);
+
+  const toast = useToast();
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  async function handleRetry(request: ProvisioningRequest) {
+    try {
+      setRetryingId(request.id);
+      await networkService.retryProvisioningRequest(request.id);
+      toast.success(`${formatAction(request.action)} sent to the router again.`);
+    } catch (retryError) {
+      toast.error(
+        retryError instanceof Error
+          ? retryError.message
+          : "Unable to retry this request.",
+      );
+    } finally {
+      setRetryingId(null);
+      await loadRequests();
+    }
+  }
 
   useEffect(() => {
     if (
@@ -429,6 +451,22 @@ export default function ProvisioningRequestsTable({
 
                     {request.status}
                   </span>
+
+                  {request.status === "FAILED" && (
+                    <button
+                      type="button"
+                      onClick={() => handleRetry(request)}
+                      disabled={retryingId === request.id}
+                      className="mt-1.5 flex items-center gap-1 border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#60A5FA] hover:bg-[#3B82F6]/20 disabled:opacity-50"
+                    >
+                      {retryingId === request.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3 w-3" />
+                      )}
+                      Retry
+                    </button>
+                  )}
                 </td>
 
                 <td className="px-4 py-3">

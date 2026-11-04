@@ -479,6 +479,142 @@ def request_package_change(
 # POINT OF PRESENCE (POP) INFRASTRUCTURE SERVICES (BATCH 13)
 # ==============================================================================
 
+@transaction.atomic
+def retry_provisioning_request(
+    *,
+    organization: Organization,
+    provisioning_request_id,
+    requested_by=None,
+) -> ServiceLifecycleResult:
+    """Queue a fresh attempt of a failed router action.
+
+    The failed request stays in history; a new PENDING request with the same
+    action and payload is created against the same network assignment (whose
+    encrypted PPPoE password is reused).
+    """
+    if not organization.is_active:
+        raise ServiceLifecycleError(
+            "Organization is not active."
+        )
+
+    try:
+        failed_request = (
+            ProvisioningRequest.objects
+            .for_organization(organization)
+            .select_for_update()
+            .get(id=provisioning_request_id)
+        )
+    except ProvisioningRequest.DoesNotExist as exc:
+        raise ServiceLifecycleError(
+            "Provisioning request was not found "
+            "for this organization."
+        ) from exc
+
+    if failed_request.status != ProvisioningRequest.Status.FAILED:
+        raise ServiceLifecycleError(
+            "Only a failed provisioning request can be retried."
+        )
+
+    service_account = _get_locked_service_account(
+        organization=organization,
+        service_account_id=failed_request.service_account_id,
+    )
+
+    newer_request_exists = (
+        ProvisioningRequest.objects
+        .for_organization(organization)
+        .filter(
+            service_account=service_account,
+            requested_at__gt=failed_request.requested_at,
+        )
+        .exists()
+    )
+    if newer_request_exists:
+        raise ServiceLifecycleError(
+            "A newer provisioning request exists for this "
+            "service; retry that one instead."
+        )
+
+    _ensure_no_conflicting_provisioning_request(
+        organization=organization,
+        service_account=service_account,
+    )
+
+    network_assignment = _get_network_assignment(
+        organization=organization,
+        service_account=service_account,
+    )
+
+    action = failed_request.action
+
+    # Suspend/restore keep the same status contract as a first attempt, so the
+    # worker confirms or reverts the service once the router answers.
+    if action == ProvisioningRequest.Action.SUSPEND:
+        if service_account.status not in [
+            ServiceAccount.Status.ACTIVE,
+            ServiceAccount.Status.GRACE_PERIOD,
+        ]:
+            raise ServiceLifecycleError(
+                "Service account cannot be suspended "
+                "from its current status."
+            )
+        new_status = ServiceAccount.Status.SUSPENSION_PENDING
+    elif action == ProvisioningRequest.Action.RESTORE:
+        if (
+            service_account.status
+            != ServiceAccount.Status.SUSPENDED_NON_PAYMENT
+        ):
+            raise ServiceLifecycleError(
+                "Only a suspended non-payment service "
+                "can be restored."
+            )
+        new_status = ServiceAccount.Status.RESTORE_PENDING
+    else:
+        new_status = None
+
+    provisioning_request = ProvisioningRequest.objects.create(
+        organization=organization,
+        service_account=service_account,
+        network_assignment=network_assignment,
+        action=action,
+        status=ProvisioningRequest.Status.PENDING,
+        requested_payload={
+            **(failed_request.requested_payload or {}),
+            "retry_of": str(failed_request.id),
+        },
+    )
+
+    _schedule_provisioning_execution(provisioning_request)
+
+    if new_status:
+        service_account.status = new_status
+        service_account.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+    record_audit_log(
+        organization=organization,
+        actor=requested_by,
+        action="PROVISIONING_REQUEST_RETRIED",
+        resource_type="ProvisioningRequest",
+        resource_id=provisioning_request.id,
+        metadata={
+            "service_number": service_account.service_number,
+            "action": action,
+            "retry_of": str(failed_request.id),
+            "previous_error": failed_request.error_message,
+        },
+    )
+
+    return ServiceLifecycleResult(
+        service_account=service_account,
+        provisioning_request=provisioning_request,
+    )
+
+
 class PopDomainError(Exception):
     pass
 
