@@ -30,10 +30,12 @@ from reports.services import (
     get_profit_and_loss_statement,
     get_promise_to_pay_report,
     get_field_recovery_scorecard_report,
+    get_reversals_report,
     get_service_status_distribution,
     get_subscriber_overview,
 )
 from tenancy.permissions import (
+    CanViewAuditLogs,
     HasActiveTenantContext,
     IsOrganizationOwner,
     IsOrganizationStaffOrOwner,
@@ -468,6 +470,34 @@ class DeviceCustodyReportAPIView(ReportsBaseAPIView):
             csv_data = generate_csv_response("device_custody_report.csv", headers, rows)
             resp = HttpResponse(csv_data, content_type="text/csv")
             resp["Content-Disposition"] = 'attachment; filename="device_custody_report.csv"'
+            return resp
+
+        return Response(data)
+
+class ReversalsReportAPIView(ReportsBaseAPIView):
+    """Reversed payments, voided/written-off invoices, cancelled POS sales and
+    deactivated customers. Oversight data, so only owners, admins and managers."""
+
+    permission_classes = [HasActiveTenantContext, CanViewAuditLogs]
+
+    def get(self, request):
+        data = get_reversals_report(
+            organization=request.organization,
+            start_date=_parse_date(request.query_params.get("start_date")),
+            end_date=_parse_date(request.query_params.get("end_date")),
+            actor_id=request.query_params.get("actor_id") or None,
+            event_type=request.query_params.get("event_type") or None,
+        )
+
+        if request.query_params.get("format") == "csv":
+            headers = ["Date", "Type", "Reference", "Customer #", "Customer", "Amount", "Reason", "Done By"]
+            rows = [
+                [r["created_at"], r["event_label"], r["reference"], r["customer_number"], r["customer_name"], r["amount"], r["reason"], r["actor_name"]]
+                for r in data["records"]
+            ]
+            csv_data = generate_csv_response("reversals_report.csv", headers, rows)
+            resp = HttpResponse(csv_data, content_type="text/csv")
+            resp["Content-Disposition"] = 'attachment; filename="reversals_report.csv"'
             return resp
 
         return Response(data)

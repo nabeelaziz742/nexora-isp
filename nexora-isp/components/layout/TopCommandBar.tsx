@@ -258,6 +258,9 @@ function resolveBreadcrumbs(pathname: string): BreadcrumbItem[] {
   if (pathname === "/audit-logs") {
     return [{ label: "System" }, { label: "Security Audit Trail" }];
   }
+  if (pathname === "/reversals") {
+    return [{ label: "System" }, { label: "Reversals & Voids" }];
+  }
   if (pathname === "/settings") {
     return [{ label: "System" }, { label: "ISP Settings" }];
   }

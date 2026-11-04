@@ -1436,3 +1436,149 @@ def generate_csv_response(filename: str, headers: list[str], rows: list[list]) -
     for row in rows:
         writer.writerow(row)
     return output.getvalue()
+
+# ==========================================================================
+# REVERSALS & DELETIONS (owner oversight of money taken back out of the books)
+# ==========================================================================
+
+REVERSAL_EVENT_TYPES = {
+    "BILLING_PAYMENT_REVERSED": ("PAYMENT_REVERSED", "Payment reversed"),
+    "BILLING_INVOICE_CANCELLED": ("INVOICE_VOIDED", "Invoice voided"),
+    "BILLING_INVOICE_WRITTEN_OFF": ("INVOICE_WRITTEN_OFF", "Written off as bad debt"),
+    "POS_SALE_CANCELLED": ("POS_SALE_CANCELLED", "POS sale cancelled"),
+    "CUSTOMER_STATUS_TOGGLED": ("CUSTOMER_DEACTIVATED", "Customer deactivated"),
+}
+
+
+def _reversal_customer_lookup(organization, logs) -> dict:
+    """Map (resource_type, resource_id) to customer number/name for display."""
+    from customers.models import Customer
+    from inventory.models import PosSale
+
+    ids = {"Payment": set(), "Invoice": set(), "Customer": set(), "PosSale": set()}
+    for log in logs:
+        if log.resource_type in ids and log.resource_id:
+            ids[log.resource_type].add(log.resource_id)
+
+    lookup = {}
+    for payment in Payment.objects.filter(
+        organization=organization, id__in=ids["Payment"]
+    ).select_related("service_account__customer"):
+        customer = payment.service_account.customer
+        lookup[("Payment", str(payment.id))] = (customer.customer_number, customer.full_name)
+    for invoice in Invoice.objects.filter(
+        organization=organization, id__in=ids["Invoice"]
+    ).select_related("service_account__customer"):
+        customer = invoice.service_account.customer
+        lookup[("Invoice", str(invoice.id))] = (customer.customer_number, customer.full_name)
+    for customer in Customer.objects.filter(organization=organization, id__in=ids["Customer"]):
+        lookup[("Customer", str(customer.id))] = (customer.customer_number, customer.full_name)
+    for sale in PosSale.objects.filter(
+        organization=organization, id__in=ids["PosSale"]
+    ).select_related("customer"):
+        if sale.customer:
+            lookup[("PosSale", str(sale.id))] = (sale.customer.customer_number, sale.customer.full_name)
+        else:
+            lookup[("PosSale", str(sale.id))] = ("", sale.walk_in_customer_name or "Walk-in")
+    return lookup
+
+
+def get_reversals_report(
+    *,
+    organization,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    actor_id=None,
+    event_type: str | None = None,
+) -> dict:
+    """Payments reversed, invoices voided or written off, POS sales cancelled and
+    customers deactivated, with who did it, when, how much and why."""
+    from tenancy.models import AuditLog
+
+    logs = (
+        AuditLog.objects
+        .filter(organization=organization, action__in=REVERSAL_EVENT_TYPES.keys())
+        .select_related("actor")
+        .order_by("-created_at")
+    )
+    if start_date:
+        logs = logs.filter(created_at__date__gte=start_date)
+    if end_date:
+        logs = logs.filter(created_at__date__lte=end_date)
+    if actor_id:
+        logs = logs.filter(actor_id=actor_id)
+    if event_type:
+        actions = [action for action, (code, _) in REVERSAL_EVENT_TYPES.items() if code == event_type]
+        logs = logs.filter(action__in=actions)
+
+    logs = list(logs[:1000])
+    # Reactivating a customer is not a deletion.
+    logs = [
+        log for log in logs
+        if not (log.action == "CUSTOMER_STATUS_TOGGLED" and (log.metadata or {}).get("is_active", False))
+    ]
+    customers = _reversal_customer_lookup(organization, logs)
+
+    records = []
+    summary_by_type = {}
+    summary_by_actor = {}
+
+    for log in logs:
+        code, label = REVERSAL_EVENT_TYPES[log.action]
+        meta = log.metadata or {}
+        amount = Decimal(
+            str(meta.get("amount") or meta.get("total_amount") or meta.get("written_off_amount") or "0")
+        )
+        reference = (
+            meta.get("payment_number")
+            or meta.get("invoice_number")
+            or meta.get("sale_number")
+            or meta.get("customer_number")
+            or ""
+        )
+        reason = (
+            meta.get("reversal_reason")
+            or meta.get("cancellation_reason")
+            or meta.get("write_off_reason")
+            or ""
+        )
+        actor_name = (
+            (log.actor.get_full_name() or log.actor.email) if log.actor else "System"
+        )
+        customer_number, customer_name = customers.get(
+            (log.resource_type, str(log.resource_id)), ("", "")
+        )
+
+        records.append({
+            "id": str(log.id),
+            "event_type": code,
+            "event_label": label,
+            "reference": reference,
+            "customer_number": customer_number,
+            "customer_name": customer_name,
+            "amount": str(amount),
+            "reason": reason,
+            "actor_id": str(log.actor_id) if log.actor_id else None,
+            "actor_name": actor_name,
+            "created_at": log.created_at.isoformat(),
+        })
+
+        type_row = summary_by_type.setdefault(code, {"event_type": code, "event_label": label, "count": 0, "amount": Decimal("0")})
+        type_row["count"] += 1
+        type_row["amount"] += amount
+
+        actor_key = str(log.actor_id) if log.actor_id else "system"
+        actor_row = summary_by_actor.setdefault(actor_key, {"actor_id": log.actor_id and str(log.actor_id), "actor_name": actor_name, "count": 0, "amount": Decimal("0")})
+        actor_row["count"] += 1
+        actor_row["amount"] += amount
+
+    def finalize(rows):
+        return [{**row, "amount": str(row["amount"])} for row in rows]
+
+    return {
+        "records": records,
+        "total_count": len(records),
+        "total_amount": str(sum((Decimal(r["amount"]) for r in records), Decimal("0"))),
+        "by_type": finalize(sorted(summary_by_type.values(), key=lambda r: -r["count"])),
+        "by_actor": finalize(sorted(summary_by_actor.values(), key=lambda r: (-r["amount"], -r["count"]))),
+    }

@@ -19,6 +19,7 @@ import {
   Network,
   Package,
   Receipt,
+  RotateCcw,
   Settings,
   Shield,
   ShoppingCart,
@@ -263,6 +264,12 @@ export const navigation: NavigationGroup[] = [
         title: "Audit Trail",
         href: "/audit-logs",
         icon: Shield,
+        roles: ["OWNER", "STAFF"],
+      },
+      {
+        title: "Reversals & Voids",
+        href: "/reversals",
+        icon: RotateCcw,
         roles: ["OWNER", "STAFF"],
       },
       {

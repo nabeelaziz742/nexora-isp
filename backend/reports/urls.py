@@ -19,6 +19,7 @@ from reports.views import (
     PackageRevenueContextAPIView,
     ProfitAndLossReportAPIView,
     PromiseToPayReportAPIView,
+    ReversalsReportAPIView,
     ServiceStatusDistributionAPIView,
     SubscriberOverviewAPIView,
 )
@@ -65,4 +66,7 @@ urlpatterns = [
 
     # Domain 9: Inventory & Device Custody
     path("inventory/device-custody/", DeviceCustodyReportAPIView.as_view(), name="device-custody-report"),
+
+    # Oversight: reversals, voids, write-offs and deactivations
+    path("audit/reversals/", ReversalsReportAPIView.as_view(), name="reversals-report"),
 ]

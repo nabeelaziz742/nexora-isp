@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/api-client";
+import { apiBlob, apiClient } from "@/services/api-client";
 
 export type SubscriberOverview = {
   total_customers: number;
@@ -70,4 +70,62 @@ export const reportsService = {
       "/reports/package-revenue-context/",
     );
   },
+
+  getReversalsReport(filters: ReversalsFilters = {}): Promise<ReversalsReport> {
+    return apiClient.get<ReversalsReport>(
+      `/reports/audit/reversals/${reversalsQuery(filters)}`,
+    );
+  },
+
+  downloadReversalsCsv(filters: ReversalsFilters = {}): Promise<Blob> {
+    const query = reversalsQuery({ ...filters });
+    return apiBlob(
+      `/reports/audit/reversals/${query ? `${query}&` : "?"}format=csv`,
+    );
+  },
 };
+
+export type ReversalEventType =
+  | "PAYMENT_REVERSED"
+  | "INVOICE_VOIDED"
+  | "INVOICE_WRITTEN_OFF"
+  | "POS_SALE_CANCELLED"
+  | "CUSTOMER_DEACTIVATED";
+
+export interface ReversalsFilters {
+  start_date?: string;
+  end_date?: string;
+  actor_id?: string;
+  event_type?: ReversalEventType | "";
+}
+
+export interface ReversalRecord {
+  id: string;
+  event_type: ReversalEventType;
+  event_label: string;
+  reference: string;
+  customer_number: string;
+  customer_name: string;
+  amount: string;
+  reason: string;
+  actor_id: string | null;
+  actor_name: string;
+  created_at: string;
+}
+
+export interface ReversalsReport {
+  records: ReversalRecord[];
+  total_count: number;
+  total_amount: string;
+  by_type: { event_type: ReversalEventType; event_label: string; count: number; amount: string }[];
+  by_actor: { actor_id: string | null; actor_name: string; count: number; amount: string }[];
+}
+
+function reversalsQuery(filters: ReversalsFilters): string {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
