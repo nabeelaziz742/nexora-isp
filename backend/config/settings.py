@@ -128,6 +128,7 @@ REST_FRAMEWORK = {
         "user": os.getenv("USER_THROTTLE_RATE", "1000/hour"),
         "login": os.getenv("LOGIN_THROTTLE_RATE", "5/minute"),
         "copilot": os.getenv("COPILOT_THROTTLE_RATE", "10/minute"),
+        "public_inquiry": os.getenv("PUBLIC_INQUIRY_THROTTLE_RATE", "5/hour"),
     },
 }
 

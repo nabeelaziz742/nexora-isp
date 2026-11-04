@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Filter,
   Layers,
+  Link2,
   MapPin,
   Phone,
   Plus,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 
 import EmptyState from "@/components/ui/EmptyState";
+import { useToast } from "@/hooks/useToast";
 import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
 import {
@@ -108,6 +110,29 @@ export default function InquiriesPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  const toast = useToast();
+
+  // Public link where prospects request a connection without logging in.
+  async function copyApplyLink() {
+    let organizationCode = "";
+    try {
+      organizationCode = JSON.parse(localStorage.getItem("nexora_organization") || "{}").code || "";
+    } catch {
+      organizationCode = "";
+    }
+    if (!organizationCode) {
+      toast.error("Organization code not found. Please sign in again.");
+      return;
+    }
+    const link = `${window.location.origin}/apply/${organizationCode}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success(`Apply link copied: ${link}`);
+    } catch {
+      window.prompt("Copy this link:", link);
+    }
+  }
 
   // New Inquiry Form State
   const [newInquiry, setNewInquiry] = useState<InquiryCreatePayload>({
@@ -368,6 +393,15 @@ export default function InquiriesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={copyApplyLink}
+            aria-label="Copy Apply Link"
+            className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 text-xs sm:text-sm font-medium text-blue-300 hover:bg-blue-500/20 transition"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Copy Apply Link
+          </button>
           <button
             onClick={() => fetchInquiries()}
             className="inline-flex h-8.5 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"

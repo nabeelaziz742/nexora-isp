@@ -1,5 +1,6 @@
 from django.urls import path
 
+from customers.public_views import PublicInquiryView
 from customers.views import (
     AreaDetailView,
     AreaListCreateView,
@@ -170,6 +171,12 @@ urlpatterns = [
         "inquiries/<uuid:inquiry_id>/convert/",
         InquiryConvertView.as_view(),
         name="inquiry-convert",
+    ),
+    # Public "apply for a connection" link (no login)
+    path(
+        "public/apply/<str:organization_code>/",
+        PublicInquiryView.as_view(),
+        name="public-inquiry",
     ),
     # Feasibilities
     path(

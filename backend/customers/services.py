@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from django.contrib.auth import get_user_model
@@ -78,6 +78,113 @@ def generate_inquiry_number(*, organization: Organization) -> str:
     prefix = organization.code.upper()[:12]
     sequence = Inquiry.objects.for_organization(organization).count() + 1
     return f"{prefix}-INQ-{sequence:05d}"
+
+
+PUBLIC_INQUIRY_DUPLICATE_WINDOW_HOURS = 24
+
+OPEN_INQUIRY_STATUSES = [
+    Inquiry.Status.NEW,
+    Inquiry.Status.CONTACTED,
+    Inquiry.Status.FEASIBILITY_PENDING,
+    Inquiry.Status.FEASIBLE,
+    Inquiry.Status.FOLLOW_UP,
+]
+
+
+@dataclass(frozen=True)
+class PublicInquiryResult:
+    inquiry: Inquiry
+    created: bool
+
+
+@transaction.atomic
+def create_public_inquiry(
+    *,
+    organization: Organization,
+    full_name: str,
+    phone: str,
+    address_line: str,
+    city: str,
+    area: str = "",
+    email: str = "",
+    preferred_package_id=None,
+    connection_type: str = Inquiry.ConnectionType.FIBER,
+    notes: str = "",
+) -> PublicInquiryResult:
+    """Record a connection request a prospect submitted from the ISP's public link.
+
+    A repeat submission from the same phone while an inquiry is still open
+    returns that inquiry instead of creating a duplicate.
+    """
+    if not organization.is_active:
+        raise InquiryDomainError("This ISP is not accepting requests right now.")
+
+    # Lock the tenant so concurrent submissions cannot reuse an inquiry number.
+    organization = _lock_organization_for_numbering(organization=organization)
+
+    full_name = full_name.strip()
+    phone = phone.strip()
+    address_line = address_line.strip()
+    city = city.strip()
+
+    if not full_name or not phone or not address_line or not city:
+        raise InquiryDomainError("Name, phone, address and city are required.")
+
+    recent_open = (
+        Inquiry.objects
+        .for_organization(organization)
+        .filter(
+            phone=phone,
+            status__in=OPEN_INQUIRY_STATUSES,
+            created_at__gte=timezone.now() - timedelta(hours=PUBLIC_INQUIRY_DUPLICATE_WINDOW_HOURS),
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if recent_open:
+        return PublicInquiryResult(inquiry=recent_open, created=False)
+
+    preferred_package = None
+    if preferred_package_id:
+        try:
+            preferred_package = (
+                InternetPackage.objects
+                .for_organization(organization)
+                .get(id=preferred_package_id, is_active=True)
+            )
+        except InternetPackage.DoesNotExist as exc:
+            raise InquiryDomainError("Selected package is not available.") from exc
+
+    inquiry = Inquiry.objects.create(
+        organization=organization,
+        inquiry_number=generate_inquiry_number(organization=organization),
+        full_name=full_name,
+        phone=phone,
+        email=email.strip().lower(),
+        address_line=address_line,
+        city=city,
+        area=area.strip(),
+        preferred_package=preferred_package,
+        connection_type=connection_type,
+        source=Inquiry.Source.WEBSITE,
+        status=Inquiry.Status.NEW,
+        notes=notes.strip(),
+    )
+
+    record_audit_log(
+        organization=organization,
+        actor=None,
+        action="INQUIRY_SUBMITTED_ONLINE",
+        resource_type="Inquiry",
+        resource_id=str(inquiry.id),
+        metadata={
+            "inquiry_number": inquiry.inquiry_number,
+            "full_name": inquiry.full_name,
+            "phone": inquiry.phone,
+        },
+    )
+
+    return PublicInquiryResult(inquiry=inquiry, created=True)
 
 
 def generate_feasibility_number(*, organization: Organization) -> str:
