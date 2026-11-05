@@ -113,7 +113,7 @@ function* sourceFiles(dir) {
   }
 }
 
-const TOKEN_RE = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|placeholder:)?(?:bg|text|border|divide|placeholder)-(?:\[#[0-9A-Fa-f]{3,8}\]|white|black|(?:slate|zinc|gray|neutral|[a-z]+)-\d{2,3})(?:\/[\d.[\]]+)?)(?=[\s"'`}])/g;
+const TOKEN_RE = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|placeholder:)?(?:bg|text|border|divide|placeholder|from|via|to)-(?:\[#[0-9A-Fa-f]{3,8}\]|white|black|(?:slate|zinc|gray|neutral|[a-z]+)-\d{2,3})(?:\/[\d.[\]]+)?)(?=[\s"'`}])/g;
 
 const tokens = new Set();
 for (const dir of SOURCE_DIRS) {
@@ -142,14 +142,26 @@ function selectorFor(token, extra = "") {
   return cls;
 }
 
+// Dark tints of an accent (e.g. bg-amber-950/20) become pale tints in light mode.
+function darkAccent(color, shades) {
+  const m = color.match(/^([a-z]+)-(\d{3})$/);
+  return m && ACCENTS.includes(m[1]) && shades.includes(m[2]) ? m[1] : null;
+}
+
 function lightValue(utility, color) {
   const hex = color.startsWith("[") ? color.slice(1, -1).toUpperCase() : null;
-  if (utility === "bg") {
+  if (utility === "bg" || utility === "from" || utility === "via" || utility === "to") {
     if (hex) return DARK_BG[hex];
+    const accent = darkAccent(color, ["900", "950"]);
+    if (accent) return `var(--color-${accent}-50)`;
+    if (["zinc-900", "zinc-950", "gray-900", "gray-950", "neutral-900"].includes(color)) return "#FFFFFF";
     return SLATE_BG[color];
   }
   if (utility === "border" || utility === "divide") {
     if (hex) return DARK_BORDER[hex];
+    const accent = darkAccent(color, ["800", "900", "950"]);
+    if (accent) return `var(--color-${accent}-200)`;
+    if (["zinc-800", "zinc-900", "gray-800"].includes(color)) return "var(--color-slate-200)";
     return SLATE_BORDER[color];
   }
   if (utility === "text" || utility === "placeholder") {
@@ -175,7 +187,7 @@ const keepWhite = solidBackgrounds.map((cls) => `:not([class~="${cls}"])`).join(
 const rules = [];
 for (const token of [...tokens].sort()) {
   const bare = token.replace(/^(hover|focus|group-hover|placeholder):/, "");
-  const match = bare.match(/^(bg|text|border|divide|placeholder)-(.+?)(?:\/[\d.[\]]+)?$/);
+  const match = bare.match(/^(bg|text|border|divide|placeholder|from|via|to)-(.+?)(?:\/[\d.[\]]+)?$/);
   if (!match) continue;
   const [, utility, color] = match;
   const value = lightValue(utility, color);
@@ -184,7 +196,9 @@ for (const token of [...tokens].sort()) {
   const isWhiteText = utility === "text" && ["white", "slate-50", "slate-100"].includes(color);
   const selector = selectorFor(token, isWhiteText ? keepWhite : "");
 
-  if (utility === "divide") {
+  if (utility === "from" || utility === "via" || utility === "to") {
+    rules.push(`html.light ${selector} { --tw-gradient-${utility}: ${value}; }`);
+  } else if (utility === "divide") {
     rules.push(`html.light ${selector} > :not(:last-child) { border-color: ${value}; }`);
   } else if (utility === "bg") {
     rules.push(`html.light ${selector} { background-color: ${value}; }`);
