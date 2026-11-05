@@ -24,7 +24,15 @@ const DARK_BG = {
   "#080B10": "#FFFFFF",
   "#090D12": "#FFFFFF",
   "#090D13": "#FFFFFF",
+  "#000000": "#F8FAFC",
   "#0A0E14": "#F8FAFC",
+  "#0A0E15": "#F1F5F9",
+  "#0D1017": "#EFF6FF",
+  "#0D1410": "#F0FDF4",
+  "#140D0D": "#FEF2F2",
+  "#14120D": "#FFFBEB",
+  "#151D27": "#F1F5F9",
+  "#161F2E": "#F1F5F9",
   "#0D1117": "#FFFFFF",
   "#101720": "#FFFFFF",
   "#111827": "#F1F5F9",
@@ -131,10 +139,13 @@ function escapeClass(cls) {
   return cls.replace(/([[\]#:/.()%,!])/g, "\\$1");
 }
 
+// Anything inside .keep-dark (e.g. the login brand panel) keeps its dark look.
+const KEEP_DARK = ":not(.keep-dark, .keep-dark *)";
+
 function selectorFor(token, extra = "") {
   const variantMatch = token.match(/^(hover|focus|group-hover|placeholder):/);
   const variant = variantMatch ? variantMatch[1] : "";
-  const cls = `.${escapeClass(token)}${extra}`;
+  const cls = `.${escapeClass(token)}${extra}${KEEP_DARK}`;
   if (variant === "hover") return `${cls}:hover`;
   if (variant === "focus") return `${cls}:focus`;
   if (variant === "group-hover") return `.group:hover ${cls}`;

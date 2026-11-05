@@ -141,7 +141,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen w-full bg-[#070A0F] text-slate-100 antialiased">
       {/* Left side: Telemetry branding banner (desktop only) */}
-      <div className="relative hidden w-1/2 flex-col justify-between border-r border-[#202938] bg-[#0A0E15] p-12 lg:flex xl:p-16">
+      <div className="keep-dark relative hidden w-1/2 flex-col justify-between border-r border-[#202938] bg-[#0A0E15] p-12 lg:flex xl:p-16">
         {/* Subtle grid background pattern */}
         <div
           className="pointer-events-none absolute inset-0 opacity-15"
