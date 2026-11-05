@@ -1006,6 +1006,7 @@ def record_payment_with_allocations(
     notes: str = "",
     allocations: list[dict] | None = None,
     paid_at=None,
+    notify: bool = True,
 ) -> Payment:
     if not organization.is_active:
         raise BillingDomainError("Organization is inactive.")
@@ -1154,32 +1155,33 @@ def record_payment_with_allocations(
     except Exception as exc:
         logger.exception("Error checking auto-restoration for %s", service_account.service_number)
 
-    # Dispatch payment confirmation notification
-    try:
-        from communications.notification_engine import (
-            NotificationEvent,
-            dispatch_notification_event,
-        )
-        from customers.suspension_services import calculate_service_outstanding
-        rem_balance, _, _ = calculate_service_outstanding(service_account)
-        event_type = (
-            NotificationEvent.PAYMENT_PARTIAL_RECEIVED
-            if rem_balance > Decimal("0.00")
-            else NotificationEvent.PAYMENT_RECEIVED
-        )
-        dispatch_notification_event(
-            organization=organization,
-            customer=service_account.customer,
-            event_type=event_type,
-            context={
-                "service_number": service_account.service_number,
-                "paid_amount": normalized_amount,
-                "payment_number": payment.payment_number,
-                "outstanding_amount": rem_balance,
-            },
-        )
-    except Exception as exc:
-        logger.exception("Error dispatching payment notification for %s", payment.payment_number)
+    # Dispatch payment confirmation notification (skipped for migrated opening balances)
+    if notify:
+        try:
+            from communications.notification_engine import (
+                NotificationEvent,
+                dispatch_notification_event,
+            )
+            from customers.suspension_services import calculate_service_outstanding
+            rem_balance, _, _ = calculate_service_outstanding(service_account)
+            event_type = (
+                NotificationEvent.PAYMENT_PARTIAL_RECEIVED
+                if rem_balance > Decimal("0.00")
+                else NotificationEvent.PAYMENT_RECEIVED
+            )
+            dispatch_notification_event(
+                organization=organization,
+                customer=service_account.customer,
+                event_type=event_type,
+                context={
+                    "service_number": service_account.service_number,
+                    "paid_amount": normalized_amount,
+                    "payment_number": payment.payment_number,
+                    "outstanding_amount": rem_balance,
+                },
+            )
+        except Exception as exc:
+            logger.exception("Error dispatching payment notification for %s", payment.payment_number)
 
     try:
         from accounting.services import post_payment_journal_entry

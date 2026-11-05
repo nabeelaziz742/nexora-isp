@@ -8,6 +8,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Upload,
   Users,
   Wifi,
   X,
@@ -174,6 +175,14 @@ export default function CustomersPage() {
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
+
+          <Link
+            href="/customers/import"
+            className="flex h-8.5 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-white"
+          >
+            <Upload className="size-3.5" />
+            Import Customers
+          </Link>
 
           <Link
             href="/customers/new"

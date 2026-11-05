@@ -354,6 +354,17 @@ class Customer(TenantScopedModel):
         max_length=150,
     )
 
+    cnic = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    # Customer ID in the ISP's previous software, kept when migrating records.
+    legacy_id = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     is_active = models.BooleanField(
         default=True,
     )
@@ -1206,3 +1217,58 @@ class ServiceSuspensionLog(TenantScopedModel):
 
     def __str__(self):
         return f"{self.service_account.service_number} - {self.event_type} ({self.created_at})"
+
+class CustomerImportBatch(TenantScopedModel):
+    """One bulk upload of customers from a spreadsheet (import history)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    file_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    total_rows = models.PositiveIntegerField(
+        default=0,
+    )
+
+    imported_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    skipped_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    create_on_router = models.BooleanField(
+        default=False,
+    )
+
+    # Rows that were not imported: [{"row": 5, "errors": ["..."]}, ...]
+    errors = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_import_batches",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "customers_import_batch"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.file_name} ({self.imported_count}/{self.total_rows})"

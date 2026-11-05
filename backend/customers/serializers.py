@@ -327,6 +327,8 @@ class CustomerDetailSerializer(serializers.ModelSerializer):
             "address_line",
             "area",
             "city",
+            "cnic",
+            "legacy_id",
             "is_active",
             "service_accounts",
             "notification_preference",
@@ -448,10 +450,20 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             "address_line",
             "area",
             "city",
+            "cnic",
+            "legacy_id",
             "is_active",
             "sms_enabled",
             "whatsapp_enabled",
         ]
+
+    def validate_cnic(self, value):
+        digits = "".join(ch for ch in (value or "") if ch.isdigit())
+        if not digits:
+            return ""
+        if len(digits) != 13:
+            raise serializers.ValidationError("CNIC must have 13 digits.")
+        return f"{digits[:5]}-{digits[5:12]}-{digits[12]}"
 
     def validate_phone(self, value):
         value = value.strip()

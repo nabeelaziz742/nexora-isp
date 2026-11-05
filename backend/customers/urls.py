@@ -1,5 +1,11 @@
 from django.urls import path
 
+from customers.import_views import (
+    CustomerImportHistoryView,
+    CustomerImportPreviewView,
+    CustomerImportTemplateView,
+    CustomerImportView,
+)
 from customers.public_views import PublicInquiryView
 from customers.views import (
     AreaDetailView,
@@ -171,6 +177,27 @@ urlpatterns = [
         "inquiries/<uuid:inquiry_id>/convert/",
         InquiryConvertView.as_view(),
         name="inquiry-convert",
+    ),
+    # Bulk import of existing customers from a spreadsheet
+    path(
+        "import/template/",
+        CustomerImportTemplateView.as_view(),
+        name="customer-import-template",
+    ),
+    path(
+        "import/preview/",
+        CustomerImportPreviewView.as_view(),
+        name="customer-import-preview",
+    ),
+    path(
+        "import/",
+        CustomerImportView.as_view(),
+        name="customer-import",
+    ),
+    path(
+        "import/history/",
+        CustomerImportHistoryView.as_view(),
+        name="customer-import-history",
     ),
     # Public "apply for a connection" link (no login)
     path(

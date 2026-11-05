@@ -281,6 +281,19 @@ class CanManageStaff(HasActiveTenantContext):
         }
 
 
+class CanImportCustomers(HasActiveTenantContext):
+    message = "Only an owner or admin can import customers."
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+
+        return get_effective_role(request) in {
+            StaffProfile.Role.OWNER,
+            StaffProfile.Role.ADMIN,
+        }
+
+
 class CanViewAuditLogs(HasActiveTenantContext):
     message = "Audit log investigation privilege is required."
 

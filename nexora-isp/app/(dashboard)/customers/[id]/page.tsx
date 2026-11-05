@@ -1472,6 +1472,16 @@ export default function CustomerDetailPage() {
               <p className="text-sm font-semibold text-slate-300">{customer.email || "Not provided"}</p>
             </div>
             <div>
+              <span className="text-[10px] font-semibold uppercase text-[var(--text-muted)]">CNIC</span>
+              <p className="font-mono text-sm font-semibold text-slate-300">{customer.cnic || "Not provided"}</p>
+            </div>
+            {customer.legacy_id && (
+              <div>
+                <span className="text-[10px] font-semibold uppercase text-[var(--text-muted)]">Old Software ID</span>
+                <p className="font-mono text-sm font-semibold text-slate-300">{customer.legacy_id}</p>
+              </div>
+            )}
+            <div>
               <span className="text-[10px] font-semibold uppercase text-[var(--text-muted)]">Operating Region</span>
               <p className="text-sm font-semibold text-white">{customer.city} {customer.area ? `— ${customer.area}` : ""}</p>
             </div>
@@ -2240,6 +2250,8 @@ function EditCustomerModal({
     address_line: customer.address_line,
     area: customer.area,
     city: customer.city,
+    cnic: customer.cnic,
+    legacy_id: customer.legacy_id,
     is_active: customer.is_active,
     sms_enabled: customer.notification_preference?.sms_enabled ?? true,
     whatsapp_enabled: customer.notification_preference?.whatsapp_enabled ?? true,
@@ -2334,6 +2346,27 @@ function EditCustomerModal({
                 value={form.email || ""}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 text-xs text-white outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[var(--text-muted)]">
+                CNIC
+              </label>
+              <input
+                value={form.cnic || ""}
+                onChange={(e) => setForm({ ...form, cnic: e.target.value })}
+                placeholder="35202-1234567-1"
+                className="h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 font-mono text-xs text-white outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[var(--text-muted)]">
+                Old Software ID
+              </label>
+              <input
+                value={form.legacy_id || ""}
+                onChange={(e) => setForm({ ...form, legacy_id: e.target.value })}
+                className="h-9 w-full border border-[var(--border)] bg-[var(--background)] px-3 font-mono text-xs text-white outline-none focus:border-blue-500"
               />
             </div>
             <div>

@@ -107,6 +107,8 @@ export interface CustomerDetail {
   address_line: string;
   area: string;
   city: string;
+  cnic: string;
+  legacy_id: string;
   is_active: boolean;
   service_accounts: CustomerServiceAccount[];
   notification_preference: CustomerNotificationPreference | null;
@@ -182,6 +184,8 @@ export interface CustomerUpdatePayload {
   address_line?: string;
   area?: string;
   city?: string;
+  cnic?: string;
+  legacy_id?: string;
   is_active?: boolean;
   sms_enabled?: boolean;
   whatsapp_enabled?: boolean;
