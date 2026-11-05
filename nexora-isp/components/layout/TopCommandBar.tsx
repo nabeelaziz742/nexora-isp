@@ -14,6 +14,7 @@ import {
 
 import { clearAuthTokens } from "@/services/auth-storage";
 import CommandPalette from "@/components/layout/CommandPalette";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 
 interface TopCommandBarProps {
   onMenuClick?: () => void;
@@ -426,6 +427,8 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
           >
             <Search className="h-4 w-4" />
           </button>
+
+          <ThemeToggle />
 
           <button
             type="button"

@@ -89,6 +89,53 @@
   --radius: 0.625rem;
 }
 
+/* ========================================
+   LIGHT THEME (toggled with <html class="light">)
+   Hard-coded dark utility colors are remapped in light-theme.css.
+======================================== */
+
+html.light {
+  color-scheme: light;
+
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+
+  --surface: #ffffff;
+  --surface-elevated: #f8fafc;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -256,4 +303,15 @@ select {
     transform: translateY(0) scale(1);
     opacity: 1;
   }
+}
+html.light .nexora-scrollbar {
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+html.light .nexora-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+html.light .nexora-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
 }

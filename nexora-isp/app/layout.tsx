@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
+import "./light-theme.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +32,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`}>
+    // next-themes sets the dark/light class before paint, so the server markup differs.
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className={`${geistSans.className} min-h-screen bg-[var(--background)] font-sans text-[var(--foreground)] antialiased`}>
-        {children}
-        <Toaster richColors position="top-right" theme="dark" closeButton />
+        <ThemeProvider>
+          {children}
+          <Toaster richColors position="top-right" closeButton />
+        </ThemeProvider>
       </body>
     </html>
   );
