@@ -189,7 +189,7 @@ export default function CustomerImportPage() {
               type="button"
               onClick={checkFile}
               disabled={!file || checking}
-              className="flex h-9 items-center gap-1.5 bg-blue-600 px-3.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+              className="flex h-9 items-center gap-1.5 bg-blue-600 px-3.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-500"
             >
               {checking ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />}
               Check File
@@ -288,7 +288,7 @@ export default function CustomerImportPage() {
               type="button"
               onClick={runImport}
               disabled={importing || !preview.valid_count}
-              className="flex h-9 items-center gap-1.5 bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="flex h-9 items-center gap-1.5 bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-500"
             >
               {importing ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
               Import {preview.valid_count} Customer{preview.valid_count === 1 ? "" : "s"}

@@ -121,7 +121,7 @@ function* sourceFiles(dir) {
   }
 }
 
-const TOKEN_RE = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|placeholder:)?(?:bg|text|border|divide|placeholder|from|via|to)-(?:\[#[0-9A-Fa-f]{3,8}\]|white|black|(?:slate|zinc|gray|neutral|[a-z]+)-\d{2,3})(?:\/[\d.[\]]+)?)(?=[\s"'`}])/g;
+const TOKEN_RE = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|placeholder:|file:)?(?:bg|text|border|divide|placeholder|from|via|to)-(?:\[#[0-9A-Fa-f]{3,8}\]|white|black|(?:slate|zinc|gray|neutral|[a-z]+)-\d{2,3})(?:\/[\d.[\]]+)?)(?=[\s"'`}])/g;
 
 const tokens = new Set();
 for (const dir of SOURCE_DIRS) {
@@ -143,13 +143,14 @@ function escapeClass(cls) {
 const KEEP_DARK = ":not(.keep-dark, .keep-dark *)";
 
 function selectorFor(token, extra = "") {
-  const variantMatch = token.match(/^(hover|focus|group-hover|placeholder):/);
+  const variantMatch = token.match(/^(hover|focus|group-hover|placeholder|file):/);
   const variant = variantMatch ? variantMatch[1] : "";
   const cls = `.${escapeClass(token)}${extra}${KEEP_DARK}`;
   if (variant === "hover") return `${cls}:hover`;
   if (variant === "focus") return `${cls}:focus`;
   if (variant === "group-hover") return `.group:hover ${cls}`;
   if (variant === "placeholder") return `${cls}::placeholder`;
+  if (variant === "file") return `${cls}::file-selector-button`;
   return cls;
 }
 
@@ -197,7 +198,9 @@ const keepWhite = solidBackgrounds.map((cls) => `:not([class~="${cls}"])`).join(
 
 const rules = [];
 for (const token of [...tokens].sort()) {
-  const bare = token.replace(/^(hover|focus|group-hover|placeholder):/, "");
+  const bare = token.replace(/^(hover|focus|group-hover|placeholder|file):/, "");
+  // file:text-white sits on a solid file:bg-* button; leave it white.
+  if (token === "file:text-white") continue;
   const match = bare.match(/^(bg|text|border|divide|placeholder|from|via|to)-(.+?)(?:\/[\d.[\]]+)?$/);
   if (!match) continue;
   const [, utility, color] = match;

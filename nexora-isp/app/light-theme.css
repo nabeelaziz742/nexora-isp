@@ -85,6 +85,7 @@ html.light .divide-slate-800:not(.keep-dark, .keep-dark *) > :not(:last-child) {
 html.light .divide-slate-800\/40:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: var(--color-slate-200); }
 html.light .divide-slate-800\/60:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: var(--color-slate-200); }
 html.light .divide-slate-800\/80:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: var(--color-slate-200); }
+html.light .file\:text-slate-200:not(.keep-dark, .keep-dark *)::file-selector-button { color: var(--color-slate-800); }
 html.light .from-amber-950\/20:not(.keep-dark, .keep-dark *) { --tw-gradient-from: var(--color-amber-50); }
 html.light .from-blue-950\/20:not(.keep-dark, .keep-dark *) { --tw-gradient-from: var(--color-blue-50); }
 html.light .from-emerald-950\/20:not(.keep-dark, .keep-dark *) { --tw-gradient-from: var(--color-emerald-50); }
