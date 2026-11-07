@@ -50,10 +50,19 @@ function getFirstErrorMessage(value: unknown): string | null {
   return null;
 }
 
+// A non-JSON error body (Django debug page, proxy 502 page) must never be shown raw.
+function isHtmlBody(value: unknown): boolean {
+  return typeof value === "string" && /^\s*<(!doctype|html|head|body)\b/i.test(value);
+}
+
 export function normalizeApiErrorMessage(
   payload: unknown,
   fallbackMessage: string,
 ): string {
+  if (isHtmlBody(payload)) {
+    return `${fallbackMessage} The server returned an unexpected error page; please try again or contact support.`;
+  }
+
   if (
     payload &&
     typeof payload === "object" &&

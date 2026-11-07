@@ -42,6 +42,7 @@ from customers.suspension_views import (
     SuspensionDashboardView,
     SuspensionEligibilityListView,
     SuspensionHistoryListView,
+    SuspendedServiceListView,
     SuspensionPolicyView,
 )
 
@@ -56,6 +57,11 @@ urlpatterns = [
         "suspensions/eligibility/",
         SuspensionEligibilityListView.as_view(),
         name="suspension-eligibility",
+    ),
+    path(
+        "suspensions/suspended/",
+        SuspendedServiceListView.as_view(),
+        name="suspension-suspended-list",
     ),
     path(
         "suspensions/history/",

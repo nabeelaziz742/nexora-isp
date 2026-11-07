@@ -36,6 +36,11 @@ export const suspensionService = {
     return normalizeList<RawEligibilityItem>(res).map(toEligibilityItem);
   },
 
+  async getSuspendedServices(): Promise<OverdueEligibilityItem[]> {
+    const res = await apiRequest<ListResponse<RawEligibilityItem>>("/customers/suspensions/suspended/");
+    return normalizeList<RawEligibilityItem>(res).map(toEligibilityItem);
+  },
+
   async getSuspensionHistory(serviceId?: string): Promise<ServiceSuspensionLog[]> {
     const query = serviceId ? `?service_account_id=${encodeURIComponent(serviceId)}` : "";
     const res = await apiRequest<ListResponse<ServiceSuspensionLog>>(`/customers/suspensions/history/${query}`);

@@ -347,6 +347,54 @@ def execute_service_suspension(
     return suspension_log
 
 
+def list_suspended_services(organization) -> list[dict]:
+    """
+    Services currently suspended for non-payment, with their dues and the
+    latest suspension event, for the Suspended Accounts tab.
+    """
+    services = (
+        ServiceAccount.objects.filter(
+            organization=organization,
+            status=ServiceAccount.Status.SUSPENDED_NON_PAYMENT,
+        )
+        .select_related("customer", "internet_package")
+        .order_by("customer__first_name", "service_number")
+    )
+    today = timezone.now().date()
+    results = []
+    for svc in services:
+        total_outstanding, invoices_snapshot, oldest_due_date = calculate_service_outstanding(svc)
+        last_log = (
+            ServiceSuspensionLog.objects.filter(
+                organization=organization,
+                service_account=svc,
+                event_type=ServiceSuspensionLog.EventType.SUSPENSION,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        results.append({
+            "service_account_id": str(svc.id),
+            "service_number": svc.service_number,
+            "customer_id": str(svc.customer.id),
+            "customer_name": svc.customer.full_name,
+            "customer_phone": svc.customer.phone,
+            "package_name": svc.internet_package.name,
+            "current_status": svc.status,
+            "total_outstanding": str(total_outstanding),
+            "oldest_due_date": oldest_due_date.isoformat() if oldest_due_date else None,
+            "days_overdue": (today - oldest_due_date).days if oldest_due_date else 0,
+            "in_grace_period": False,
+            "is_ptp_exempt": False,
+            "is_eligible_for_suspension": False,
+            "is_warning_eligible": False,
+            "invoices_snapshot": invoices_snapshot,
+            "suspended_at": last_log.created_at.isoformat() if last_log else None,
+            "suspension_reason": last_log.reason if last_log else "",
+        })
+    return results
+
+
 def evaluate_restoration_eligibility(service_account: ServiceAccount) -> tuple[bool, Decimal, str]:
     """
     Evaluates whether a suspended service account is eligible for automatic restoration.

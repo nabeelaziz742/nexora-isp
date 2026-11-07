@@ -532,6 +532,30 @@ class SuspensionRestorationNotificationTests(APITestCase):
         self.service1.refresh_from_db()
         self.assertEqual(self.service1.status, ServiceAccount.Status.SUSPENDED_NON_PAYMENT)
 
+    def test_suspended_list_api_returns_suspended_services(self):
+        """Suspended services are listed (they are not in the eligibility list)."""
+        headers = self._auth_client(self.staff1, self.org1)
+        self._create_unpaid_invoice(self.service1, Decimal("2500.00"), timezone.now().date() - timedelta(days=20))
+        self.client.post(
+            f"/api/v1/customers/services/{self.service1.id}/suspend/",
+            {"reason": "Non-payment"},
+            format="json",
+            **headers,
+        )
+
+        response = self.client.get("/api/v1/customers/suspensions/suspended/", **headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        item = response.data["results"][0]
+        self.assertEqual(item["service_account_id"], str(self.service1.id))
+        self.assertEqual(item["current_status"], ServiceAccount.Status.SUSPENDED_NON_PAYMENT)
+        self.assertEqual(item["total_outstanding"], "2500.00")
+        self.assertEqual(item["suspension_reason"], "Non-payment")
+
+        eligibility = self.client.get("/api/v1/customers/suspensions/eligibility/", **headers)
+        ids = [row["service_account_id"] for row in eligibility.data["results"]]
+        self.assertNotIn(str(self.service1.id), ids)
+
     def test_manual_restore_api_enforces_reason(self):
         """Manual restore endpoint requires reason."""
         self.service1.status = ServiceAccount.Status.SUSPENDED_NON_PAYMENT

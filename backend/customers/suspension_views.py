@@ -18,6 +18,7 @@ from customers.suspension_services import (
     execute_service_suspension,
     get_or_create_suspension_policy,
     get_suspension_dashboard_metrics,
+    list_suspended_services,
     run_automated_suspension_engine,
     update_suspension_policy,
 )
@@ -67,6 +68,14 @@ class SuspensionEligibilityListView(APIView):
             "count": len(items),
             "results": items,
         }, status=status.HTTP_200_OK)
+
+
+class SuspendedServiceListView(APIView):
+    permission_classes = [HasActiveTenantContext]
+
+    def get(self, request):
+        items = list_suspended_services(request.organization)
+        return Response({"count": len(items), "results": items}, status=status.HTTP_200_OK)
 
 
 class SuspensionHistoryListView(APIView):

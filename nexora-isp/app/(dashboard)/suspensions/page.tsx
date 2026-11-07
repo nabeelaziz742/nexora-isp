@@ -38,6 +38,8 @@ export default function SuspensionsManagementPage() {
   const [activeTab, setActiveTab] = useState<"eligibility" | "suspended" | "history" | "policy">("eligibility");
   const [metrics, setMetrics] = useState<SuspensionDashboardMetrics | null>(null);
   const [eligibilityList, setEligibilityList] = useState<OverdueEligibilityItem[]>([]);
+  // Suspended services are not in the eligibility list (it only covers active ones).
+  const [suspendedList, setSuspendedList] = useState<OverdueEligibilityItem[]>([]);
   const [historyList, setHistoryList] = useState<ServiceSuspensionLog[]>([]);
   const [policy, setPolicy] = useState<SuspensionPolicy | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,15 +76,17 @@ export default function SuspensionsManagementPage() {
     try {
       setIsLoading(true);
       setError("");
-      const [metricsData, eligibilityData, historyData, policyData] = await Promise.all([
+      const [metricsData, eligibilityData, suspendedData, historyData, policyData] = await Promise.all([
         suspensionService.getDashboardMetrics(),
         suspensionService.getOverdueEligibility(),
+        suspensionService.getSuspendedServices(),
         suspensionService.getSuspensionHistory(),
         suspensionService.getPolicy(),
       ]);
 
       setMetrics(metricsData);
       setEligibilityList(eligibilityData);
+      setSuspendedList(suspendedData);
       setHistoryList(historyData);
       setPolicy(policyData);
       setPolicyForm(policyData);
@@ -217,10 +221,6 @@ export default function SuspensionsManagementPage() {
     if (ptpFilter === "GRACE") return item.in_grace_period;
     return true;
   });
-
-  const suspendedList = eligibilityList.filter(
-    (item) => item.status === "SUSPENDED_NON_PAYMENT" || item.status === "SUSPENDED"
-  );
 
   return (
     <div className="space-y-6">
