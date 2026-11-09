@@ -6,7 +6,7 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from billing.models import Invoice, PaymentAllocation, PromiseToPay, RecoveryAllocation
+from billing.models import Invoice, Payment, PaymentAllocation, PromiseToPay, RecoveryAllocation
 from customers.models import Customer, ServiceAccount
 from tenancy.models import AuditLog, OrganizationMembership, StaffProfile
 
@@ -65,7 +65,9 @@ def get_defaulters_data(
     if search:
         search_term = search.strip()
         overdue_invoices = overdue_invoices.filter(
-            Q(service_account__customer__full_name__icontains=search_term)
+            # full_name is a property, not a column: search its parts.
+            Q(service_account__customer__first_name__icontains=search_term)
+            | Q(service_account__customer__last_name__icontains=search_term)
             | Q(service_account__customer__customer_number__icontains=search_term)
             | Q(service_account__customer__phone__icontains=search_term)
             | Q(service_account__service_number__icontains=search_term)
@@ -201,6 +203,100 @@ def get_defaulters_data(
     # Sort by total overdue descending
     defaulters_list.sort(key=lambda x: x["total_overdue"], reverse=True)
     return defaulters_list
+
+
+def get_recovery_sheet(organization, *, area=None, aging_bucket=None, officer_id=None, search=None) -> dict:
+    """Printable field sheet for recovery officers: defaulters grouped by area,
+    with address, package and last payment, plus blank columns to fill in."""
+    defaulters = get_defaulters_data(organization, area=area, aging_bucket=aging_bucket, search=search)
+    officer = None
+    if officer_id:
+        defaulters = [
+            row for row in defaulters
+            if row["active_allocation"] and row["active_allocation"]["assigned_staff_id"] == str(officer_id)
+        ]
+        membership = (
+            OrganizationMembership.objects.filter(organization=organization, user_id=officer_id)
+            .select_related("user")
+            .first()
+        )
+        if membership:
+            officer = membership.user.get_full_name() or membership.user.email
+
+    service_ids = [row["service_account_id"] for row in defaulters]
+    services = {
+        str(svc.id): svc
+        for svc in ServiceAccount.objects.for_organization(organization)
+        .filter(id__in=service_ids)
+        .select_related("customer", "internet_package")
+    }
+    last_payments = {}
+    for payment in (
+        Payment.objects.for_organization(organization)
+        .filter(service_account_id__in=service_ids, is_reversed=False)
+        .order_by("service_account_id", "-paid_at")
+    ):
+        last_payments.setdefault(str(payment.service_account_id), payment)
+
+    rows = []
+    for row in defaulters:
+        svc = services.get(row["service_account_id"])
+        customer = svc.customer if svc else None
+        payment = last_payments.get(row["service_account_id"])
+        promise = row["active_promise"]
+        rows.append({
+            "customer_number": row["customer_number"],
+            "full_name": row["full_name"],
+            "phone": row["phone"],
+            "alternate_phone": customer.alternate_phone if customer else "",
+            "address": customer.address_line if customer else "",
+            "area": row["area"] or "No area",
+            "internet_id": row["internet_id"],
+            "package_name": svc.internet_package.name if svc else "",
+            "monthly_price": str(svc.internet_package.monthly_price) if svc else "0.00",
+            "total_overdue": str(row["total_overdue"]),
+            "overdue_invoices_count": row["overdue_invoices_count"],
+            "oldest_due_date": row["oldest_due_date"],
+            "max_days_overdue": row["max_days_overdue"],
+            "aging_bucket": row["aging_bucket"],
+            "last_payment_date": payment.paid_at.date().isoformat() if payment else None,
+            "last_payment_amount": str(payment.amount) if payment else None,
+            "promise": (
+                f"{promise['promised_amount']} by {promise['deadline'][:10]}" if promise else ""
+            ),
+            "officer": row["active_allocation"]["assigned_staff_name"] if row["active_allocation"] else "",
+        })
+
+    # Per area: biggest dues first, and among equal dues the oldest first.
+    rows.sort(key=lambda r: (r["area"].lower(), -Decimal(r["total_overdue"]), -r["max_days_overdue"]))
+    groups = []
+    for row in rows:
+        if not groups or groups[-1]["area"] != row["area"]:
+            groups.append({"area": row["area"], "rows": [], "total": Decimal("0.00")})
+        groups[-1]["rows"].append(row)
+        groups[-1]["total"] += Decimal(row["total_overdue"])
+    for group in groups:
+        group["count"] = len(group["rows"])
+        group["total"] = str(group["total"])
+
+    # Filter choices come from every defaulter, not just the filtered rows.
+    all_defaulters = get_defaulters_data(organization)
+    officers = {}
+    for row in all_defaulters:
+        alloc = row["active_allocation"]
+        if alloc:
+            officers[alloc["assigned_staff_id"]] = alloc["assigned_staff_name"]
+
+    return {
+        "organization_name": organization.name,
+        "generated_at": timezone.now().isoformat(),
+        "filters": {"area": area or "", "aging_bucket": aging_bucket or "", "officer": officer or ""},
+        "total_customers": len(rows),
+        "total_overdue": str(sum((Decimal(r["total_overdue"]) for r in rows), Decimal("0.00"))),
+        "groups": groups,
+        "officers": [{"id": key, "name": name} for key, name in sorted(officers.items(), key=lambda item: item[1])],
+        "areas": sorted({row["area"] for row in all_defaulters if row["area"]}),
+    }
 
 
 @transaction.atomic

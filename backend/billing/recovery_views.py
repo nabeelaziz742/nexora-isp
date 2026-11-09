@@ -16,6 +16,7 @@ from billing.recovery_services import (
     allocate_defaulter,
     get_defaulters_data,
     get_recovery_dashboard_metrics,
+    get_recovery_sheet,
     reassign_recovery_allocation,
     transition_recovery_status,
 )
@@ -58,6 +59,25 @@ class DefaulterListView(APIView):
         )
 
         return Response(data, status=HTTP_200_OK)
+
+
+class RecoverySheetView(APIView):
+    """Printable recovery sheet: defaulters grouped by area for field officers."""
+
+    permission_classes = [IsOrganizationStaffOrOwner]
+
+    def get(self, request):
+        params = request.query_params
+        return Response(
+            get_recovery_sheet(
+                request.organization,
+                area=params.get("area", "").strip() or None,
+                aging_bucket=params.get("aging_bucket", "").strip() or None,
+                officer_id=params.get("officer_id", "").strip() or None,
+                search=params.get("search", "").strip() or None,
+            ),
+            status=HTTP_200_OK,
+        )
 
 
 class RecoveryAllocationListCreateView(APIView):

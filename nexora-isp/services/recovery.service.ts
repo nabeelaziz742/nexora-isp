@@ -142,7 +142,43 @@ function buildQuery(params?: Record<string, string | undefined>) {
   return qs ? `?${qs}` : "";
 }
 
+export interface RecoverySheetRow {
+  customer_number: string;
+  full_name: string;
+  phone: string;
+  alternate_phone: string;
+  address: string;
+  area: string;
+  internet_id: string;
+  package_name: string;
+  monthly_price: string;
+  total_overdue: string;
+  overdue_invoices_count: number;
+  oldest_due_date: string;
+  max_days_overdue: number;
+  aging_bucket: string;
+  last_payment_date: string | null;
+  last_payment_amount: string | null;
+  promise: string;
+  officer: string;
+}
+
+export interface RecoverySheet {
+  organization_name: string;
+  generated_at: string;
+  filters: { area: string; aging_bucket: string; officer: string };
+  total_customers: number;
+  total_overdue: string;
+  groups: { area: string; count: number; total: string; rows: RecoverySheetRow[] }[];
+  officers: { id: string; name: string }[];
+  areas: string[];
+}
+
 export const recoveryService = {
+  getRecoverySheet(params?: { area?: string; aging_bucket?: string; officer_id?: string }): Promise<RecoverySheet> {
+    return apiClient.get<RecoverySheet>(`/billing/defaulters/recovery-sheet/${buildQuery(params)}`);
+  },
+
   async getDefaulters(params?: {
     search?: string;
     city?: string;

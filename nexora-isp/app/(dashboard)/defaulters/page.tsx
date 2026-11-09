@@ -11,6 +11,7 @@ import {
   Coins,
   FileSpreadsheet,
   LoaderCircle,
+  Printer,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -175,6 +176,19 @@ export default function DefaultersManagementPage() {
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
+
+          <a
+            href={`/print/recovery-sheet?${new URLSearchParams({
+              ...(areaFilter ? { area: areaFilter } : {}),
+              ...(agingFilter ? { aging_bucket: agingFilter } : {}),
+            }).toString()}`}
+            target="_blank"
+            rel="noopener"
+            className="flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-4 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
+          >
+            <Printer className="h-4 w-4" />
+            Print Recovery Sheet
+          </a>
 
           <Link
             href="/allocations"

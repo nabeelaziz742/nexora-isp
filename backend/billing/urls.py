@@ -7,6 +7,7 @@ from billing.recharge_views import (
 )
 from billing.recovery_views import (
     DefaulterListView,
+    RecoverySheetView,
     RecoveryAllocationDetailView,
     RecoveryAllocationListCreateView,
     RecoveryAllocationReassignView,
@@ -132,6 +133,11 @@ urlpatterns = [
         "defaulters/",
         DefaulterListView.as_view(),
         name="billing-defaulter-list",
+    ),
+    path(
+        "defaulters/recovery-sheet/",
+        RecoverySheetView.as_view(),
+        name="billing-recovery-sheet",
     ),
     path(
         "allocations/",
