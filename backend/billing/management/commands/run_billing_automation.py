@@ -13,7 +13,7 @@ from billing.services import (
 )
 from customers.models import BillingProfile
 from customers.suspension_services import run_daily_suspension_cycle
-from onboarding.platform_services import enforce_subscription_expiry
+from onboarding.platform_services import enforce_subscription_expiry, send_subscription_reminders
 from tenancy.models import Organization
 
 
@@ -72,9 +72,13 @@ class Command(BaseCommand):
         # Platform-wide: lock ISPs whose Nexora subscription is long overdue
         # before running their tenant jobs.
         if not organization_code:
+            reminder_result = send_subscription_reminders(today=as_of_date)
             lock_result = enforce_subscription_expiry(today=as_of_date)
             self.stdout.write(
-                self.style.SUCCESS(f"ISP subscriptions: locked={lock_result['locked_count']}")
+                self.style.SUCCESS(
+                    f"ISP subscriptions: reminders={reminder_result['sent_count']}, "
+                    f"locked={lock_result['locked_count']}"
+                )
             )
 
         organizations = Organization.objects.filter(

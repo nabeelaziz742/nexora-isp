@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Ban, CheckCircle2, Loader2, Plus, Save } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, Copy, KeyRound, Loader2, Plus, Save } from "lucide-react";
 
 import {
   ErrorBanner,
@@ -17,6 +17,7 @@ import {
   activateISP,
   getISP,
   recordISPPayment,
+  resetISPOwnerPassword,
   suspendISP,
   updateISPSubscription,
   type ISPDetail,
@@ -56,6 +57,20 @@ export default function ISPDetailPage() {
   const [payment, setPayment] = useState({ amount: "", months: 1, method: "BANK_TRANSFER", reference: "" });
   const [suspendReason, setSuspendReason] = useState("");
   const [showSuspend, setShowSuspend] = useState(false);
+  const [ownerReset, setOwnerReset] = useState<{ email: string; temporary_password: string; organization_code: string } | null>(null);
+
+  async function resetOwner() {
+    if (!window.confirm("Set a new temporary password for this ISP's owner? Their current password stops working.")) return;
+    setBusy("owner");
+    setError("");
+    try {
+      setOwnerReset(await resetISPOwnerPassword(id));
+    } catch (err) {
+      handleError(err, "Unable to reset the owner's password.");
+    } finally {
+      setBusy("");
+    }
+  }
 
   const apply = useCallback((data: ISPDetail) => {
     setIsp(data);
@@ -167,6 +182,31 @@ export default function ISPDetailPage() {
               <Info label="Registration" value={`${isp.registration.status} · ${formatPKR(isp.registration.amount_due)}`} />
             )}
           </div>
+          {isp.owner_email && (
+            <button
+              onClick={() => void resetOwner()}
+              disabled={busy === "owner"}
+              className="mt-4 flex h-9 items-center gap-2 rounded-lg border border-[#263142] px-3 text-xs font-semibold text-slate-300 hover:bg-[#121821] disabled:opacity-60"
+            >
+              <KeyRound className="h-3.5 w-3.5" /> Reset Owner Password
+            </button>
+          )}
+          {ownerReset && (
+            <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs">
+              <p className="text-emerald-400">Temporary password set. Share it privately; it is shown only now.</p>
+              <pre className="mt-2 whitespace-pre-wrap text-slate-200">{`Organization code: ${ownerReset.organization_code}
+Email: ${ownerReset.email}
+Password: ${ownerReset.temporary_password}`}</pre>
+              <button
+                onClick={() => void navigator.clipboard.writeText(`Organization code: ${ownerReset.organization_code}
+Email: ${ownerReset.email}
+Password: ${ownerReset.temporary_password}`)}
+                className="mt-2 flex items-center gap-1.5 text-blue-400 hover:underline"
+              >
+                <Copy className="h-3.5 w-3.5" /> Copy
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-[#1C2431] bg-[#0D1117] p-5 lg:col-span-2">
@@ -188,6 +228,7 @@ export default function ISPDetailPage() {
             <h2 className="text-sm font-semibold text-white">Subscription</h2>
             <p className="mb-4 mt-1 text-xs text-slate-500">
               {isp.paid_until ? `Paid until ${formatDate(isp.paid_until)} · ${daysLeftLabel(isp.days_left)}` : "No paid-until date yet, so this ISP is never locked automatically."}
+              {isp.reminder_sent_at && ` · Last reminder emailed ${formatDate(isp.reminder_sent_at)}`}
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-slate-400">

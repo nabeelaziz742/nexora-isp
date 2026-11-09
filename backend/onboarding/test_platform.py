@@ -182,3 +182,92 @@ class SuperAdminPlatformTests(TestCase):
         self.assertEqual(subscription.monthly_fee, Decimal("5000.00"))
         self.assertIsNotNone(subscription.paid_until)
         self.assertEqual(ISPSubscriptionPayment.objects.filter(organization=registration.organization).count(), 1)
+
+
+class SubscriptionReminderAndPasswordTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.client = APIClient()
+        PaymentSettings.objects.create(
+            bank_name="Meezan", account_title="Nexora", account_number="0101", amount="5000.00",
+            is_active=True, subscription_grace_days=7,
+        )
+        self.admin = User.objects.create_superuser(
+            username="root@example.com", email="root@example.com", password="AdminPassword!123",
+        )
+        self.org = Organization.objects.create(name="Alpha Net", code="ALPHA", city="Lahore")
+        self.owner = User.objects.create_user(
+            username="owner@alpha.test", email="owner@alpha.test", password="OwnerPassword!123", first_name="Ali",
+        )
+        OrganizationMembership.objects.create(
+            organization=self.org, user=self.owner, role=OrganizationMembership.Role.OWNER, is_active=True,
+        )
+        self.subscription = ISPSubscription.objects.create(organization=self.org, monthly_fee=Decimal("5000"))
+
+    def set_days_left(self, days):
+        self.subscription.paid_until = timezone.localdate() + timedelta(days=days)
+        self.subscription.save()
+
+    def test_each_reminder_stage_is_sent_once(self):
+        from django.core import mail
+        from onboarding.platform_services import send_subscription_reminders
+
+        self.set_days_left(10)
+        self.assertEqual(send_subscription_reminders()["sent_count"], 0)
+
+        self.set_days_left(3)
+        self.assertEqual(send_subscription_reminders()["sent"], ["ALPHA"])
+        self.assertEqual(send_subscription_reminders()["sent_count"], 0)
+        self.assertIn("is due on", mail.outbox[0].subject)
+        self.assertIn("Meezan", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ["owner@alpha.test"])
+
+        today = timezone.localdate()
+        self.assertEqual(send_subscription_reminders(today=today + timedelta(days=3))["sent_count"], 1)
+        self.assertIn("due today", mail.outbox[1].subject)
+        self.assertEqual(send_subscription_reminders(today=today + timedelta(days=4))["sent_count"], 1)
+        self.assertIn("overdue", mail.outbox[2].subject)
+        self.assertEqual(send_subscription_reminders(today=today + timedelta(days=5))["sent_count"], 0)
+
+    def test_new_paid_period_starts_reminders_again(self):
+        from onboarding.platform_services import send_subscription_reminders
+
+        self.set_days_left(2)
+        send_subscription_reminders()
+        self.set_days_left(33)
+        self.subscription.paid_until = timezone.localdate() + timedelta(days=1)
+        self.subscription.save()
+        self.assertEqual(send_subscription_reminders()["sent_count"], 1)
+
+    def test_owner_sees_own_subscription_status(self):
+        self.set_days_left(2)
+        login = self.client.post("/api/v1/auth/login/", {
+            "organization_code": "ALPHA", "email": "owner@alpha.test", "password": "OwnerPassword!123",
+        }, format="json")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+        data = self.client.get(reverse("owner-subscription-status")).data
+        self.assertTrue(data["show_notice"])
+        self.assertEqual(data["days_left"], 2)
+        self.assertEqual(data["payment"]["bank_name"], "Meezan")
+
+    def test_super_admin_resets_owner_password(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            reverse("superadmin-isp-reset-owner-password", kwargs={"organization_id": self.org.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["email"], "owner@alpha.test")
+        self.owner.refresh_from_db()
+        self.assertTrue(self.owner.check_password(response.data["temporary_password"]))
+
+    def test_super_admin_changes_own_password(self):
+        self.client.force_authenticate(self.admin)
+        url = reverse("superadmin-change-password")
+        self.assertEqual(self.client.post(url, {
+            "current_password": "wrong", "new_password": "Fresh!Admin987"}, format="json").status_code, 400)
+        self.assertEqual(self.client.post(url, {
+            "current_password": "AdminPassword!123", "new_password": "Fresh!Admin987"}, format="json").status_code, 200)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Fresh!Admin987"))

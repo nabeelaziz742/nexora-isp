@@ -101,6 +101,7 @@ class OrganizationStaffListCreateAPIView(APIView):
     def get(self, request):
         memberships = (
             OrganizationMembership.objects
+            .exclude(role=OrganizationMembership.Role.DEALER)
             .filter(
                 organization=request.organization,
             )
@@ -207,7 +208,7 @@ class OrganizationStaffActiveStateAPIView(APIView):
 
     def patch(self, request, membership_id):
         membership = get_object_or_404(
-            OrganizationMembership.objects.select_related("user"),
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).select_related("user"),
             id=membership_id,
             organization=request.organization,
         )

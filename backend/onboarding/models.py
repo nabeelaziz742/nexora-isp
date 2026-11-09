@@ -67,6 +67,10 @@ class ISPSubscription(models.Model):
     suspension_reason = models.TextField(blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)
     suspended_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    # Last fee reminder emailed to the owner, so each stage goes out once per paid-until date.
+    reminder_stage = models.CharField(max_length=20, blank=True, default="")
+    reminder_for = models.DateField(null=True, blank=True)
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

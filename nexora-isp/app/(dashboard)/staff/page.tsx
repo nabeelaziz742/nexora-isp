@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 
+import StaffPasswordReset from "@/components/staff/StaffPasswordReset";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
@@ -433,13 +434,16 @@ export default function StaffManagementPage() {
 
                     <td className="px-5 py-4 text-right">
                       {member.role !== "OWNER" && (
-                        <button
-                          onClick={() => openEditModal(member)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                          Edit Profile
-                        </button>
+                        <div className="inline-flex flex-wrap justify-end gap-2">
+                          <StaffPasswordReset member={member} />
+                          <button
+                            onClick={() => openEditModal(member)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                            Edit Profile
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

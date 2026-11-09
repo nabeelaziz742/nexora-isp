@@ -6,6 +6,7 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
+  KeyRound,
   LogOut,
   Menu,
   Search,
@@ -14,6 +15,8 @@ import {
 
 import { clearAuthTokens } from "@/services/auth-storage";
 import CommandPalette from "@/components/layout/CommandPalette";
+import ChangePasswordModal from "@/components/ui/ChangePasswordModal";
+import { changePassword } from "@/services/auth.service";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 
 interface TopCommandBarProps {
@@ -280,6 +283,7 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
 
   const profileRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [organization, setOrganization] = useState<StoredOrganization | null>(null);
@@ -491,6 +495,17 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
                 <div className="p-1">
                   <button
                     type="button"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      setChangingPassword(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium text-slate-300 transition hover:bg-[#121821] hover:text-white"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    <span>Change Password</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleLogout}
                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
                   >
@@ -509,6 +524,10 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
       />
+
+      {changingPassword && (
+        <ChangePasswordModal onClose={() => setChangingPassword(false)} submit={changePassword} />
+      )}
     </>
   );
 }

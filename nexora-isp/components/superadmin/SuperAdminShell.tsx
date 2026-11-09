@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   CalendarClock,
+  KeyRound,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -17,6 +18,8 @@ import {
 } from "lucide-react";
 
 import ThemeToggle from "@/components/layout/ThemeToggle";
+import ChangePasswordModal from "@/components/ui/ChangePasswordModal";
+import { changeSuperAdminPassword } from "@/services/onboarding.service";
 
 const NAV = [
   { href: "/superadmin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -36,6 +39,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const isLogin = pathname === "/superadmin/login";
 
   useEffect(() => {
@@ -134,10 +138,23 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
             <Menu className="h-5 w-5 text-slate-400" />
           </button>
           <span className="text-xs text-slate-500 lg:invisible">Nexora Super Admin</span>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setChangingPassword(true)}
+              aria-label="Change password"
+              title="Change password"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-[#121821] hover:text-slate-200"
+            >
+              <KeyRound className="h-4 w-4" />
+            </button>
+            <ThemeToggle />
+          </div>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
+      {changingPassword && (
+        <ChangePasswordModal onClose={() => setChangingPassword(false)} submit={changeSuperAdminPassword} />
+      )}
     </div>
   );
 }

@@ -208,3 +208,41 @@ class DealerPortalTests(TestCase):
         expiring = self.client.get("/api/v1/dealer-portal/customers/", {"show": "expiring"}).data
         self.assertEqual([row["customer_name"] for row in expiring["results"]], ["Sana"])
 
+
+    # -- dealer adds a customer ----------------------------------------------
+
+    def test_dealer_request_becomes_dealer_inquiry(self):
+        from customers.models import Inquiry
+
+        self.grant()
+        self.dealer_login()
+        listing = self.client.get("/api/v1/dealer-portal/requests/").data
+        package_id = listing["packages"][0]["id"]
+        response = self.client.post("/api/v1/dealer-portal/requests/", {
+            "full_name": "Naveed Akhtar", "phone": "03009990001", "address_line": "House 9",
+            "city": "Lahore", "area": "Johar Town", "preferred_package": package_id,
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        inquiry = Inquiry.objects.get(id=response.data["id"])
+        self.assertEqual(inquiry.dealer, self.dealer)
+        self.assertEqual(inquiry.source, Inquiry.Source.DEALER)
+        self.assertEqual(response.data["status_label"], "Pending with office")
+        rows = self.client.get("/api/v1/dealer-portal/requests/").data["results"]
+        self.assertEqual([row["full_name"] for row in rows], ["Naveed Akhtar"])
+
+    def test_dealer_request_refuses_existing_phone(self):
+        self.grant()
+        self.dealer_login()
+        response = self.client.post("/api/v1/dealer-portal/requests/", {
+            "full_name": "Dup", "phone": "03001111113", "address_line": "x", "city": "Lahore",
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("phone", response.data)
+
+    def test_dealer_can_change_own_password(self):
+        self.grant()
+        self.dealer_login()
+        response = self.client.post("/api/v1/auth/change-password/", {
+            "current_password": PASSWORD, "new_password": "Dealer!NewPass77"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/onboarding/subscription/").status_code, 403)

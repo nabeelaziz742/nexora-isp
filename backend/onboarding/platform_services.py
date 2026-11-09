@@ -4,13 +4,16 @@ The super admin sees each ISP's counts (customers, services, staff) but never
 the ISP's customer records themselves.
 """
 import calendar
+import secrets
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.formats import date_format
 from rest_framework.exceptions import ValidationError
 
 from customers.models import Customer, ServiceAccount
@@ -94,7 +97,9 @@ def _isp_queryset():
         active_service_count=Coalesce(
             _count(ServiceAccount.objects.filter(status=ServiceAccount.Status.ACTIVE)), 0
         ),
-        staff_count=Coalesce(_count(OrganizationMembership.objects.filter(is_active=True)), 0),
+        staff_count=Coalesce(_count(
+            OrganizationMembership.objects.filter(is_active=True).exclude(role=OrganizationMembership.Role.DEALER)
+        ), 0),
     ).select_related("platform_subscription", "registration")
 
 
@@ -159,6 +164,8 @@ def get_isp_detail(organization_id) -> dict:
         "address": org.address,
         "notes": subscription.notes if subscription else "",
         "suspended_at": subscription.suspended_at.isoformat() if subscription and subscription.suspended_at else None,
+        "reminder_stage": subscription.reminder_stage if subscription else "",
+        "reminder_sent_at": subscription.reminder_sent_at.isoformat() if subscription and subscription.reminder_sent_at else None,
         "new_customers_this_month": Customer.objects.filter(organization=org, created_at__date__gte=month_start).count(),
         "suspended_service_count": ServiceAccount.objects.filter(
             organization=org, status=ServiceAccount.Status.SUSPENDED_NON_PAYMENT
@@ -368,3 +375,137 @@ def enforce_subscription_expiry(*, today: date | None = None) -> dict:
         )
         locked.append(organization.code)
     return {"locked_count": len(locked), "locked": locked}
+
+
+# ---------------------------------------------------------------------------
+# Fee reminders and the owner's own view of their subscription
+# ---------------------------------------------------------------------------
+
+REMINDER_DUE_SOON = "DUE_SOON"  # 3 days or fewer before paid-until
+REMINDER_DUE_TODAY = "DUE_TODAY"
+REMINDER_OVERDUE = "OVERDUE"
+REMINDER_ORDER = {REMINDER_DUE_SOON: 1, REMINDER_DUE_TODAY: 2, REMINDER_OVERDUE: 3}
+REMINDER_DAYS_BEFORE = 3
+
+
+def _reminder_stage(days_left: int) -> str:
+    if days_left < 0:
+        return REMINDER_OVERDUE
+    if days_left == 0:
+        return REMINDER_DUE_TODAY
+    if days_left <= REMINDER_DAYS_BEFORE:
+        return REMINDER_DUE_SOON
+    return ""
+
+
+def subscription_status_for_owner(organization: Organization) -> dict:
+    """What an ISP owner sees about their own Nexora subscription."""
+    subscription = getattr(organization, "platform_subscription", None)
+    settings_obj = get_or_create_payment_settings()
+    today = timezone.localdate()
+    paid_until = subscription.paid_until if subscription else None
+    days_left = (paid_until - today).days if paid_until else None
+    lock_date = paid_until + timedelta(days=settings_obj.subscription_grace_days) if paid_until else None
+    return {
+        "tracked": paid_until is not None,
+        "monthly_fee": str(subscription.monthly_fee) if subscription else "0.00",
+        "paid_until": paid_until.isoformat() if paid_until else None,
+        "days_left": days_left,
+        "lock_date": lock_date.isoformat() if lock_date else None,
+        "show_notice": days_left is not None and days_left <= EXPIRING_SOON_DAYS,
+        "payment": {
+            "bank_name": settings_obj.bank_name,
+            "account_title": settings_obj.account_title,
+            "account_number": settings_obj.account_number,
+            "iban": settings_obj.iban,
+        },
+    }
+
+
+def _reminder_email(subscription: ISPSubscription, stage: str, owner, today: date) -> tuple[str, str]:
+    org = subscription.organization
+    settings_obj = get_or_create_payment_settings()
+    paid_until = subscription.paid_until
+    lock_date = paid_until + timedelta(days=settings_obj.subscription_grace_days)
+    fee = f"PKR {subscription.monthly_fee:,.0f}"
+    paid_text = date_format(paid_until, "j M Y")
+    lock_text = date_format(lock_date, "j M Y")
+    if stage == REMINDER_DUE_SOON:
+        subject = f"Nexora subscription for {org.name} is due on {paid_text}"
+        opening = f"Your Nexora ISP subscription is paid until {paid_text}."
+    elif stage == REMINDER_DUE_TODAY:
+        subject = f"Nexora subscription for {org.name} is due today"
+        opening = "Your Nexora ISP subscription is due today."
+    else:
+        subject = f"Nexora subscription for {org.name} is overdue"
+        opening = f"Your Nexora ISP subscription was due on {paid_text} and is now overdue."
+    body = (
+        f"Hello {owner.first_name or ''},\n\n"
+        f"{opening}\n"
+        f"Monthly fee: {fee}\n\n"
+        "Please pay to:\n"
+        f"  {settings_obj.bank_name}\n"
+        f"  Account title: {settings_obj.account_title}\n"
+        f"  Account number: {settings_obj.account_number}\n"
+        + (f"  IBAN: {settings_obj.iban}\n" if settings_obj.iban else "")
+        + f"\nIf payment is not received, the {org.name} workspace will be locked on {lock_text}. "
+        "Send your payment receipt to Nexora support so it can be recorded.\n\n"
+        "If you have already paid, please ignore this email.\n"
+    )
+    return subject, body
+
+
+def send_subscription_reminders(*, today: date | None = None) -> dict:
+    """Email ISP owners before, on and after their paid-until date (each stage once)."""
+    today = today or timezone.localdate()
+    window_end = today + timedelta(days=REMINDER_DAYS_BEFORE)
+    subscriptions = ISPSubscription.objects.filter(
+        paid_until__isnull=False,
+        paid_until__lte=window_end,
+        organization__is_active=True,
+    ).select_related("organization")
+
+    sent, failed = [], []
+    for subscription in subscriptions:
+        stage = _reminder_stage((subscription.paid_until - today).days)
+        if not stage:
+            continue
+        already = (
+            subscription.reminder_for == subscription.paid_until
+            and REMINDER_ORDER.get(subscription.reminder_stage, 0) >= REMINDER_ORDER[stage]
+        )
+        if already:
+            continue
+        owner = _owner_of(subscription.organization)
+        if owner is None or not owner.email:
+            continue
+        subject, body = _reminder_email(subscription, stage, owner, today)
+        try:
+            send_mail(subject=subject, message=body, from_email=None, recipient_list=[owner.email], fail_silently=False)
+        except Exception:  # noqa: BLE001 - one bad mailbox must not stop the others
+            failed.append(subscription.organization.code)
+            continue
+        subscription.reminder_stage = stage
+        subscription.reminder_for = subscription.paid_until
+        subscription.reminder_sent_at = timezone.now()
+        subscription.save(update_fields=["reminder_stage", "reminder_for", "reminder_sent_at", "updated_at"])
+        sent.append(subscription.organization.code)
+    return {"sent_count": len(sent), "sent": sent, "failed": failed}
+
+
+def reset_owner_password(*, organization_id) -> tuple[str, str]:
+    """Super admin fallback when an owner cannot receive the reset email.
+
+    Returns (owner email, new temporary password); the password is shown once.
+    """
+    organization = Organization.objects.filter(id=organization_id).first()
+    if organization is None:
+        raise ValidationError({"detail": "ISP not found."})
+    owner = _owner_of(organization)
+    if owner is None:
+        raise ValidationError({"detail": "This ISP has no owner account."})
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+    password = "Nx-" + "".join(secrets.choice(alphabet) for _ in range(12))
+    owner.set_password(password)
+    owner.save(update_fields=["password"])
+    return owner.email, password

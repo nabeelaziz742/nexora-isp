@@ -1,5 +1,8 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
-from rest_framework.exceptions import NotFound
+from rest_framework import serializers
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.status import (
     HTTP_200_OK,
@@ -9,7 +12,13 @@ from rest_framework.views import APIView
 
 from customers.models import Area
 from tenancy.models import OrganizationMembership, StaffProfile
-from tenancy.permissions import IsOrganizationOwner, IsOrganizationStaffOrOwner
+from tenancy.permissions import (
+    IsOrganizationAdminOrOwner,
+    IsOrganizationOwner,
+    IsOrganizationStaffOrOwner,
+    get_effective_role,
+)
+from tenancy.services import record_audit_log
 from tenancy.staff_serializers import (
     CreateOrganizationStaffSerializer,
     OrganizationStaffSerializer,
@@ -37,7 +46,7 @@ class OrganizationStaffListCreateView(APIView):
         search_query = request.query_params.get("search", "").strip()
 
         memberships = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
             )
             .select_related("user", "profile", "profile__assigned_area")
@@ -125,7 +134,7 @@ class OrganizationStaffDetailView(APIView):
 
     def get_membership(self, request, membership_id):
         membership = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
                 id=membership_id,
             )
@@ -203,7 +212,7 @@ class OrganizationStaffActiveStateView(APIView):
 
     def patch(self, request, membership_id):
         membership = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
                 id=membership_id,
             )
@@ -236,7 +245,7 @@ class OrganizationStaffStatusView(APIView):
 
     def patch(self, request, membership_id):
         membership = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
                 id=membership_id,
             )
@@ -275,7 +284,7 @@ class OperatorListView(APIView):
         search = request.query_params.get("search", "").strip()
 
         memberships = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
                 is_active=True,
             )
@@ -335,7 +344,7 @@ class OperatorWorkloadDetailView(APIView):
 
     def get(self, request, user_id):
         membership = (
-            OrganizationMembership.objects.filter(
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER).filter(
                 organization=request.organization,
                 user_id=user_id,
             )
@@ -402,3 +411,58 @@ class OperatorWorkloadDetailView(APIView):
         }
 
         return Response(data, status=HTTP_200_OK)
+
+
+class StaffPasswordResetSerializer(serializers.Serializer):
+    new_password = serializers.CharField(trim_whitespace=False, min_length=8, max_length=128)
+
+
+class OrganizationStaffPasswordResetView(APIView):
+    """Owner or admin sets a new password for a staff member who forgot theirs.
+
+    The owner's own password is never reset here (use change / forgot password),
+    and only the owner may reset an admin's password.
+    """
+
+    permission_classes = [IsOrganizationAdminOrOwner]
+
+    def post(self, request, membership_id):
+        membership = (
+            OrganizationMembership.objects.exclude(role=OrganizationMembership.Role.DEALER)
+            .filter(organization=request.organization, id=membership_id)
+            .select_related("user")
+            .first()
+        )
+        if not membership:
+            raise NotFound({"detail": "Staff member not found."})
+        if membership.user_id == request.user.id:
+            raise PermissionDenied("Use Change Password to update your own password.")
+        if membership.role == OrganizationMembership.Role.OWNER:
+            raise PermissionDenied("The owner's password cannot be reset here.")
+        target_profile = StaffProfile.objects.filter(membership=membership).first()
+        if (
+            target_profile
+            and target_profile.role == StaffProfile.Role.ADMIN
+            and get_effective_role(request) != StaffProfile.Role.OWNER
+        ):
+            raise PermissionDenied("Only the owner can reset an admin's password.")
+
+        serializer = StaffPasswordResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data["new_password"]
+        try:
+            validate_password(password, user=membership.user)
+        except DjangoValidationError as exc:
+            raise ValidationError({"new_password": list(exc.messages)}) from exc
+
+        membership.user.set_password(password)
+        membership.user.save(update_fields=["password"])
+        record_audit_log(
+            organization=request.organization,
+            actor=request.user,
+            action="STAFF_PASSWORD_RESET",
+            resource_type="OrganizationMembership",
+            resource_id=str(membership.id),
+            metadata={"email": membership.user.email},
+        )
+        return Response({"detail": "Password reset."}, status=HTTP_200_OK)

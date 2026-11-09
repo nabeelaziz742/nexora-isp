@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Handshake, Loader2, LogOut } from "lucide-react";
+import { Handshake, KeyRound, Loader2, LogOut } from "lucide-react";
 
 import ThemeToggle from "@/components/layout/ThemeToggle";
-import { getCurrentSession } from "@/services/auth.service";
+import ChangePasswordModal from "@/components/ui/ChangePasswordModal";
+import { changePassword, getCurrentSession } from "@/services/auth.service";
 import { clearAuthTokens, getAccessToken, getRefreshToken } from "@/services/auth-storage";
 
 const NAV = [
   { href: "/dealer", label: "My Customers" },
+  { href: "/dealer/requests", label: "New Customer" },
   { href: "/dealer/collections", label: "Collections" },
 ];
 
@@ -26,6 +28,7 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const [orgName, setOrgName] = useState("");
   const [ready, setReady] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +80,14 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <button
+              onClick={() => setChangingPassword(true)}
+              aria-label="Change password"
+              title="Change password"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-[#121821] hover:text-slate-200"
+            >
+              <KeyRound className="h-4 w-4" />
+            </button>
+            <button
               onClick={() => {
                 signOut();
                 router.replace("/");
@@ -106,6 +117,9 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-5">{children}</main>
+      {changingPassword && (
+        <ChangePasswordModal onClose={() => setChangingPassword(false)} submit={changePassword} />
+      )}
     </div>
   );
 }

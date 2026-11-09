@@ -406,9 +406,12 @@ export default function LoginPage() {
                 </span>
               </label>
 
-              <span className="text-[11px] text-slate-600">
-                SSL Secured
-              </span>
+              <a
+                href="/forgot-password"
+                className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
+              >
+                Forgot password?
+              </a>
             </div>
 
             {/* Submit Button */}

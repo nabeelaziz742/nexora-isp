@@ -93,3 +93,42 @@ export async function getCurrentSession(): Promise<CurrentSessionResponse> {
 
   return response;
 }
+
+// --- Passwords ---------------------------------------------------------------
+
+export function changePassword(currentPassword: string, newPassword: string) {
+  return apiRequest<{ detail: string }>("/auth/change-password/", {
+    method: "POST",
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<{ detail: string }>("/auth/password-reset/", {
+    method: "POST",
+    body: { email },
+    skipAuth: true,
+  });
+}
+
+export function confirmPasswordReset(uid: string, token: string, newPassword: string) {
+  return apiRequest<{ detail: string }>("/auth/password-reset/confirm/", {
+    method: "POST",
+    body: { uid, token, new_password: newPassword },
+    skipAuth: true,
+  });
+}
+
+export interface OwnerSubscriptionStatus {
+  tracked: boolean;
+  monthly_fee: string;
+  paid_until: string | null;
+  days_left: number | null;
+  lock_date: string | null;
+  show_notice: boolean;
+  payment: { bank_name: string; account_title: string; account_number: string; iban: string };
+}
+
+export function getOwnerSubscription() {
+  return apiRequest<OwnerSubscriptionStatus>("/onboarding/subscription/");
+}

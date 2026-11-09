@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import AppSidebar from "@/components/layout/AppSidebar";
+import SubscriptionNotice from "@/components/layout/SubscriptionNotice";
 import TopCommandBar from "@/components/layout/TopCommandBar";
 import PageLoader from "@/components/ui/PageLoader";
 
@@ -138,6 +139,7 @@ export default function DashboardLayout({
         <TopCommandBar
           onMenuClick={handleToggleSidebar}
         />
+        <SubscriptionNotice />
 
         <main className="nexora-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#070A0F] p-5">
           <div className="mx-auto w-full max-w-[1600px] min-w-0">

@@ -74,7 +74,43 @@ export interface DealerPortalAccess {
   email: string;
 }
 
+export interface DealerRequestRow {
+  id: string;
+  inquiry_number: string;
+  full_name: string;
+  phone: string;
+  area: string;
+  package_name: string;
+  status: string;
+  status_label: string;
+  created_at: string;
+}
+
+export interface DealerRequestPayload {
+  full_name: string;
+  phone: string;
+  alternate_phone?: string;
+  cnic?: string;
+  address_line: string;
+  city: string;
+  area?: string;
+  preferred_package?: string | null;
+  notes?: string;
+}
+
 export const dealerPortalService = {
+  getRequests() {
+    return apiRequest<{
+      results: DealerRequestRow[];
+      packages: { id: string; name: string; monthly_price: string }[];
+      default_city: string;
+    }>("/dealer-portal/requests/");
+  },
+
+  createRequest(payload: DealerRequestPayload) {
+    return apiRequest<DealerRequestRow>("/dealer-portal/requests/", { method: "POST", body: payload });
+  },
+
   getSummary() {
     return apiRequest<DealerSummary>("/dealer-portal/summary/");
   },

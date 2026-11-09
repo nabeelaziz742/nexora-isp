@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from accounts.api.password_views import ChangePasswordSerializer, check_new_password
 from onboarding.models import ISPSubscriptionPayment
 from onboarding.platform_services import (
     MAX_SUBSCRIPTION_MONTHS,
@@ -12,10 +13,15 @@ from onboarding.platform_services import (
     get_platform_dashboard,
     list_isps,
     record_subscription_payment,
+    reset_owner_password,
+    subscription_status_for_owner,
     suspend_isp,
     update_subscription,
 )
 from onboarding.views import IsSuperAdmin
+from tenancy.models import Organization
+from tenancy.permissions import IsOrganizationOwner
+from tenancy.services import record_audit_log
 
 
 class SuperAdminAPIView(APIView):
@@ -96,3 +102,42 @@ class ISPSubscriptionPaymentAPIView(SuperAdminAPIView):
         serializer.is_valid(raise_exception=True)
         record_subscription_payment(organization_id=organization_id, actor=request.user, **serializer.validated_data)
         return Response(get_isp_detail(organization_id), status=status.HTTP_201_CREATED)
+
+
+class ISPOwnerPasswordResetAPIView(SuperAdminAPIView):
+    """Fallback when the owner cannot get the reset email: returns a one-time temporary password."""
+
+    def post(self, request, organization_id):
+        email, password = reset_owner_password(organization_id=organization_id)
+        detail = get_isp_detail(organization_id)
+        record_audit_log(
+            organization=Organization.objects.get(id=organization_id),
+            actor=request.user,
+            action="OWNER_PASSWORD_RESET_BY_PLATFORM",
+            resource_type="User",
+            resource_id=email,
+            metadata={"email": email},
+        )
+        return Response({"email": email, "temporary_password": password, "organization_code": detail["code"]})
+
+
+class SuperAdminChangePasswordAPIView(SuperAdminAPIView):
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not user.check_password(serializer.validated_data["current_password"]):
+            raise serializers.ValidationError({"current_password": ["Current password is incorrect."]})
+        check_new_password(serializer.validated_data["new_password"], user)
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return Response({"detail": "Password changed."})
+
+
+class OwnerSubscriptionStatusAPIView(APIView):
+    """The signed-in ISP owner's own Nexora subscription (for the renewal banner)."""
+
+    permission_classes = [IsOrganizationOwner]
+
+    def get(self, request):
+        return Response(subscription_status_for_owner(request.organization))

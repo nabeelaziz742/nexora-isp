@@ -22,7 +22,12 @@ from rest_framework.views import APIView
 from billing.models import Payment
 from billing.recharge_services import MAX_RECHARGE_MONTHS, recharge_service
 from billing.services import BillingDomainError, record_payment_with_allocations
-from customers.models import BillingProfile, Customer, Dealer, ServiceAccount
+from customers.models import BillingProfile, Customer, Dealer, Inquiry, InternetPackage, ServiceAccount
+from customers.services import (
+    OPEN_INQUIRY_STATUSES,
+    _lock_organization_for_numbering,
+    generate_inquiry_number,
+)
 from customers.suspension_services import calculate_service_outstanding
 from tenancy.models import OrganizationMembership
 from tenancy.permissions import HasActiveTenantContext, IsOrganizationAdminOrOwner
@@ -436,3 +441,127 @@ class DealerCollectionsView(DealerPortalView):
             "results": rows,
         })
 
+
+
+# ---------------------------------------------------------------------------
+# Dealer adds a new customer: it reaches the office as a dealer inquiry
+# ---------------------------------------------------------------------------
+# The office still checks feasibility and creates the PPPoE account, so a
+# dealer request becomes an Inquiry (source DEALER, linked to the dealer).
+# Converting it keeps the dealer on the new customer.
+
+@transaction.atomic
+def create_dealer_customer_request(*, organization, dealer: Dealer, actor, data: dict) -> Inquiry:
+    organization = _lock_organization_for_numbering(organization=organization)
+    phone = data["phone"].strip()
+    open_duplicate = (
+        Inquiry.objects.for_organization(organization)
+        .filter(phone=phone, status__in=OPEN_INQUIRY_STATUSES)
+        .exists()
+    )
+    if open_duplicate or Customer.objects.for_organization(organization).filter(phone=phone).exists():
+        raise ValidationError({"phone": "A customer or open request with this phone number already exists."})
+
+    package = None
+    if data.get("preferred_package"):
+        package = (
+            InternetPackage.objects.for_organization(organization)
+            .filter(id=data["preferred_package"], is_active=True)
+            .first()
+        )
+        if package is None:
+            raise ValidationError({"preferred_package": "Selected package is not available."})
+
+    inquiry = Inquiry.objects.create(
+        organization=organization,
+        inquiry_number=generate_inquiry_number(organization=organization),
+        full_name=data["full_name"].strip(),
+        phone=phone,
+        alternate_phone=data.get("alternate_phone", "").strip(),
+        email=data.get("email", "").strip().lower(),
+        cnic=data.get("cnic", "").strip(),
+        address_line=data["address_line"].strip(),
+        city=data["city"].strip(),
+        area=data.get("area", "").strip(),
+        preferred_package=package,
+        connection_type=data.get("connection_type") or Inquiry.ConnectionType.FIBER,
+        source=Inquiry.Source.DEALER,
+        dealer=dealer,
+        status=Inquiry.Status.NEW,
+        notes=f"Submitted by dealer {dealer.dealer_code} ({dealer.name}). {data.get('notes', '').strip()}".strip(),
+        created_by=actor,
+    )
+    record_audit_log(
+        organization=organization,
+        actor=actor,
+        action="DEALER_CUSTOMER_REQUESTED",
+        resource_type="Inquiry",
+        resource_id=str(inquiry.id),
+        metadata={"inquiry_number": inquiry.inquiry_number, "dealer_code": dealer.dealer_code},
+    )
+    return inquiry
+
+
+class DealerCustomerRequestSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=150)
+    phone = serializers.CharField(max_length=30)
+    alternate_phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
+    cnic = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
+    address_line = serializers.CharField(max_length=500)
+    city = serializers.CharField(max_length=100)
+    area = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    preferred_package = serializers.UUIDField(required=False, allow_null=True)
+    connection_type = serializers.ChoiceField(choices=Inquiry.ConnectionType.choices, required=False)
+    notes = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
+
+
+REQUEST_STATUS_LABELS = {
+    Inquiry.Status.CONVERTED: "Connected",
+    Inquiry.Status.LOST: "Not proceeding",
+    Inquiry.Status.CANCELLED: "Cancelled",
+    Inquiry.Status.NOT_FEASIBLE: "Not possible at this address",
+}
+
+
+def _request_row(inquiry: Inquiry) -> dict:
+    return {
+        "id": str(inquiry.id),
+        "inquiry_number": inquiry.inquiry_number,
+        "full_name": inquiry.full_name,
+        "phone": inquiry.phone,
+        "area": inquiry.area,
+        "package_name": inquiry.preferred_package.name if inquiry.preferred_package else "",
+        "status": inquiry.status,
+        "status_label": REQUEST_STATUS_LABELS.get(inquiry.status, "Pending with office"),
+        "created_at": inquiry.created_at.isoformat(),
+    }
+
+
+class DealerCustomerRequestView(DealerPortalView):
+    def get(self, request):
+        inquiries = (
+            Inquiry.objects.for_organization(request.organization)
+            .filter(dealer=request.dealer)
+            .select_related("preferred_package")
+            .order_by("-created_at")[:200]
+        )
+        packages = InternetPackage.objects.for_organization(request.organization).filter(is_active=True).order_by("monthly_price")
+        return Response({
+            "results": [_request_row(inquiry) for inquiry in inquiries],
+            "packages": [
+                {"id": str(p.id), "name": p.name, "monthly_price": str(p.monthly_price)} for p in packages
+            ],
+            "default_city": request.dealer.city or request.organization.city,
+        })
+
+    def post(self, request):
+        serializer = DealerCustomerRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        inquiry = create_dealer_customer_request(
+            organization=request.organization,
+            dealer=request.dealer,
+            actor=request.user,
+            data=serializer.validated_data,
+        )
+        return Response(_request_row(inquiry), status=status.HTTP_201_CREATED)

@@ -14,6 +14,9 @@ from onboarding.views import (
 
 from onboarding.platform_views import (
     ISPActivateAPIView,
+    ISPOwnerPasswordResetAPIView,
+    OwnerSubscriptionStatusAPIView,
+    SuperAdminChangePasswordAPIView,
     ISPDetailAPIView,
     ISPListAPIView,
     ISPSubscriptionAPIView,
@@ -40,4 +43,7 @@ urlpatterns = [
     path("superadmin/isps/<uuid:organization_id>/activate/", ISPActivateAPIView.as_view(), name="superadmin-isp-activate"),
     path("superadmin/isps/<uuid:organization_id>/subscription/", ISPSubscriptionAPIView.as_view(), name="superadmin-isp-subscription"),
     path("superadmin/isps/<uuid:organization_id>/subscription/payments/", ISPSubscriptionPaymentAPIView.as_view(), name="superadmin-isp-subscription-payment"),
+    path("superadmin/isps/<uuid:organization_id>/reset-owner-password/", ISPOwnerPasswordResetAPIView.as_view(), name="superadmin-isp-reset-owner-password"),
+    path("superadmin/change-password/", SuperAdminChangePasswordAPIView.as_view(), name="superadmin-change-password"),
+    path("subscription/", OwnerSubscriptionStatusAPIView.as_view(), name="owner-subscription-status"),
 ]

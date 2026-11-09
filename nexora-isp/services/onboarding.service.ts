@@ -356,6 +356,8 @@ export type ISPSummary = {
   suspension_kind: "" | "MANUAL" | "EXPIRED";
   suspension_reason: string;
   registration_status: string | null;
+  reminder_stage?: string;
+  reminder_sent_at?: string | null;
 };
 
 export type ISPSubscriptionPayment = {
@@ -450,5 +452,19 @@ export function recordISPPayment(
   return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/subscription/payments/`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function resetISPOwnerPassword(id: string) {
+  return superAdminFetch<{ email: string; temporary_password: string; organization_code: string }>(
+    `/onboarding/superadmin/isps/${id}/reset-owner-password/`,
+    { method: "POST" },
+  );
+}
+
+export function changeSuperAdminPassword(currentPassword: string, newPassword: string) {
+  return superAdminFetch<{ detail: string }>("/onboarding/superadmin/change-password/", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
 }

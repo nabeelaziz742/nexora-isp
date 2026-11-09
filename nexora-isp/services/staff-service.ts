@@ -182,6 +182,13 @@ export const staffService = {
     );
   },
 
+  resetPassword(membershipId: string, newPassword: string): Promise<{ detail: string }> {
+    return apiClient.post<{ detail: string }>(
+      `/tenant/staff/${membershipId}/reset-password/`,
+      { new_password: newPassword },
+    );
+  },
+
   setStatus(
     membershipId: string,
     status: StaffStatus,

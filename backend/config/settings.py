@@ -129,6 +129,7 @@ REST_FRAMEWORK = {
         "login": os.getenv("LOGIN_THROTTLE_RATE", "5/minute"),
         "copilot": os.getenv("COPILOT_THROTTLE_RATE", "10/minute"),
         "public_inquiry": os.getenv("PUBLIC_INQUIRY_THROTTLE_RATE", "5/hour"),
+        "password_reset": os.getenv("PASSWORD_RESET_THROTTLE_RATE", "5/hour"),
     },
 }
 
@@ -186,7 +187,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "billing.tasks.run_suspension_cycle_task",
         "schedule": crontab(hour=19, minute=15),
     },
-    # 19:25 UTC is 00:25 in Pakistan: lock ISPs with long-unpaid subscriptions.
+    # 19:25 UTC is 00:25 in Pakistan: fee reminders, then lock long-unpaid ISPs.
     "daily-enforce-isp-subscriptions": {
         "task": "onboarding.tasks.enforce_isp_subscriptions_task",
         "schedule": crontab(hour=19, minute=25),
@@ -287,6 +288,11 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = _bool_env("EMAIL_USE_TLS", True if (os.getenv("EMAIL_PORT") == "587" or os.getenv("EMAIL_HOST") == "smtp.gmail.com") else False)
 EMAIL_USE_SSL = _bool_env("EMAIL_USE_SSL", False)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", os.getenv("EMAIL_HOST_USER") or "no-reply@nexora.local")
+
+# Public address of the web app, used in emailed links (password reset).
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
+# Password reset links expire after 2 hours.
+PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT_SECONDS", str(2 * 60 * 60)))
 
 # Production security is opt-in through environment variables so local development remains HTTP-friendly.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

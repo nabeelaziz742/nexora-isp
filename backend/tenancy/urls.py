@@ -4,6 +4,7 @@ from tenancy.staff_views import (
     OperatorListView,
     OperatorWorkloadDetailView,
     OrganizationStaffActiveStateView,
+    OrganizationStaffPasswordResetView,
     OrganizationStaffDetailView,
     OrganizationStaffListCreateView,
     OrganizationStaffStatusView,
@@ -56,6 +57,11 @@ urlpatterns = [
         "staff/<uuid:membership_id>/active-state/",
         OrganizationStaffActiveStateView.as_view(),
         name="organization-staff-active-state",
+    ),
+    path(
+        "staff/<uuid:membership_id>/reset-password/",
+        OrganizationStaffPasswordResetView.as_view(),
+        name="organization-staff-reset-password",
     ),
     path(
         "staff/<uuid:membership_id>/status/",
