@@ -1,4 +1,5 @@
 import BillingAutomationSettings from "@/components/settings/BillingAutomationSettings";
+import NexoraSubscriptionSettings from "@/components/settings/NexoraSubscriptionSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import OrganizationSettings from "@/components/settings/OrganizationSettings";
 import StaffRoleManagement from "@/components/settings/StaffRoleManagement";
@@ -22,6 +23,9 @@ export default function SettingsPage() {
 
       {/* Live Organization Profile Settings */}
       <OrganizationSettings />
+
+      {/* Owner's Nexora plan and payment receipts */}
+      <NexoraSubscriptionSettings />
 
       {/* Staff & RBAC Role Management */}
       <StaffRoleManagement />

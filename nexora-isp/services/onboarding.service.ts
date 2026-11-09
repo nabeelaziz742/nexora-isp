@@ -362,6 +362,7 @@ export type ISPSummary = {
 
 export type ISPSubscriptionPayment = {
   id: string;
+  receipt_number: string;
   amount: string;
   months: number;
   period_start: string;
@@ -460,6 +461,31 @@ export function resetISPOwnerPassword(id: string) {
     `/onboarding/superadmin/isps/${id}/reset-owner-password/`,
     { method: "POST" },
   );
+}
+
+/** Saves the PDF receipt of a subscription payment to the user's downloads. */
+export async function downloadSubscriptionReceipt(paymentId: string, fileName: string) {
+  const url = `${API_BASE_URL}/onboarding/superadmin/subscription-payments/${paymentId}/receipt/`;
+  const fetchWith = (token: string | null) =>
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+
+  let response = await fetchWith(localStorage.getItem("nexora_superadmin_access"));
+  if (response.status === 401) {
+    const refreshed = await refreshSuperAdminToken();
+    if (!refreshed) throw new ApiError("Session expired. Please sign in again.", 401);
+    response = await fetchWith(refreshed);
+  }
+  if (!response.ok) throw new ApiError("Unable to download the receipt.", response.status);
+  saveFile(await response.blob(), fileName);
+}
+
+export function saveFile(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(objectUrl);
 }
 
 export function changeSuperAdminPassword(currentPassword: string, newPassword: string) {

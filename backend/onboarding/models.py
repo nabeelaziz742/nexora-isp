@@ -89,6 +89,8 @@ class ISPSubscriptionPayment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey("tenancy.Organization", on_delete=models.CASCADE, related_name="platform_payments")
+    # Printed on the receipt, e.g. NXR-000042; one sequence for the whole platform.
+    receipt_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     months = models.PositiveSmallIntegerField(default=1)
     period_start = models.DateField()

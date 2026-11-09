@@ -1,4 +1,4 @@
-import { apiRequest } from "@/services/api-client";
+import { apiBlob, apiRequest } from "@/services/api-client";
 import { setAuthTokens } from "@/services/auth-storage";
 
 export interface AuthUser {
@@ -127,8 +127,24 @@ export interface OwnerSubscriptionStatus {
   lock_date: string | null;
   show_notice: boolean;
   payment: { bank_name: string; account_title: string; account_number: string; iban: string };
+  payments: OwnerSubscriptionPayment[];
+}
+
+export interface OwnerSubscriptionPayment {
+  id: string;
+  receipt_number: string;
+  amount: string;
+  months: number;
+  period_start: string;
+  period_end: string;
+  method: string;
+  created_at: string;
 }
 
 export function getOwnerSubscription() {
   return apiRequest<OwnerSubscriptionStatus>("/onboarding/subscription/");
+}
+
+export function getOwnerSubscriptionReceipt(paymentId: string) {
+  return apiBlob(`/onboarding/subscription/payments/${paymentId}/receipt/`);
 }

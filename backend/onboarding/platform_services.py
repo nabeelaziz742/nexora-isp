@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 
 from customers.models import Customer, ServiceAccount
 from onboarding.models import ISPRegistration, ISPSubscription, ISPSubscriptionPayment
+from onboarding.receipts import email_receipt, next_receipt_number
 from onboarding.services import get_or_create_payment_settings
 from tenancy.models import Organization, OrganizationMembership
 
@@ -178,6 +179,7 @@ def get_isp_detail(organization_id) -> dict:
         "payments": [
             {
                 "id": str(payment.id),
+                "receipt_number": payment.receipt_number or "",
                 "amount": str(payment.amount),
                 "months": payment.months,
                 "period_start": payment.period_start.isoformat(),
@@ -315,6 +317,7 @@ def record_subscription_payment(*, organization_id, actor, amount, months: int, 
 
     payment = ISPSubscriptionPayment.objects.create(
         organization=organization,
+        receipt_number=next_receipt_number(),
         amount=amount,
         months=months,
         period_start=period_start,
@@ -330,6 +333,8 @@ def record_subscription_payment(*, organization_id, actor, amount, months: int, 
     # A lock caused only by non-payment lifts once the ISP has paid.
     if not organization.is_active and subscription.suspension_kind == ISPSubscription.SuspensionKind.EXPIRED:
         activate_isp(organization_id=organization.id)
+    # Mail the receipt only once the payment is really saved.
+    transaction.on_commit(lambda: email_receipt(payment))
     return payment
 
 
@@ -419,6 +424,19 @@ def subscription_status_for_owner(organization: Organization) -> dict:
             "account_number": settings_obj.account_number,
             "iban": settings_obj.iban,
         },
+        "payments": [
+            {
+                "id": str(payment.id),
+                "receipt_number": payment.receipt_number or "",
+                "amount": str(payment.amount),
+                "months": payment.months,
+                "period_start": payment.period_start.isoformat(),
+                "period_end": payment.period_end.isoformat(),
+                "method": payment.get_method_display(),
+                "created_at": payment.created_at.isoformat(),
+            }
+            for payment in ISPSubscriptionPayment.objects.filter(organization=organization)[:24]
+        ],
     }
 
 

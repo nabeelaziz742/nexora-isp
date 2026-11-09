@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Ban, CheckCircle2, Copy, KeyRound, Loader2, Plus, Save } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, Copy, Download, KeyRound, Loader2, Plus, Save } from "lucide-react";
 
 import {
   ErrorBanner,
@@ -15,6 +15,7 @@ import {
 } from "@/components/superadmin/ui";
 import {
   activateISP,
+  downloadSubscriptionReceipt,
   getISP,
   recordISPPayment,
   resetISPOwnerPassword,
@@ -58,6 +59,18 @@ export default function ISPDetailPage() {
   const [suspendReason, setSuspendReason] = useState("");
   const [showSuspend, setShowSuspend] = useState(false);
   const [ownerReset, setOwnerReset] = useState<{ email: string; temporary_password: string; organization_code: string } | null>(null);
+
+  async function downloadReceipt(paymentId: string, receiptNumber: string) {
+    setBusy(`receipt-${paymentId}`);
+    setError("");
+    try {
+      await downloadSubscriptionReceipt(paymentId, `${receiptNumber || "receipt"}-${isp?.code ?? ""}.pdf`);
+    } catch (err) {
+      handleError(err, "Unable to download the receipt.");
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function resetOwner() {
     if (!window.confirm("Set a new temporary password for this ISP's owner? Their current password stops working.")) return;
@@ -307,26 +320,39 @@ Password: ${ownerReset.temporary_password}`)}
         {isp.payments.length === 0 ? (
           <p className="p-6 text-center text-sm text-slate-500">No payments recorded yet.</p>
         ) : (
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wider text-slate-500">
               <tr>
+                <th className="px-5 py-2">Receipt</th>
                 <th className="px-5 py-2">Recorded</th>
                 <th className="px-5 py-2">Amount</th>
                 <th className="px-5 py-2">Period</th>
                 <th className="px-5 py-2">Method</th>
                 <th className="px-5 py-2">Reference</th>
                 <th className="px-5 py-2">By</th>
+                <th className="px-5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1C2431]">
               {isp.payments.map((p) => (
                 <tr key={p.id}>
+                  <td className="px-5 py-2 font-mono text-xs text-slate-300">{p.receipt_number || "—"}</td>
                   <td className="px-5 py-2 text-slate-400">{formatDate(p.created_at)}</td>
                   <td className="px-5 py-2 text-slate-200">{formatPKR(p.amount)}</td>
                   <td className="px-5 py-2 text-slate-300">{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
                   <td className="px-5 py-2 text-slate-300">{METHODS.find((m) => m.value === p.method)?.label ?? p.method}</td>
                   <td className="px-5 py-2 text-slate-400">{p.reference || "—"}</td>
                   <td className="px-5 py-2 text-slate-400">{p.recorded_by || "System"}</td>
+                  <td className="px-5 py-2 text-right">
+                    <button
+                      onClick={() => void downloadReceipt(p.id, p.receipt_number)}
+                      disabled={busy === `receipt-${p.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#263142] px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/10 disabled:opacity-50"
+                    >
+                      {busy === `receipt-${p.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      PDF
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

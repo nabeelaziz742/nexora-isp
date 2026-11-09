@@ -1,4 +1,5 @@
 """Super admin APIs for the platform: dashboard, ISPs, subscriptions."""
+from django.http import Http404, HttpResponse
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +19,7 @@ from onboarding.platform_services import (
     suspend_isp,
     update_subscription,
 )
+from onboarding.receipts import build_receipt_pdf, receipt_filename
 from onboarding.views import IsSuperAdmin
 from tenancy.models import Organization
 from tenancy.permissions import IsOrganizationOwner
@@ -141,3 +143,34 @@ class OwnerSubscriptionStatusAPIView(APIView):
 
     def get(self, request):
         return Response(subscription_status_for_owner(request.organization))
+
+
+def _receipt_response(payment: ISPSubscriptionPayment) -> HttpResponse:
+    response = HttpResponse(build_receipt_pdf(payment), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{receipt_filename(payment)}"'
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+class SubscriptionReceiptAPIView(SuperAdminAPIView):
+    def get(self, request, payment_id):
+        payment = ISPSubscriptionPayment.objects.select_related("organization", "recorded_by").filter(id=payment_id).first()
+        if payment is None:
+            raise Http404
+        return _receipt_response(payment)
+
+
+class OwnerSubscriptionReceiptAPIView(APIView):
+    """The ISP owner downloads a receipt for one of their own subscription payments."""
+
+    permission_classes = [IsOrganizationOwner]
+
+    def get(self, request, payment_id):
+        payment = (
+            ISPSubscriptionPayment.objects.select_related("organization", "recorded_by")
+            .filter(id=payment_id, organization=request.organization)
+            .first()
+        )
+        if payment is None:
+            raise Http404
+        return _receipt_response(payment)
