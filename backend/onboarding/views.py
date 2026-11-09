@@ -12,6 +12,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from onboarding.models import ISPRegistration, PaymentSettings
+from onboarding.platform_services import start_first_subscription
 from onboarding.serializers import (
     ISPRegistrationSerializer,
     PaymentSettingsSerializer,
@@ -176,6 +177,7 @@ class SuperAdminRegistrationDetailAPIView(APIView):
             return Response({"detail": "Registration not found."}, status=status.HTTP_404_NOT_FOUND)
         if action == "approve":
             registration = approve_registration(registration=registration, admin_user=request.user)
+            start_first_subscription(registration=registration, actor=request.user)
             try:
                 send_mail(
                     subject="Nexora ISP account activated",

@@ -12,6 +12,7 @@ export type PaymentSettings = {
   iban: string;
   amount: string;
   instructions: string;
+  subscription_grace_days?: number;
   is_active: boolean;
 };
 
@@ -330,4 +331,124 @@ export async function getReceiptObjectUrl(
   if (!response.ok) throw new Error("Unable to load receipt.");
   const blob = await response.blob();
   return URL.createObjectURL(blob);
+}
+
+// --- Super admin: platform overview ------------------------------------------
+
+export type ISPStatus = "ACTIVE" | "EXPIRING" | "OVERDUE" | "SUSPENDED" | "PENDING" | "REJECTED";
+
+export type ISPSummary = {
+  id: string;
+  name: string;
+  code: string;
+  city: string;
+  is_active: boolean;
+  status: ISPStatus;
+  owner_name: string;
+  owner_email: string;
+  customer_count: number;
+  active_service_count: number;
+  staff_count: number;
+  joined_at: string;
+  monthly_fee: string;
+  paid_until: string | null;
+  days_left: number | null;
+  suspension_kind: "" | "MANUAL" | "EXPIRED";
+  suspension_reason: string;
+  registration_status: string | null;
+};
+
+export type ISPSubscriptionPayment = {
+  id: string;
+  amount: string;
+  months: number;
+  period_start: string;
+  period_end: string;
+  method: string;
+  reference: string;
+  notes: string;
+  recorded_by: string;
+  created_at: string;
+};
+
+export type ISPDetail = ISPSummary & {
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  suspended_at: string | null;
+  new_customers_this_month: number;
+  suspended_service_count: number;
+  registration: { status: string; amount_due: string; verified_at: string | null } | null;
+  payments: ISPSubscriptionPayment[];
+};
+
+export type PlatformDashboard = {
+  total_isps: number;
+  active_isps: number;
+  suspended_isps: number;
+  expiring_soon: number;
+  overdue: number;
+  pending_verification: number;
+  pending_payment: number;
+  rejected: number;
+  new_isps_this_month: number;
+  total_customers: number;
+  total_active_services: number;
+  monthly_recurring_revenue: string;
+  collected_this_month: string;
+  grace_days: number;
+  attention: ISPSummary[];
+  recent_isps: ISPSummary[];
+};
+
+export function getPlatformDashboard() {
+  return superAdminFetch<PlatformDashboard>("/onboarding/superadmin/dashboard/", { method: "GET" });
+}
+
+export function getISPs(filters: { search?: string; status?: string; subscription?: string } = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return superAdminFetch<{ count: number; results: ISPSummary[] }>(
+    `/onboarding/superadmin/isps/${query}`,
+    { method: "GET" },
+  );
+}
+
+export function getISP(id: string) {
+  return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/`, { method: "GET" });
+}
+
+export function suspendISP(id: string, reason: string) {
+  return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/suspend/`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function activateISP(id: string) {
+  return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/activate/`, { method: "POST" });
+}
+
+export function updateISPSubscription(
+  id: string,
+  payload: { monthly_fee?: string; paid_until?: string | null; notes?: string },
+) {
+  return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/subscription/`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordISPPayment(
+  id: string,
+  payload: { amount: string; months: number; method: string; reference?: string; notes?: string },
+) {
+  return superAdminFetch<ISPDetail>(`/onboarding/superadmin/isps/${id}/subscription/payments/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

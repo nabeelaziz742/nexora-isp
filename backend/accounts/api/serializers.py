@@ -53,6 +53,20 @@ class TenantLoginSerializer(serializers.Serializer):
                 )
             )
         except OrganizationMembership.DoesNotExist:
+            if OrganizationMembership.objects.filter(
+                user=user,
+                organization__code=organization_code,
+                organization__is_active=False,
+                organization__platform_subscription__suspended_at__isnull=False,
+            ).exists():
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "This ISP account is suspended. "
+                            "Please contact Nexora support."
+                        )
+                    }
+                )
             raise serializers.ValidationError(
                 {
                     "detail": (

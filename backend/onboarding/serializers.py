@@ -43,7 +43,7 @@ class RejectRegistrationSerializer(serializers.Serializer):
 class PaymentSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentSettings
-        fields = ("id", "bank_name", "account_title", "account_number", "iban", "amount", "instructions", "is_active")
+        fields = ("id", "bank_name", "account_title", "account_number", "iban", "amount", "instructions", "subscription_grace_days", "is_active")
         read_only_fields = ("id",)
 
 

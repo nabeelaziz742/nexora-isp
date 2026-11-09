@@ -186,6 +186,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "billing.tasks.run_suspension_cycle_task",
         "schedule": crontab(hour=19, minute=15),
     },
+    # 19:25 UTC is 00:25 in Pakistan: lock ISPs with long-unpaid subscriptions.
+    "daily-enforce-isp-subscriptions": {
+        "task": "onboarding.tasks.enforce_isp_subscriptions_task",
+        "schedule": crontab(hour=19, minute=25),
+    },
     "process-pending-provisioning": {
         "task": "network.tasks.process_pending_provisioning_task",
         "schedule": 60.0,

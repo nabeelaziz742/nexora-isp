@@ -13,6 +13,7 @@ from billing.services import (
 )
 from customers.models import BillingProfile
 from customers.suspension_services import run_daily_suspension_cycle
+from onboarding.platform_services import enforce_subscription_expiry
 from tenancy.models import Organization
 
 
@@ -67,6 +68,15 @@ class Command(BaseCommand):
             as_of_date = timezone.localdate()
 
         organization_code = options["organization_code"].strip()
+
+        # Platform-wide: lock ISPs whose Nexora subscription is long overdue
+        # before running their tenant jobs.
+        if not organization_code:
+            lock_result = enforce_subscription_expiry(today=as_of_date)
+            self.stdout.write(
+                self.style.SUCCESS(f"ISP subscriptions: locked={lock_result['locked_count']}")
+            )
+
         organizations = Organization.objects.filter(
             is_active=True
         ).order_by("code")
