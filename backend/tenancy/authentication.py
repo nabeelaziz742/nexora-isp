@@ -1,7 +1,9 @@
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from tenancy.models import OrganizationMembership
+
+DEALER_ALLOWED_PREFIXES = ("/api/v1/dealer-portal/", "/api/v1/auth/")
 
 
 class TenantJWTAuthentication(JWTAuthentication):
@@ -35,6 +37,13 @@ class TenantJWTAuthentication(JWTAuthentication):
             raise AuthenticationFailed(
                 "Active tenant membership is no longer valid."
             )
+
+        # Dealer tokens work only on the dealer portal and session endpoints,
+        # even for views that only check IsAuthenticated.
+        if membership.role == OrganizationMembership.Role.DEALER and not request.path.startswith(
+            DEALER_ALLOWED_PREFIXES
+        ):
+            raise PermissionDenied("Dealer accounts can only use the dealer portal.")
 
         request.organization = membership.organization
         request.organization_membership = membership

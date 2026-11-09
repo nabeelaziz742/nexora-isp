@@ -122,7 +122,9 @@ export default function LoginPage() {
       }
 
       // Role-aware initial routing
-      if (result.role === "TECHNICIAN") {
+      if (result.role === "DEALER") {
+        router.replace("/dealer");
+      } else if (result.role === "TECHNICIAN") {
         router.replace("/field-operations");
       } else {
         router.replace("/command-center");

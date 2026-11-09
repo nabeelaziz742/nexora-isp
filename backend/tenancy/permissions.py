@@ -17,6 +17,10 @@ def get_effective_role(request) -> str:
     if membership.role == OrganizationMembership.Role.OWNER:
         return StaffProfile.Role.OWNER
 
+    # Dealers are never staff, whatever profile might exist.
+    if membership.role == OrganizationMembership.Role.DEALER:
+        return OrganizationMembership.Role.DEALER
+
     profile = getattr(membership, "profile", None)
     if profile is None:
         try:
@@ -58,6 +62,10 @@ class HasActiveTenantContext(BasePermission):
             return False
 
         if membership.role != role:
+            return False
+
+        # Dealer logins only reach views that opt in (the dealer portal).
+        if role == OrganizationMembership.Role.DEALER and not getattr(view, "allow_dealer", False):
             return False
 
         return True

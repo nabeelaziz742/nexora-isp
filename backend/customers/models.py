@@ -258,6 +258,15 @@ class Dealer(TenantScopedModel):
         blank=True,
     )
 
+    # Login for the dealer portal; null until the ISP creates one.
+    portal_membership = models.OneToOneField(
+        "tenancy.OrganizationMembership",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dealer_account",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import DealerPortalAccess from "@/components/dealers/DealerPortalAccess";
 import Skeleton from "@/components/ui/Skeleton";
 import ErrorState from "@/components/ui/ErrorState";
 import { dealersService, type Dealer360Data } from "@/services/dealers.service";
@@ -122,6 +123,7 @@ export default function Dealer360Page() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <DealerPortalAccess dealerId={dealerId} />
           <button
             onClick={handleToggleStatus}
             disabled={toggling}

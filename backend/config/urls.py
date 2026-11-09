@@ -26,6 +26,10 @@ urlpatterns = [
         include("customers.urls"),
     ),
     path(
+        "api/v1/dealer-portal/",
+        include("customers.dealer_portal_urls"),
+    ),
+    path(
         "api/v1/network/",
         include("network.urls"),
     ),

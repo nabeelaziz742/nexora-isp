@@ -74,12 +74,14 @@ html.light .border-red-900\/30:not(.keep-dark, .keep-dark *) { border-color: var
 html.light .border-red-900\/40:not(.keep-dark, .keep-dark *) { border-color: var(--color-red-200); }
 html.light .border-red-900\/60:not(.keep-dark, .keep-dark *) { border-color: var(--color-red-200); }
 html.light .border-red-950:not(.keep-dark, .keep-dark *) { border-color: var(--color-red-200); }
+html.light .border-slate-600:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-300); }
 html.light .border-slate-700:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-300); }
 html.light .border-slate-800:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-200); }
 html.light .border-slate-800\/40:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-200); }
 html.light .border-slate-800\/80:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-200); }
 html.light .border-zinc-800:not(.keep-dark, .keep-dark *) { border-color: var(--color-slate-200); }
 html.light .divide-\[\#182131\]:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: #E2E8F0; }
+html.light .divide-\[\#1C2431\]:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: #E2E8F0; }
 html.light .divide-\[\#202938\]:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: #E2E8F0; }
 html.light .divide-slate-800:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: var(--color-slate-200); }
 html.light .divide-slate-800\/40:not(.keep-dark, .keep-dark *) > :not(:last-child) { border-color: var(--color-slate-200); }
@@ -116,6 +118,7 @@ html.light .hover\:bg-slate-800\/30:not(.keep-dark, .keep-dark *):hover { backgr
 html.light .hover\:bg-slate-800\/40:not(.keep-dark, .keep-dark *):hover { background-color: var(--color-slate-100); }
 html.light .hover\:bg-slate-900:not(.keep-dark, .keep-dark *):hover { background-color: #FFFFFF; }
 html.light .hover\:border-\[\#202938\]:not(.keep-dark, .keep-dark *):hover { border-color: #E2E8F0; }
+html.light .hover\:border-\[\#263142\]:not(.keep-dark, .keep-dark *):hover { border-color: #CBD5E1; }
 html.light .hover\:border-\[\#303E55\]:not(.keep-dark, .keep-dark *):hover { border-color: #94A3B8; }
 html.light .hover\:border-slate-600:not(.keep-dark, .keep-dark *):hover { border-color: var(--color-slate-300); }
 html.light .hover\:border-slate-700:not(.keep-dark, .keep-dark *):hover { border-color: var(--color-slate-300); }

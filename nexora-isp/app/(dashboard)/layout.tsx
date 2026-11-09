@@ -57,7 +57,13 @@ export default function DashboardLayout({
       }
 
       try {
-        await getCurrentSession();
+        const session = await getCurrentSession();
+
+        // Dealer logins have their own portal; the staff workspace is closed to them.
+        if (session.role === "DEALER") {
+          router.replace("/dealer");
+          return;
+        }
 
         if (active) {
           setSessionReady(true);

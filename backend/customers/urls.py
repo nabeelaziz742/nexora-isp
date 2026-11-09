@@ -35,6 +35,7 @@ from customers.views import (
     InternetPackageListView,
     InternetPackageStatusToggleView,
 )
+from customers.dealer_portal import DealerPortalAccessView
 from customers.suspension_views import (
     AutomatedSuspensionRunView,
     ManualServiceRestoreView,
@@ -237,6 +238,11 @@ urlpatterns = [
         "dealers/<uuid:dealer_id>/status/",
         DealerStatusToggleView.as_view(),
         name="dealer-status-toggle",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/portal-access/",
+        DealerPortalAccessView.as_view(),
+        name="dealer-portal-access",
     ),
     path(
         "dealers/<uuid:dealer_id>/360/",

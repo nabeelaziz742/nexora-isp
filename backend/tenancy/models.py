@@ -74,6 +74,8 @@ class OrganizationMembership(models.Model):
         OWNER = "OWNER", "Owner"
         STAFF = "STAFF", "Staff"
         TECHNICIAN = "TECHNICIAN", "Technician"
+        # A dealer's portal login: limited to /api/v1/dealer-portal/.
+        DEALER = "DEALER", "Dealer"
 
     id = models.UUIDField(
         primary_key=True,
