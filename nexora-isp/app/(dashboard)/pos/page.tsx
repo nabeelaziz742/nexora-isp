@@ -682,9 +682,12 @@ export default function PosTerminalPage() {
             <div id="printable-receipt" className="space-y-4">
               <div className="text-center border-b border-slate-800 pb-3 print:border-black">
                 <h2 className="text-lg font-bold tracking-tight text-slate-100 print:text-black uppercase">
-                  NEXORA ISP HARDWARE
+                  {completedSale.organization_name}
                 </h2>
-                <p className="text-xs text-slate-400 print:text-black">Sales & Counter Receipt</p>
+                <p className="text-xs text-slate-400 print:text-black">Hardware Sales Receipt</p>
+                {completedSale.organization_phone && (
+                  <p className="text-[11px] text-slate-400 print:text-black">{completedSale.organization_phone}</p>
+                )}
                 <p className="font-mono text-xs text-emerald-400 print:text-black mt-1">
                   Sale #: {completedSale.sale_number}
                 </p>
@@ -767,7 +770,7 @@ export default function PosTerminalPage() {
               </div>
 
               <div className="text-center pt-2 text-[10px] text-slate-500 print:text-black">
-                Thank you for your business with Nexora ISP!
+                Thank you for your business with {completedSale.organization_name}!
               </div>
             </div>
 

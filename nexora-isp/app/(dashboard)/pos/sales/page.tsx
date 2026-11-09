@@ -350,9 +350,12 @@ export default function PosSalesRegisterPage() {
             <div id="reprint-receipt" className="space-y-4">
               <div className="text-center border-b border-slate-800 pb-3 print:border-black">
                 <h2 className="text-lg font-bold uppercase tracking-tight text-slate-100 print:text-black">
-                  NEXORA ISP HARDWARE
+                  {selectedReceiptSale.organization_name}
                 </h2>
-                <p className="text-xs text-slate-400 print:text-black">Sales Receipt (Duplicate)</p>
+                <p className="text-xs text-slate-400 print:text-black">Hardware Sales Receipt (Duplicate)</p>
+                {selectedReceiptSale.organization_phone && (
+                  <p className="text-[11px] text-slate-400 print:text-black">{selectedReceiptSale.organization_phone}</p>
+                )}
                 <p className="font-mono text-xs text-emerald-400 print:text-black mt-1">
                   Sale #: {selectedReceiptSale.sale_number}
                 </p>

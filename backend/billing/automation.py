@@ -313,7 +313,7 @@ def queue_invoice_generated_notification(
         event_type="BILL_GENERATED",
         subject=f"Invoice {invoice.invoice_number}",
         message=(
-            f"Your NEXORA internet invoice "
+            f"Your {organization.name} invoice "
             f"{invoice.invoice_number} has been generated. "
             f"Total amount is PKR "
             f"{invoice.total_amount:.2f} and due date is "

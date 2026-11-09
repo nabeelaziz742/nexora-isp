@@ -512,7 +512,7 @@ class PosSaleListView(APIView):
         sales = (
             PosSale.objects
             .for_organization(request.organization)
-            .select_related("customer", "sold_by", "cancelled_by", "journal_entry")
+            .select_related("organization", "customer", "sold_by", "cancelled_by", "journal_entry")
             .prefetch_related("items", "items__item", "items__device")
         )
 
@@ -589,7 +589,7 @@ class PosSaleListView(APIView):
         reloaded = (
             PosSale.objects
             .for_organization(request.organization)
-            .select_related("customer", "sold_by", "cancelled_by", "journal_entry")
+            .select_related("organization", "customer", "sold_by", "cancelled_by", "journal_entry")
             .prefetch_related("items", "items__item", "items__device")
             .get(id=sale.id)
         )
@@ -605,7 +605,7 @@ class PosSaleDetailView(APIView):
             sale = (
                 PosSale.objects
                 .for_organization(request.organization)
-                .select_related("customer", "sold_by", "cancelled_by", "journal_entry")
+                .select_related("organization", "customer", "sold_by", "cancelled_by", "journal_entry")
                 .prefetch_related("items", "items__item", "items__device")
                 .get(id=sale_id)
             )
@@ -635,7 +635,7 @@ class PosSaleCancelView(APIView):
         reloaded = (
             PosSale.objects
             .for_organization(request.organization)
-            .select_related("customer", "sold_by", "cancelled_by", "journal_entry")
+            .select_related("organization", "customer", "sold_by", "cancelled_by", "journal_entry")
             .prefetch_related("items", "items__item", "items__device")
             .get(id=sale.id)
         )

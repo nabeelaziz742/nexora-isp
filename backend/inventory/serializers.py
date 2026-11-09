@@ -282,6 +282,9 @@ class PosSaleItemSerializer(serializers.ModelSerializer):
 
 class PosSaleSerializer(serializers.ModelSerializer):
     items = PosSaleItemSerializer(many=True, read_only=True)
+    # Printed on the customer's receipt: the ISP's own name, never the platform's.
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_phone = serializers.CharField(source="organization.phone", read_only=True)
     customer_name = serializers.SerializerMethodField()
     customer_phone = serializers.SerializerMethodField()
     sold_by_name = serializers.CharField(source="sold_by.get_full_name", read_only=True, default="Staff")
@@ -292,6 +295,8 @@ class PosSaleSerializer(serializers.ModelSerializer):
         model = PosSale
         fields = [
             "id",
+            "organization_name",
+            "organization_phone",
             "sale_number",
             "customer",
             "customer_name",

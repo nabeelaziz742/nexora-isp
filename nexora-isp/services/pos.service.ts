@@ -26,6 +26,8 @@ export type PosSaleItem = {
 
 export type PosSale = {
   id: string;
+  organization_name: string;
+  organization_phone: string;
   sale_number: string;
   customer: string | null;
   customer_name: string;

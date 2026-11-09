@@ -431,3 +431,20 @@ class Batch12InventoryPosTests(TestCase):
             "payment_method": "CASH",
         }, format="json")
         self.assertEqual(res_sale.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_pos_receipt_carries_each_isps_own_name(self):
+        """The printed receipt shows the selling ISP's name, never the platform's or another ISP's."""
+        self.org_a.phone = "042-111-222"
+        self.org_a.save(update_fields=["phone"])
+        res = self.client_a.post("/api/v1/pos/sales/", {
+            "walk_in_customer_name": "Counter Buyer",
+            "items": [{"item_id": str(self.item_router.id), "quantity": "1", "unit_price": "6500.00"}],
+            "payment_method": "CASH",
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["organization_name"], "Nexora Prime")
+        self.assertEqual(res.data["organization_phone"], "042-111-222")
+
+        detail = self.client_a.get(f"/api/v1/pos/sales/{res.data['id']}/")
+        self.assertEqual(detail.data["organization_name"], "Nexora Prime")
+        self.assertNotIn("Other Net", str(detail.data))
