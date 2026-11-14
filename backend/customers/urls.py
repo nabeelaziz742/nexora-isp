@@ -35,6 +35,7 @@ from customers.views import (
     InternetPackageListView,
     InternetPackageStatusToggleView,
 )
+from customers.dealer_cash import OfficeDealerCashView, OfficeEmployeeCashReceivedView
 from customers.dealer_portal import DealerPortalAccessView
 from customers.suspension_views import (
     AutomatedSuspensionRunView,
@@ -243,6 +244,16 @@ urlpatterns = [
         "dealers/<uuid:dealer_id>/portal-access/",
         DealerPortalAccessView.as_view(),
         name="dealer-portal-access",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/employee-cash/",
+        OfficeDealerCashView.as_view(),
+        name="dealer-employee-cash",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/employees/<uuid:employee_id>/cash-received/",
+        OfficeEmployeeCashReceivedView.as_view(),
+        name="dealer-employee-cash-received",
     ),
     path(
         "dealers/<uuid:dealer_id>/360/",

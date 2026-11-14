@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Search, Wallet, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import { useDealerMe } from "@/components/dealers/DealerMeContext";
+import { handoverText } from "@/components/dealers/EmployeeCashList";
 import { ApiError } from "@/services/api-error";
 import {
   dealerPortalService,
@@ -49,9 +50,18 @@ type Card = { label: string; value: string | number; hint: string; tone?: string
 
 // Money cards appear only when the summary includes them (employees may not see them).
 function summaryCards(summary: DealerSummary): Card[] {
-  const cards: Card[] = [
-    { label: "Customers", value: summary.total_customers, hint: `${summary.active_connections} active` },
-  ];
+  const cards: Card[] = [];
+  // An employee's own cash: what they collected and still have to hand over.
+  if (summary.me.cash_in_hand !== undefined) {
+    const last = summary.me.last_cash_handover;
+    cards.push({
+      label: "Cash in hand",
+      value: pkr(summary.me.cash_in_hand),
+      hint: last ? `Last: ${handoverText(last)}` : "Hand this over to your dealer or the ISP office",
+      tone: "text-amber-400",
+    });
+  }
+  cards.push({ label: "Customers", value: summary.total_customers, hint: `${summary.active_connections} active` });
   if (summary.total_outstanding !== undefined) {
     cards.push({ label: "Due from customers", value: pkr(summary.total_outstanding), hint: `${summary.expiring_in_3_days} expiring in 3 days`, tone: "text-amber-400" });
   }

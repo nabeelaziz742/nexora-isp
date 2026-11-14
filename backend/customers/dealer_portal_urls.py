@@ -1,5 +1,6 @@
 from django.urls import path
 
+from customers.dealer_cash import DealerCashView, DealerEmployeeCashReceivedView
 from customers.dealer_employees import (
     DealerEmployeeDetailView,
     DealerEmployeeListView,
@@ -29,4 +30,10 @@ urlpatterns = [
         DealerEmployeePasswordView.as_view(),
         name="dealer-portal-employee-password",
     ),
+    path(
+        "employees/<uuid:employee_id>/cash-received/",
+        DealerEmployeeCashReceivedView.as_view(),
+        name="dealer-portal-employee-cash-received",
+    ),
+    path("cash/", DealerCashView.as_view(), name="dealer-portal-cash"),
 ]

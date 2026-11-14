@@ -1341,3 +1341,66 @@ class DealerEmployee(TenantScopedModel):
 
     def __str__(self):
         return f"{self.membership.user.get_full_name() or self.membership.user.email} ({self.dealer.dealer_code})"
+
+class DealerCashHandover(TenantScopedModel):
+    """Cash an employee handed over: to their dealer, or to the ISP office.
+
+    An employee's cash in hand is everything they collected minus these
+    handovers, so recording one brings their balance back to zero.
+    """
+
+    class ReceivedBy(models.TextChoices):
+        DEALER = "DEALER", "Dealer"
+        ISP = "ISP", "ISP office"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="cash_handovers",
+    )
+
+    employee = models.ForeignKey(
+        DealerEmployee,
+        on_delete=models.CASCADE,
+        related_name="cash_handovers",
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dealer_cash_received",
+    )
+
+    received_by_type = models.CharField(
+        max_length=10,
+        choices=ReceivedBy.choices,
+    )
+
+    notes = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_cash_handover"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.amount} from {self.employee_id} ({self.received_by_type})"

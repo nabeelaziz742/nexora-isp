@@ -352,6 +352,11 @@ class DealerSummaryView(DealerPortalView):
         }
         # Commission is the dealer's own business; money totals need the collections right.
         if employee is not None:
+            from customers.dealer_cash import employee_cash_in_hand, handover_history
+
+            data["me"]["cash_in_hand"] = str(employee_cash_in_hand(employee))
+            last = handover_history(employee)[:1]
+            data["me"]["last_cash_handover"] = last[0] if last else None
             data["dealer"].pop("commission_rate")
             data["dealer"].pop("commission_type")
             data.pop("commission_this_month")

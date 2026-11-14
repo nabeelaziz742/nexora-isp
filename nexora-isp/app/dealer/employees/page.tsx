@@ -5,6 +5,7 @@ import { KeyRound, Loader2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { useDealerMe } from "@/components/dealers/DealerMeContext";
+import EmployeeCashList from "@/components/dealers/EmployeeCashList";
 import { ApiError } from "@/services/api-error";
 import {
   dealerPortalService,
@@ -233,6 +234,14 @@ export default function DealerEmployeesPage() {
           </div>
         </form>
       )}
+
+      <div className="mb-4">
+        <EmployeeCashList
+          load={dealerPortalService.getTeamCash}
+          receive={dealerPortalService.receiveEmployeeCash}
+          receiverLabel="Cash received"
+        />
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>

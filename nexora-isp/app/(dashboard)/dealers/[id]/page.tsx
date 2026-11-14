@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 
 import DealerPortalAccess from "@/components/dealers/DealerPortalAccess";
+import EmployeeCashList from "@/components/dealers/EmployeeCashList";
+import { dealerPortalService } from "@/services/dealer-portal.service";
 import Skeleton from "@/components/ui/Skeleton";
 import ErrorState from "@/components/ui/ErrorState";
 import { dealersService, type Dealer360Data } from "@/services/dealers.service";
@@ -39,6 +41,12 @@ export default function Dealer360Page() {
       setLoading(false);
     }
   }, [dealerId]);
+
+  const loadEmployeeCash = useCallback(() => dealerPortalService.getDealerEmployeeCash(dealerId), [dealerId]);
+  const receiveEmployeeCash = useCallback(
+    (employeeId: string) => dealerPortalService.officeReceiveEmployeeCash(dealerId, employeeId),
+    [dealerId],
+  );
 
   useEffect(() => {
     if (dealerId) {
@@ -144,6 +152,13 @@ export default function Dealer360Page() {
           </button>
         </div>
       </div>
+
+      {/* Cash the dealer's employees collected and have not handed over */}
+      <EmployeeCashList
+        load={loadEmployeeCash}
+        receive={receiveEmployeeCash}
+        receiverLabel="Received at office"
+      />
 
       {/* KPI Metrics Strip */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">

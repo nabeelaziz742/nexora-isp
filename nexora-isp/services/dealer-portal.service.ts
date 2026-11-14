@@ -10,10 +10,41 @@ export interface DealerRights {
   can_view_collections: boolean;
 }
 
+export interface DealerCashHandover {
+  id: string;
+  amount: string;
+  received_by_type: "DEALER" | "ISP";
+  received_by: string;
+  notes: string;
+  created_at: string;
+}
+
 export interface DealerMe {
   is_dealer: boolean;
   name: string;
   rights: DealerRights;
+  // Employees only: cash collected and not yet handed over.
+  cash_in_hand?: string;
+  last_cash_handover?: DealerCashHandover | null;
+}
+
+export interface EmployeeCashRow {
+  employee_id: string;
+  name: string;
+  phone: string;
+  is_active: boolean;
+  cash_in_hand: string;
+  last_handover: DealerCashHandover | null;
+}
+
+export interface EmployeeCashTeam {
+  total_cash_in_hand: string;
+  results: EmployeeCashRow[];
+}
+
+export interface CashReceivedResult {
+  handover: DealerCashHandover;
+  employee: EmployeeCashRow;
 }
 
 // Money and commission fields are left out for employees who may not see them.
@@ -208,6 +239,22 @@ export const dealerPortalService = {
     });
   },
 
+  // Dealer: every employee's cash in hand. (An employee gets their own instead.)
+  getTeamCash() {
+    return apiRequest<EmployeeCashTeam>("/dealer-portal/cash/");
+  },
+
+  getMyCash() {
+    return apiRequest<{ cash_in_hand: string; history: DealerCashHandover[] }>("/dealer-portal/cash/");
+  },
+
+  receiveEmployeeCash(employeeId: string, notes = "") {
+    return apiRequest<CashReceivedResult>(`/dealer-portal/employees/${employeeId}/cash-received/`, {
+      method: "POST",
+      body: { notes },
+    });
+  },
+
   // Owner / admin side, from the Dealers page.
   getAccess(dealerId: string) {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`);
@@ -218,6 +265,17 @@ export const dealerPortalService = {
       method: "POST",
       body: payload,
     });
+  },
+
+  getDealerEmployeeCash(dealerId: string) {
+    return apiRequest<EmployeeCashTeam>(`/customers/dealers/${dealerId}/employee-cash/`);
+  },
+
+  officeReceiveEmployeeCash(dealerId: string, employeeId: string, notes = "") {
+    return apiRequest<CashReceivedResult>(
+      `/customers/dealers/${dealerId}/employees/${employeeId}/cash-received/`,
+      { method: "POST", body: { notes } },
+    );
   },
 
   revokeAccess(dealerId: string) {
