@@ -1281,3 +1281,63 @@ class CustomerImportBatch(TenantScopedModel):
 
     def __str__(self):
         return f"{self.file_name} ({self.imported_count}/{self.total_rows})"
+
+
+class DealerEmployee(TenantScopedModel):
+    """A person working for a dealer (collector, counter staff) with their own portal login.
+
+    The dealer decides what each employee may do; the dealer's own login always
+    has every right.
+    """
+
+    RIGHTS = (
+        "can_view_customers",
+        "can_collect_payments",
+        "can_recharge",
+        "can_request_customers",
+        "can_view_collections",
+    )
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="employees",
+    )
+
+    membership = models.OneToOneField(
+        "tenancy.OrganizationMembership",
+        on_delete=models.CASCADE,
+        related_name="dealer_employee",
+    )
+
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    can_view_customers = models.BooleanField(default=True)
+    can_collect_payments = models.BooleanField(default=True)
+    can_recharge = models.BooleanField(default=False)
+    can_request_customers = models.BooleanField(default=False)
+    can_view_collections = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_employee"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.membership.user.get_full_name() or self.membership.user.email} ({self.dealer.dealer_code})"

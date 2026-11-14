@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
+import { useDealerMe } from "@/components/dealers/DealerMeContext";
 import { ApiError } from "@/services/api-error";
 import { dealerPortalService, type DealerCollections } from "@/services/dealer-portal.service";
 
@@ -22,6 +23,7 @@ function currentMonth() {
 }
 
 export default function DealerCollectionsPage() {
+  const me = useDealerMe();
   const [month, setMonth] = useState(currentMonth);
   const [data, setData] = useState<DealerCollections | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,9 @@ export default function DealerCollectionsPage() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Collections</h1>
-          <p className="text-sm text-slate-400">Payments from your customers, and your commission.</p>
+          <p className="text-sm text-slate-400">
+            {me.is_dealer ? "Payments from your customers, who collected them, and your commission." : "Payments you collected."}
+          </p>
         </div>
         <input
           type="month"
@@ -62,17 +66,31 @@ export default function DealerCollectionsPage() {
       {error && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
 
       {data && (
-        <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className={`mb-4 grid gap-2 ${data.commission !== undefined ? "grid-cols-3" : "grid-cols-2"}`}>
           {[
-            { label: "Total collected", value: data.total_collected, tone: "text-white" },
+            { label: me.is_dealer ? "Total collected" : "Collected", value: data.total_collected, tone: "text-white" },
             { label: "Collected by you", value: data.collected_by_me, tone: "text-emerald-400" },
-            { label: "Commission", value: data.commission, tone: "text-blue-400" },
+            ...(data.commission !== undefined ? [{ label: "Commission", value: data.commission, tone: "text-blue-400" }] : []),
           ].map((card) => (
             <div key={card.label} className="rounded-xl border border-[#1C2431] bg-[#0D1117] p-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{card.label}</p>
               <p className={`mt-1 text-base font-bold sm:text-lg ${card.tone}`}>{pkr(card.value)}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {data && me.is_dealer && data.by_person.length > 1 && (
+        <div className="mb-4 rounded-xl border border-[#1C2431] bg-[#0D1117] p-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Collected by</p>
+          <ul className="space-y-1">
+            {data.by_person.map((person) => (
+              <li key={person.name} className="flex justify-between text-sm">
+                <span className="text-slate-300">{person.name}</span>
+                <span className="font-semibold text-white">{pkr(person.total)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -92,7 +110,7 @@ export default function DealerCollectionsPage() {
                   {row.paid_at ? new Date(row.paid_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—"}
                   {" · "}{METHOD_LABEL[row.payment_method] ?? row.payment_method}
                   {" · "}{row.payment_number}
-                  {row.collected_by_me ? " · by you" : " · by office"}
+                  {row.collected_by_me ? " · by you" : ` · by ${row.collected_by}`}
                 </p>
               </div>
               <p className={`shrink-0 text-sm font-bold ${row.is_reversed ? "text-slate-500 line-through" : "text-emerald-400"}`}>

@@ -2,13 +2,29 @@ import { apiRequest } from "@/services/api-client";
 
 export type DealerPaymentMethod = "CASH" | "MOBILE_WALLET" | "BANK_TRANSFER";
 
+export interface DealerRights {
+  can_view_customers: boolean;
+  can_collect_payments: boolean;
+  can_recharge: boolean;
+  can_request_customers: boolean;
+  can_view_collections: boolean;
+}
+
+export interface DealerMe {
+  is_dealer: boolean;
+  name: string;
+  rights: DealerRights;
+}
+
+// Money and commission fields are left out for employees who may not see them.
 export interface DealerSummary {
+  me: DealerMe;
   dealer: {
     name: string;
     company_name: string;
     dealer_code: string;
-    commission_type: "PERCENTAGE" | "FLAT_PER_USER";
-    commission_rate: string;
+    commission_type?: "PERCENTAGE" | "FLAT_PER_USER";
+    commission_rate?: string;
   };
   organization_name: string;
   month: string;
@@ -16,10 +32,10 @@ export interface DealerSummary {
   active_connections: number;
   suspended_connections: number;
   expiring_in_3_days: number;
-  total_outstanding: string;
-  collected_this_month: string;
+  total_outstanding?: string;
+  collected_this_month?: string;
   collected_by_me_this_month: string;
-  commission_this_month: string;
+  commission_this_month?: string;
 }
 
 export interface DealerCustomerRow {
@@ -58,14 +74,37 @@ export interface DealerCollectionRow {
   reference: string;
   is_reversed: boolean;
   collected_by_me: boolean;
+  collected_by: string;
 }
 
 export interface DealerCollections {
   month: string;
   total_collected: string;
   collected_by_me: string;
-  commission: string;
+  commission?: string;
+  by_person: { name: string; total: string }[];
   results: DealerCollectionRow[];
+}
+
+export interface DealerEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  is_active: boolean;
+  rights: DealerRights;
+  created_at: string;
+}
+
+export interface DealerEmployeePayload {
+  first_name: string;
+  last_name?: string;
+  phone?: string;
+  email: string;
+  password: string;
+  rights: DealerRights;
 }
 
 export interface DealerPortalAccess {
@@ -142,6 +181,31 @@ export const dealerPortalService = {
 
   getCollections(month?: string) {
     return apiRequest<DealerCollections>(`/dealer-portal/collections/${month ? `?month=${month}` : ""}`);
+  },
+
+  // The dealer's own employees (dealer login only).
+  getEmployees() {
+    return apiRequest<{ results: DealerEmployee[]; max_employees: number }>("/dealer-portal/employees/");
+  },
+
+  createEmployee(payload: DealerEmployeePayload) {
+    return apiRequest<DealerEmployee>("/dealer-portal/employees/", { method: "POST", body: payload });
+  },
+
+  updateEmployee(
+    id: string,
+    payload: Partial<Pick<DealerEmployee, "first_name" | "last_name" | "phone" | "is_active">> & {
+      rights?: Partial<DealerRights>;
+    },
+  ) {
+    return apiRequest<DealerEmployee>(`/dealer-portal/employees/${id}/`, { method: "PATCH", body: payload });
+  },
+
+  resetEmployeePassword(id: string, password: string) {
+    return apiRequest<{ detail: string }>(`/dealer-portal/employees/${id}/password/`, {
+      method: "POST",
+      body: { password },
+    });
   },
 
   // Owner / admin side, from the Dealers page.

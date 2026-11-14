@@ -22,7 +22,15 @@ from rest_framework.views import APIView
 from billing.models import Payment
 from billing.recharge_services import MAX_RECHARGE_MONTHS, recharge_service
 from billing.services import BillingDomainError, record_payment_with_allocations
-from customers.models import BillingProfile, Customer, Dealer, Inquiry, InternetPackage, ServiceAccount
+from customers.models import (
+    BillingProfile,
+    Customer,
+    Dealer,
+    DealerEmployee,
+    Inquiry,
+    InternetPackage,
+    ServiceAccount,
+)
 from customers.services import (
     OPEN_INQUIRY_STATUSES,
     _lock_organization_for_numbering,
@@ -173,6 +181,13 @@ class DealerPortalAccessView(APIView):
 # ---------------------------------------------------------------------------
 
 class IsActiveDealer(HasActiveTenantContext):
+    """The dealer's own login, or one of the dealer's employees.
+
+    Sets request.dealer, and request.dealer_employee (None for the dealer).
+    Views list the rights they need in required_rights (any one is enough);
+    the dealer always has all of them. dealer_owner_only views refuse employees.
+    """
+
     message = "An active dealer account is required."
 
     def has_permission(self, request, view):
@@ -180,20 +195,53 @@ class IsActiveDealer(HasActiveTenantContext):
             return False
         if request.organization_role != OrganizationMembership.Role.DEALER:
             return False
+        membership = request.organization_membership
+        employee = None
         dealer = (
             Dealer.objects.for_organization(request.organization)
-            .filter(portal_membership=request.organization_membership)
+            .filter(portal_membership=membership)
             .first()
         )
-        if dealer is None or dealer.status != Dealer.Status.ACTIVE:
+        if dealer is None:
+            employee = (
+                DealerEmployee.objects.for_organization(request.organization)
+                .select_related("dealer__portal_membership")
+                .filter(membership=membership)
+                .first()
+            )
+            if employee is None:
+                return False
+            dealer = employee.dealer
+            # Turning off the dealer's own login also locks out their employees.
+            owner_login = dealer.portal_membership
+            if owner_login is None or not owner_login.is_active:
+                return False
+        if dealer.status != Dealer.Status.ACTIVE:
             return False
         request.dealer = dealer
+        request.dealer_employee = employee
+        if employee is None:
+            return True
+
+        if getattr(view, "dealer_owner_only", False):
+            self.message = "Only the dealer can do this."
+            return False
+        required = getattr(view, "required_rights", ())
+        if required and not any(getattr(employee, right) for right in required):
+            self.message = "You do not have permission for this. Ask your dealer."
+            return False
         return True
 
 
 class DealerPortalView(APIView):
     allow_dealer = True
     permission_classes = [IsActiveDealer]
+    required_rights: tuple[str, ...] = ()
+
+
+def dealer_rights(request) -> dict:
+    employee = getattr(request, "dealer_employee", None)
+    return {right: True if employee is None else getattr(employee, right) for right in DealerEmployee.RIGHTS}
 
 
 def _month_bounds(month: str | None) -> tuple[date, date]:
@@ -258,6 +306,8 @@ def _service_row(service: ServiceAccount, today: date) -> dict:
 class DealerSummaryView(DealerPortalView):
     def get(self, request):
         dealer = request.dealer
+        employee = request.dealer_employee
+        rights = dealer_rights(request)
         today = timezone.localdate()
         start, end = _month_bounds(None)
         services = list(_dealer_services(request))
@@ -276,7 +326,12 @@ class DealerSummaryView(DealerPortalView):
             outstanding += calculate_service_outstanding(svc)[0]
             if svc.expiry_date and 0 <= (svc.expiry_date - today).days <= 3:
                 expiring += 1
-        return Response({
+        data = {
+            "me": {
+                "is_dealer": employee is None,
+                "name": request.user.get_full_name() or request.user.email,
+                "rights": rights,
+            },
             "dealer": {
                 "name": dealer.name,
                 "company_name": dealer.company_name,
@@ -294,10 +349,22 @@ class DealerSummaryView(DealerPortalView):
             "collected_this_month": str(collected),
             "collected_by_me_this_month": str(by_me),
             "commission_this_month": str(_commission(dealer, collected, active)),
-        })
+        }
+        # Commission is the dealer's own business; money totals need the collections right.
+        if employee is not None:
+            data["dealer"].pop("commission_rate")
+            data["dealer"].pop("commission_type")
+            data.pop("commission_this_month")
+            if not rights["can_view_collections"]:
+                data.pop("total_outstanding")
+                data.pop("collected_this_month")
+        return Response(data)
 
 
 class DealerCustomerListView(DealerPortalView):
+    # Collecting or recharging needs the list to pick the customer from.
+    required_rights = ("can_view_customers", "can_collect_payments", "can_recharge")
+
     def get(self, request):
         today = timezone.localdate()
         services = _dealer_services(request).order_by("customer__first_name", "service_number")
@@ -342,13 +409,21 @@ def _receipt(payment: Payment) -> dict:
     }
 
 
+def _collector_label(request) -> str:
+    if request.dealer_employee is None:
+        return f"dealer {request.dealer.dealer_code}"
+    return f"{request.user.get_full_name() or request.user.email} for dealer {request.dealer.dealer_code}"
+
+
 class DealerCollectPaymentView(DealerPortalView):
+    required_rights = ("can_collect_payments",)
+
     def post(self, request, service_id):
         service = _get_dealer_service(request, service_id)
         serializer = DealerPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        notes = f"Collected by dealer {request.dealer.dealer_code}. {data['notes']}".strip()
+        notes = f"Collected by {_collector_label(request)}. {data['notes']}".strip()
         try:
             payment = record_payment_with_allocations(
                 organization=request.organization,
@@ -369,6 +444,8 @@ class DealerCollectPaymentView(DealerPortalView):
 
 
 class DealerRechargeView(DealerPortalView):
+    required_rights = ("can_recharge",)
+
     def post(self, request, service_id):
         service = _get_dealer_service(request, service_id)
         profile = getattr(service, "billing_profile", None)
@@ -385,7 +462,7 @@ class DealerRechargeView(DealerPortalView):
                 months=data["months"],
                 payment_method=data["payment_method"],
                 reference=data["reference"],
-                notes=f"Recharged by dealer {request.dealer.dealer_code}.",
+                notes=f"Recharged by {_collector_label(request)}.",
             )
         except BillingDomainError as exc:
             raise ValidationError({"detail": str(exc)}) from exc
@@ -402,8 +479,11 @@ class DealerRechargeView(DealerPortalView):
 
 
 class DealerCollectionsView(DealerPortalView):
+    required_rights = ("can_view_collections",)
+
     def get(self, request):
         start, end = _month_bounds(request.query_params.get("month"))
+        employee = request.dealer_employee
         payments = (
             Payment.objects.for_organization(request.organization)
             .filter(
@@ -414,6 +494,9 @@ class DealerCollectionsView(DealerPortalView):
             .select_related("service_account__customer", "received_by")
             .order_by("-paid_at")
         )
+        # An employee sees only what they collected; the dealer sees everything.
+        if employee is not None:
+            payments = payments.filter(received_by=request.user)
         rows = [
             {
                 "payment_id": str(p.id),
@@ -426,18 +509,34 @@ class DealerCollectionsView(DealerPortalView):
                 "reference": p.reference,
                 "is_reversed": p.is_reversed,
                 "collected_by_me": p.received_by_id == request.user.id,
+                "collected_by": (p.received_by.get_full_name() or p.received_by.email) if p.received_by else "Office",
             }
             for p in payments[:500]
         ]
         valid = [row for row in rows if not row["is_reversed"]]
         total = sum((Decimal(row["amount"]) for row in valid), Decimal("0.00"))
         mine = sum((Decimal(row["amount"]) for row in valid if row["collected_by_me"]), Decimal("0.00"))
+        if employee is not None:
+            return Response({
+                "month": start.strftime("%Y-%m"),
+                "total_collected": str(total),
+                "collected_by_me": str(mine),
+                "by_person": [],
+                "results": rows,
+            })
+        by_person: dict[str, Decimal] = {}
+        for row in valid:
+            by_person[row["collected_by"]] = by_person.get(row["collected_by"], Decimal("0.00")) + Decimal(row["amount"])
         active = _dealer_services(request).filter(status=ServiceAccount.Status.ACTIVE).count()
         return Response({
             "month": start.strftime("%Y-%m"),
             "total_collected": str(total),
             "collected_by_me": str(mine),
             "commission": str(_commission(request.dealer, total, active)),
+            "by_person": [
+                {"name": name, "total": str(amount)}
+                for name, amount in sorted(by_person.items(), key=lambda item: -item[1])
+            ],
             "results": rows,
         })
 
@@ -539,6 +638,8 @@ def _request_row(inquiry: Inquiry) -> dict:
 
 
 class DealerCustomerRequestView(DealerPortalView):
+    required_rights = ("can_request_customers",)
+
     def get(self, request):
         inquiries = (
             Inquiry.objects.for_organization(request.organization)

@@ -5,15 +5,19 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Handshake, KeyRound, Loader2, LogOut } from "lucide-react";
 
+import { DealerMeContext, canSeeCustomers } from "@/components/dealers/DealerMeContext";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import ChangePasswordModal from "@/components/ui/ChangePasswordModal";
 import { changePassword, getCurrentSession } from "@/services/auth.service";
 import { clearAuthTokens, getAccessToken, getRefreshToken } from "@/services/auth-storage";
+import { dealerPortalService, type DealerMe } from "@/services/dealer-portal.service";
 
-const NAV = [
-  { href: "/dealer", label: "My Customers" },
-  { href: "/dealer/requests", label: "New Customer" },
-  { href: "/dealer/collections", label: "Collections" },
+// Each tab shows only when the signed-in person may use it.
+const NAV: { href: string; label: string; show: (me: DealerMe) => boolean }[] = [
+  { href: "/dealer", label: "My Customers", show: () => true },
+  { href: "/dealer/requests", label: "New Customer", show: (me) => me.rights.can_request_customers },
+  { href: "/dealer/collections", label: "Collections", show: (me) => me.rights.can_view_collections },
+  { href: "/dealer/employees", label: "Employees", show: (me) => me.is_dealer },
 ];
 
 function signOut() {
@@ -27,6 +31,7 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const pathname = usePathname();
   const [orgName, setOrgName] = useState("");
+  const [me, setMe] = useState<DealerMe | null>(null);
   const [ready, setReady] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
@@ -46,6 +51,9 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
           return;
         }
         setOrgName(session.organization.name);
+        const summary = await dealerPortalService.getSummary();
+        if (!active) return;
+        setMe(summary.me);
         setReady(true);
       } catch {
         signOut();
@@ -58,7 +66,7 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
     };
   }, [router]);
 
-  if (!ready) {
+  if (!ready || !me) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#070A0F]">
         <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
@@ -74,7 +82,10 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
             <Handshake className="h-5 w-5 shrink-0 text-blue-400" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-white">Dealer Portal</p>
-              <p className="truncate text-[11px] text-slate-500">{orgName}</p>
+              <p className="truncate text-[11px] text-slate-500">
+                {orgName}
+                {!me.is_dealer && ` · ${me.name}`}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -100,7 +111,7 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 px-4">
-          {NAV.map((item) => {
+          {NAV.filter((item) => item.show(me)).map((item) => {
             const active = item.href === "/dealer" ? pathname === "/dealer" : pathname.startsWith(item.href);
             return (
               <Link
@@ -116,7 +127,17 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-5">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-5">
+        <DealerMeContext.Provider value={me}>
+          {pathname === "/dealer" && !canSeeCustomers(me.rights) ? (
+            <div className="rounded-xl border border-[#1C2431] bg-[#0D1117] p-8 text-center text-sm text-slate-400">
+              Welcome, {me.name}. Use the tabs above for the work your dealer has given you.
+            </div>
+          ) : (
+            children
+          )}
+        </DealerMeContext.Provider>
+      </main>
       {changingPassword && (
         <ChangePasswordModal onClose={() => setChangingPassword(false)} submit={changePassword} />
       )}

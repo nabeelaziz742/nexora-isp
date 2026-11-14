@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, Search, Wallet, Zap } from "lucide-react";
 import { toast } from "sonner";
 
+import { useDealerMe } from "@/components/dealers/DealerMeContext";
 import { ApiError } from "@/services/api-error";
 import {
   dealerPortalService,
@@ -44,7 +45,29 @@ function expiryText(row: DealerCustomerRow) {
 
 type Action = { kind: "collect" | "recharge"; row: DealerCustomerRow } | null;
 
+type Card = { label: string; value: string | number; hint: string; tone?: string };
+
+// Money cards appear only when the summary includes them (employees may not see them).
+function summaryCards(summary: DealerSummary): Card[] {
+  const cards: Card[] = [
+    { label: "Customers", value: summary.total_customers, hint: `${summary.active_connections} active` },
+  ];
+  if (summary.total_outstanding !== undefined) {
+    cards.push({ label: "Due from customers", value: pkr(summary.total_outstanding), hint: `${summary.expiring_in_3_days} expiring in 3 days`, tone: "text-amber-400" });
+  }
+  if (summary.collected_this_month !== undefined) {
+    cards.push({ label: "Collected this month", value: pkr(summary.collected_this_month), hint: `${pkr(summary.collected_by_me_this_month)} by you`, tone: "text-emerald-400" });
+  } else {
+    cards.push({ label: "Collected by you", value: pkr(summary.collected_by_me_this_month), hint: "This month", tone: "text-emerald-400" });
+  }
+  if (summary.commission_this_month !== undefined) {
+    cards.push({ label: "My commission", value: pkr(summary.commission_this_month), hint: "This month, estimated", tone: "text-blue-400" });
+  }
+  return cards;
+}
+
 export default function DealerHomePage() {
+  const me = useDealerMe();
   const [summary, setSummary] = useState<DealerSummary | null>(null);
   const [rows, setRows] = useState<DealerCustomerRow[]>([]);
   const [search, setSearch] = useState("");
@@ -128,20 +151,19 @@ export default function DealerHomePage() {
       {summary && (
         <div className="mb-5">
           <p className="text-sm text-slate-400">Assalam o Alaikum,</p>
-          <h1 className="text-xl font-bold text-white">{summary.dealer.name}</h1>
+          <h1 className="text-xl font-bold text-white">{me.is_dealer ? summary.dealer.name : me.name}</h1>
           <p className="text-xs text-slate-500">
-            {summary.dealer.dealer_code} · Commission{" "}
-            {summary.dealer.commission_type === "PERCENTAGE"
-              ? `${Number(summary.dealer.commission_rate)}% of collections`
-              : `${pkr(summary.dealer.commission_rate)} per active customer`}
+            {summary.dealer.dealer_code}
+            {me.is_dealer
+              ? ` · Commission ${
+                  summary.dealer.commission_type === "PERCENTAGE"
+                    ? `${Number(summary.dealer.commission_rate)}% of collections`
+                    : `${pkr(summary.dealer.commission_rate ?? 0)} per active customer`
+                }`
+              : ` · Working for ${summary.dealer.name}`}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[
-              { label: "Customers", value: summary.total_customers, hint: `${summary.active_connections} active` },
-              { label: "Due from customers", value: pkr(summary.total_outstanding), hint: `${summary.expiring_in_3_days} expiring in 3 days`, tone: "text-amber-400" },
-              { label: "Collected this month", value: pkr(summary.collected_this_month), hint: `${pkr(summary.collected_by_me_this_month)} by you`, tone: "text-emerald-400" },
-              { label: "My commission", value: pkr(summary.commission_this_month), hint: "This month, estimated", tone: "text-blue-400" },
-            ].map((card) => (
+            {summaryCards(summary).map((card) => (
               <div key={card.label} className="rounded-xl border border-[#1C2431] bg-[#0D1117] p-3.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{card.label}</p>
                 <p className={`mt-1.5 text-lg font-bold ${card.tone ?? "text-white"}`}>{card.value}</p>
@@ -217,14 +239,16 @@ export default function DealerHomePage() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => open("collect", row)}
-                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500"
-                  >
-                    <Wallet className="h-4 w-4" /> Collect
-                  </button>
-                  {row.billing_mode === "PREPAID" && (
+                <div className="mt-3 flex gap-2 empty:hidden">
+                  {me.rights.can_collect_payments && (
+                    <button
+                      onClick={() => open("collect", row)}
+                      className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500"
+                    >
+                      <Wallet className="h-4 w-4" /> Collect
+                    </button>
+                  )}
+                  {row.billing_mode === "PREPAID" && me.rights.can_recharge && (
                     <button
                       onClick={() => open("recharge", row)}
                       className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-500"
