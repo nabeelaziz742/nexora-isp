@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 
+import ExpenseRequestsLink from "@/components/dealers/ExpenseRequestsLink";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
@@ -229,6 +230,7 @@ export default function DealersPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <ExpenseRequestsLink />
           <button
             onClick={() => fetchDealers()}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"

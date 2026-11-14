@@ -42,6 +42,34 @@ export interface EmployeeCashTeam {
   results: EmployeeCashRow[];
 }
 
+export type ExpenseCategory = "BIKE" | "FOOD" | "OTHER";
+export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface DealerExpense {
+  id: string;
+  dealer_name: string;
+  dealer_code: string;
+  employee_id: string;
+  employee_name: string;
+  category: ExpenseCategory;
+  category_label: string;
+  amount: string;
+  spent_on: string;
+  description: string;
+  status: ExpenseStatus;
+  reviewed_by: string;
+  reviewed_at: string | null;
+  review_note: string;
+  created_at: string;
+}
+
+export interface DealerExpensePayload {
+  category: ExpenseCategory;
+  amount: string;
+  spent_on: string;
+  description?: string;
+}
+
 export interface CashReceivedResult {
   handover: DealerCashHandover;
   employee: EmployeeCashRow;
@@ -255,6 +283,15 @@ export const dealerPortalService = {
     });
   },
 
+  // Employee: own expense requests. Dealer: every employee's (read only).
+  getExpenses() {
+    return apiRequest<{ results: DealerExpense[] }>("/dealer-portal/expenses/");
+  },
+
+  requestExpense(payload: DealerExpensePayload) {
+    return apiRequest<DealerExpense>("/dealer-portal/expenses/", { method: "POST", body: payload });
+  },
+
   // Owner / admin side, from the Dealers page.
   getAccess(dealerId: string) {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`);
@@ -276,6 +313,19 @@ export const dealerPortalService = {
       `/customers/dealers/${dealerId}/employees/${employeeId}/cash-received/`,
       { method: "POST", body: { notes } },
     );
+  },
+
+  getOfficeExpenses(status: "" | ExpenseStatus = "") {
+    return apiRequest<{ counts: Record<ExpenseStatus, number>; results: DealerExpense[] }>(
+      `/customers/dealer-expenses/${status ? `?status=${status}` : ""}`,
+    );
+  },
+
+  reviewExpense(expenseId: string, decision: "APPROVE" | "REJECT", note = "") {
+    return apiRequest<DealerExpense>(`/customers/dealer-expenses/${expenseId}/review/`, {
+      method: "POST",
+      body: { decision, note },
+    });
   },
 
   revokeAccess(dealerId: string) {

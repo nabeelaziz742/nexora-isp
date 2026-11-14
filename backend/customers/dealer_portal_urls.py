@@ -1,6 +1,7 @@
 from django.urls import path
 
 from customers.dealer_cash import DealerCashView, DealerEmployeeCashReceivedView
+from customers.dealer_expenses import DealerExpenseView
 from customers.dealer_employees import (
     DealerEmployeeDetailView,
     DealerEmployeeListView,
@@ -36,4 +37,5 @@ urlpatterns = [
         name="dealer-portal-employee-cash-received",
     ),
     path("cash/", DealerCashView.as_view(), name="dealer-portal-cash"),
+    path("expenses/", DealerExpenseView.as_view(), name="dealer-portal-expenses"),
 ]

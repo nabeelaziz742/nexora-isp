@@ -1404,3 +1404,91 @@ class DealerCashHandover(TenantScopedModel):
 
     def __str__(self):
         return f"{self.amount} from {self.employee_id} ({self.received_by_type})"
+
+class DealerEmployeeExpense(TenantScopedModel):
+    """Money a dealer's employee spent on the job (bike repair, food, ...).
+
+    The employee asks; the ISP approves or rejects. An approved expense comes
+    off the employee's cash in hand, because it was paid from that cash.
+    """
+
+    class Category(models.TextChoices):
+        BIKE = "BIKE", "Bike repair / fuel"
+        FOOD = "FOOD", "Food & drinks"
+        OTHER = "OTHER", "Other"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="employee_expenses",
+    )
+
+    employee = models.ForeignKey(
+        DealerEmployee,
+        on_delete=models.CASCADE,
+        related_name="expenses",
+    )
+
+    category = models.CharField(
+        max_length=10,
+        choices=Category.choices,
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    spent_on = models.DateField()
+
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dealer_expenses_reviewed",
+    )
+
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    review_note = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_employee_expense"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_category_display()} {self.amount} ({self.status})"

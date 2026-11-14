@@ -36,6 +36,7 @@ from customers.views import (
     InternetPackageStatusToggleView,
 )
 from customers.dealer_cash import OfficeDealerCashView, OfficeEmployeeCashReceivedView
+from customers.dealer_expenses import OfficeExpenseListView, OfficeExpenseReviewView
 from customers.dealer_portal import DealerPortalAccessView
 from customers.suspension_views import (
     AutomatedSuspensionRunView,
@@ -225,6 +226,16 @@ urlpatterns = [
         name="feasibility-detail",
     ),
     # Dealers / Sub-ISPs
+    path(
+        "dealer-expenses/",
+        OfficeExpenseListView.as_view(),
+        name="dealer-expense-list",
+    ),
+    path(
+        "dealer-expenses/<uuid:expense_id>/review/",
+        OfficeExpenseReviewView.as_view(),
+        name="dealer-expense-review",
+    ),
     path(
         "dealers/",
         DealerListCreateView.as_view(),

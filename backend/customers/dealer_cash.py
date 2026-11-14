@@ -1,7 +1,8 @@
 """Cash in hand: what a dealer's employee collected and has not handed over yet.
 
 Every payment an employee records adds to their cash in hand; reversing it
-takes it back off. When the employee hands the money over, to their dealer or
+takes it back off, and so does an expense the ISP approved (it was paid
+from that cash). When the employee hands the money over, to their dealer or
 to the ISP office, a DealerCashHandover is recorded for the full balance and
 the employee is back at zero. Nothing is ever edited or deleted, so the
 history shows who received how much and when.
@@ -18,7 +19,7 @@ from rest_framework.views import APIView
 from billing.models import Payment
 from customers.dealer_employees import DealerOwnerView
 from customers.dealer_portal import DealerPortalView, _get_dealer
-from customers.models import DealerCashHandover, DealerEmployee
+from customers.models import DealerCashHandover, DealerEmployee, DealerEmployeeExpense
 from tenancy.permissions import IsOrganizationAdminOrOwner
 from tenancy.services import record_audit_log
 
@@ -42,7 +43,13 @@ def employee_cash_in_hand(employee: DealerEmployee) -> Decimal:
         .aggregate(total=Sum("amount"))["total"]
         or Decimal("0.00")
     )
-    return collected - handed_over
+    approved_expenses = (
+        DealerEmployeeExpense.objects.for_organization(employee.organization_id)
+        .filter(employee=employee, status=DealerEmployeeExpense.Status.APPROVED)
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    return collected - handed_over - approved_expenses
 
 
 def handover_row(handover: DealerCashHandover) -> dict:

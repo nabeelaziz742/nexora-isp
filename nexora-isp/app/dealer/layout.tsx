@@ -17,6 +17,7 @@ const NAV: { href: string; label: string; show: (me: DealerMe) => boolean }[] = 
   { href: "/dealer", label: "My Customers", show: () => true },
   { href: "/dealer/requests", label: "New Customer", show: (me) => me.rights.can_request_customers },
   { href: "/dealer/collections", label: "Collections", show: (me) => me.rights.can_view_collections },
+  { href: "/dealer/expenses", label: "Expenses", show: () => true },
   { href: "/dealer/employees", label: "Employees", show: (me) => me.is_dealer },
 ];
 
