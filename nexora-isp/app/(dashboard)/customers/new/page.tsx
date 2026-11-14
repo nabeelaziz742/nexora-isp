@@ -24,7 +24,7 @@ export default function NewCustomerPage() {
         </h2>
 
         <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-          Provision a subscriber, assign network access and configure billing.
+          Fill the details below and press Activate Service.
         </p>
       </div>
 
