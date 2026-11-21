@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { useDealerMe } from "@/components/dealers/DealerMeContext";
 import { handoverText } from "@/components/dealers/EmployeeCashList";
+import { payoutHint } from "@/components/dealers/payout";
 import { ApiError } from "@/services/api-error";
 import {
   dealerPortalService,
@@ -70,8 +71,15 @@ function summaryCards(summary: DealerSummary): Card[] {
   } else {
     cards.push({ label: "Collected by you", value: pkr(summary.collected_by_me_this_month), hint: "This month", tone: "text-emerald-400" });
   }
-  if (summary.commission_this_month !== undefined) {
-    cards.push({ label: "My commission", value: pkr(summary.commission_this_month), hint: "This month, estimated", tone: "text-blue-400" });
+  // A sub dealer is paid by their dealer, so there is no ISP payout to show.
+  if (summary.commission_this_month !== undefined && !summary.parent_dealer_name) {
+    const monthly = summary.payout?.basis === "MONTHLY_SLAB";
+    cards.push({
+      label: monthly ? "Monthly payout" : "My commission",
+      value: pkr(summary.commission_this_month),
+      hint: summary.payout ? payoutHint(summary.payout) : "This month, estimated",
+      tone: "text-blue-400",
+    });
   }
   return cards;
 }
@@ -164,13 +172,17 @@ export default function DealerHomePage() {
           <h1 className="text-xl font-bold text-white">{me.is_dealer ? summary.dealer.name : me.name}</h1>
           <p className="text-xs text-slate-500">
             {summary.dealer.dealer_code}
-            {me.is_dealer
-              ? ` · Commission ${
-                  summary.dealer.commission_type === "PERCENTAGE"
-                    ? `${Number(summary.dealer.commission_rate)}% of collections`
-                    : `${pkr(summary.dealer.commission_rate ?? 0)} per active customer`
-                }`
-              : ` · Working for ${summary.dealer.name}`}
+            {!me.is_dealer
+              ? ` · Working for ${summary.dealer.name}`
+              : summary.parent_dealer_name
+                ? ` · Sub dealer of ${summary.parent_dealer_name}`
+                : summary.dealer.commission_type === "MONTHLY_SLAB"
+                  ? " · Paid monthly by active users"
+                  : ` · Commission ${
+                      summary.dealer.commission_type === "PERCENTAGE"
+                        ? `${Number(summary.dealer.commission_rate)}% of collections`
+                        : `${pkr(summary.dealer.commission_rate ?? 0)} per active customer`
+                    }`}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             {summaryCards(summary).map((card) => (

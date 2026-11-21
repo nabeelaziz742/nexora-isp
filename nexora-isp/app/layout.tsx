@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import PublicThemeToggle from "@/components/layout/PublicThemeToggle";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body className={`${geistSans.className} min-h-screen bg-[var(--background)] font-sans text-[var(--foreground)] antialiased`}>
         <ThemeProvider>
           {children}
+          <PublicThemeToggle />
           <Toaster richColors position="top-right" closeButton />
         </ThemeProvider>
       </body>

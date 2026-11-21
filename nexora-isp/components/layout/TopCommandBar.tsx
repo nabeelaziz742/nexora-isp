@@ -358,7 +358,7 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
     <>
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-[#202938] bg-[#0D1117] px-3.5 lg:px-5">
         {/* Left side: Menu toggle + Breadcrumbs */}
-        <div className="flex flex-wrap min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <button
             type="button"
             onClick={onMenuClick}
@@ -370,17 +370,18 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
           </button>
 
           {/* Dynamic Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-xs">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
 
               return (
-                <div key={index} className="flex items-center gap-1.5">
+                // Phones show only the current page; the full trail from sm up.
+                <div key={index} className={`${isLast ? "flex min-w-0" : "hidden sm:flex"} items-center gap-1.5`}>
                   {index > 0 && (
-                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" />
+                    <ChevronRight className="hidden h-3 w-3 shrink-0 text-slate-600 sm:block" />
                   )}
                   {isLast ? (
-                    <span className="font-semibold text-slate-100 truncate max-w-[200px] sm:max-w-xs">
+                    <span className="font-semibold text-slate-100 truncate max-w-[150px] sm:max-w-xs">
                       {crumb.label}
                     </span>
                   ) : crumb.href ? (
@@ -421,7 +422,7 @@ export default function TopCommandBar({ onMenuClick }: TopCommandBarProps) {
         </div>
 
         {/* Right side: Notifications + Search on mobile + User Profile */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {/* Mobile search button */}
           <button
             type="button"

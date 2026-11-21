@@ -68,15 +68,15 @@ export default function EmployeeCashList({
   return (
     <section className="rounded-xl border border-[#1C2431] bg-[#0D1117]">
       <div className="flex items-center justify-between gap-3 border-b border-[#1C2431] px-4 py-3">
-        <div>
+        <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
             <HandCoins className="h-4 w-4 text-amber-400" /> Cash with employees
           </p>
           <p className="text-xs text-slate-500">Money collected from customers and not handed over yet.</p>
         </div>
-        <p className="text-right">
+        <p className="shrink-0 text-right">
           <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total</span>
-          <span className="text-lg font-bold text-amber-400">{pkr(team.total_cash_in_hand)}</span>
+          <span className="whitespace-nowrap text-lg font-bold text-amber-400">{pkr(team.total_cash_in_hand)}</span>
         </p>
       </div>
       <ul className="divide-y divide-[#1C2431]">
@@ -94,7 +94,7 @@ export default function EmployeeCashList({
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-bold ${hasCash ? "text-amber-400" : "text-slate-500"}`}>{pkr(row.cash_in_hand)}</span>
+                <span className={`whitespace-nowrap text-sm font-bold ${hasCash ? "text-amber-400" : "text-slate-500"}`}>{pkr(row.cash_in_hand)}</span>
                 <button
                   onClick={() => markReceived(row.employee_id, row.name, row.cash_in_hand)}
                   disabled={!hasCash || busy === row.employee_id}

@@ -1,4 +1,5 @@
 import { apiRequest } from "@/services/api-client";
+import type { CommissionType, DealerPayout } from "@/services/dealers.service";
 
 export type DealerPaymentMethod = "CASH" | "MOBILE_WALLET" | "BANK_TRANSFER";
 
@@ -82,7 +83,7 @@ export interface DealerSummary {
     name: string;
     company_name: string;
     dealer_code: string;
-    commission_type?: "PERCENTAGE" | "FLAT_PER_USER";
+    commission_type?: CommissionType;
     commission_rate?: string;
   };
   organization_name: string;
@@ -95,6 +96,8 @@ export interface DealerSummary {
   collected_this_month?: string;
   collected_by_me_this_month: string;
   commission_this_month?: string;
+  payout?: DealerPayout;
+  parent_dealer_name?: string | null;
 }
 
 export interface DealerCustomerRow {

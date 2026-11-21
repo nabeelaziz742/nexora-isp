@@ -11,6 +11,7 @@ from customers.models import (
     Inquiry,
     InternetPackage,
 )
+from customers.dealer_payout import replace_payout_slabs
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -502,6 +503,14 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+MAX_PAYOUT_SLABS = 20
+
+
+class PayoutSlabSerializer(serializers.Serializer):
+    min_active_users = serializers.IntegerField(min_value=1, max_value=1_000_000)
+    monthly_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+
+
 class DealerSerializer(serializers.ModelSerializer):
     assigned_area_name = serializers.CharField(
         source="assigned_area.name",
@@ -509,6 +518,17 @@ class DealerSerializer(serializers.ModelSerializer):
         default=None,
     )
     customers_count = serializers.SerializerMethodField()
+    # A sub dealer works under parent_dealer; the parent is paid for both.
+    parent_dealer = serializers.PrimaryKeyRelatedField(
+        queryset=Dealer.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    parent_dealer_name = serializers.CharField(source="parent_dealer.name", read_only=True, default=None)
+    parent_dealer_code = serializers.CharField(source="parent_dealer.dealer_code", read_only=True, default=None)
+    sub_dealers_count = serializers.SerializerMethodField()
+    # Monthly payout table for MONTHLY_SLAB dealers; sending it replaces the whole table.
+    payout_slabs = PayoutSlabSerializer(many=True, required=False)
 
     class Meta:
         model = Dealer
@@ -529,6 +549,11 @@ class DealerSerializer(serializers.ModelSerializer):
             "assigned_area_name",
             "commission_rate_percentage",
             "commission_type",
+            "payout_slabs",
+            "parent_dealer",
+            "parent_dealer_name",
+            "parent_dealer_code",
+            "sub_dealers_count",
             "joining_date",
             "status",
             "notes",
@@ -545,6 +570,52 @@ class DealerSerializer(serializers.ModelSerializer):
 
     def get_customers_count(self, obj):
         return getattr(obj, "_customers_count", obj.customers.count())
+
+    def get_sub_dealers_count(self, obj):
+        return obj.sub_dealers.count()
+
+    def validate(self, attrs):
+        instance = self.instance
+        organization = self.context.get("organization") or (instance.organization if instance else None)
+
+        if "parent_dealer" in attrs and attrs["parent_dealer"] is not None:
+            parent = attrs["parent_dealer"]
+            if organization is None or parent.organization_id != organization.id:
+                raise serializers.ValidationError({"parent_dealer": "Dealer was not found in this organization."})
+            if instance and parent.pk == instance.pk:
+                raise serializers.ValidationError({"parent_dealer": "A dealer cannot be their own parent."})
+            if parent.parent_dealer_id:
+                raise serializers.ValidationError({"parent_dealer": "A sub dealer cannot have sub dealers of their own."})
+            if instance and instance.sub_dealers.exists():
+                raise serializers.ValidationError(
+                    {"parent_dealer": "This dealer has sub dealers, so they cannot become a sub dealer."}
+                )
+
+        if "payout_slabs" in attrs:
+            slabs = attrs["payout_slabs"]
+            if len(slabs) > MAX_PAYOUT_SLABS:
+                raise serializers.ValidationError({"payout_slabs": f"At most {MAX_PAYOUT_SLABS} slabs."})
+            users = [slab["min_active_users"] for slab in slabs]
+            if len(users) != len(set(users)):
+                raise serializers.ValidationError({"payout_slabs": "Each slab needs a different number of users."})
+
+        commission_type = attrs.get("commission_type", instance.commission_type if instance else None)
+        is_sub_dealer = attrs.get("parent_dealer", instance.parent_dealer if instance else None) is not None
+        if commission_type == Dealer.CommissionType.MONTHLY_SLAB and not is_sub_dealer:
+            if "payout_slabs" in attrs:
+                has_slabs = bool(attrs["payout_slabs"])
+            else:
+                has_slabs = bool(instance and instance.payout_slabs.exists())
+            if not has_slabs:
+                raise serializers.ValidationError({"payout_slabs": "Add at least one slab for a monthly dealer."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        slabs = validated_data.pop("payout_slabs", None)
+        instance = super().update(instance, validated_data)
+        if slabs is not None:
+            replace_payout_slabs(instance, slabs)
+        return instance
 
     def validate_name(self, value):
         if not value.strip():

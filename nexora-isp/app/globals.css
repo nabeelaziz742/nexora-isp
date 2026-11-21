@@ -315,3 +315,17 @@ html.light .nexora-scrollbar::-webkit-scrollbar-track {
 html.light .nexora-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
 }
+
+/* Phones: a wide table scrolls sideways inside its box instead of being cut off,
+   and inputs use 16px text so iOS does not zoom in when one is tapped. */
+@media (max-width: 767px) {
+  .overflow-hidden:has(> table) {
+    overflow-x: auto;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

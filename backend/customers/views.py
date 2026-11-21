@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Count, Q, Sum
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
@@ -7,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from billing.models import Invoice, Payment
+from customers.dealer_payout import dealer_payout, payout_json, replace_payout_slabs
 from customers.models import (
     Customer,
     Dealer,
@@ -1120,9 +1122,11 @@ class DealerListCreateView(APIView):
         serializer = DealerSerializer(dealers, many=True)
         return Response(serializer.data)
 
+    @transaction.atomic
     def post(self, request):
-        serializer = DealerSerializer(data=request.data)
+        serializer = DealerSerializer(data=request.data, context={"organization": request.organization})
         serializer.is_valid(raise_exception=True)
+        slabs = serializer.validated_data.pop("payout_slabs", [])
 
         dealer = Dealer.objects.create(
             organization=request.organization,
@@ -1130,6 +1134,7 @@ class DealerListCreateView(APIView):
             created_by=request.user,
             **serializer.validated_data,
         )
+        replace_payout_slabs(dealer, slabs)
 
         record_audit_log(
             organization=request.organization,
@@ -1165,9 +1170,12 @@ class DealerDetailView(APIView):
         dealer = self._get_dealer(request, dealer_id)
         return Response(DealerSerializer(dealer).data)
 
+    @transaction.atomic
     def put(self, request, dealer_id):
         dealer = self._get_dealer(request, dealer_id)
-        serializer = DealerSerializer(dealer, data=request.data, partial=True)
+        serializer = DealerSerializer(
+            dealer, data=request.data, partial=True, context={"organization": request.organization},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -1255,18 +1263,23 @@ class Dealer360View(APIView):
             service_account__customer__dealer=dealer
         )
         total_invoiced = sum((inv.total_amount for inv in invoices_qs), Decimal("0.00"))
+        open_invoices = invoices_qs.filter(
+            status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID],
+        ).prefetch_related("allocations")
+        total_outstanding = sum((max(inv.outstanding_amount, Decimal("0.00")) for inv in open_invoices), Decimal("0.00"))
 
         payments_qs = Payment.objects.for_organization(request.organization).filter(
             service_account__customer__dealer=dealer
         ).select_related("service_account__customer")
 
-        total_collected = payments_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        total_collected = payments_qs.filter(is_reversed=False).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
-        # Commission calculation
-        if dealer.commission_type == Dealer.CommissionType.PERCENTAGE:
-            commission_amount = (total_collected * (dealer.commission_rate_percentage / Decimal("100.00"))).quantize(Decimal("0.01"))
-        else:
-            commission_amount = (Decimal(str(active_customers)) * dealer.commission_rate_percentage).quantize(Decimal("0.01"))
+        payout = dealer_payout(dealer, collected=total_collected, own_active=active_customers)
+        commission_amount = payout["amount"]
+        sub_dealers = [
+            {"id": str(sub.id), "dealer_code": sub.dealer_code, "name": sub.name, "status": sub.status}
+            for sub in dealer.sub_dealers.order_by("name")
+        ]
 
         customer_list = [
             {
@@ -1306,10 +1319,13 @@ class Dealer360View(APIView):
                     "active_services": active_services,
                     "total_invoiced": str(total_invoiced),
                     "total_collected": str(total_collected),
+                    "total_outstanding": str(total_outstanding),
                     "calculated_commission": str(commission_amount),
                     "commission_rate": str(dealer.commission_rate_percentage),
                     "commission_type": dealer.commission_type,
+                    "payout": payout_json(payout),
                 },
+                "sub_dealers": sub_dealers,
                 "customers": customer_list,
                 "recent_collections": collection_list,
             }

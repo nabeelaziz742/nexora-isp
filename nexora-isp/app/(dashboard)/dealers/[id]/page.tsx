@@ -6,12 +6,15 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
+  Pencil,
   Percent,
   Power,
   RefreshCw,
 } from "lucide-react";
 
+import DealerFormModal from "@/components/dealers/DealerFormModal";
 import DealerPortalAccess from "@/components/dealers/DealerPortalAccess";
+import { payTermsText, payoutHint, slabText } from "@/components/dealers/payout";
 import EmployeeCashList from "@/components/dealers/EmployeeCashList";
 import { dealerPortalService } from "@/services/dealer-portal.service";
 import Skeleton from "@/components/ui/Skeleton";
@@ -28,6 +31,7 @@ export default function Dealer360Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -131,6 +135,12 @@ export default function Dealer360Page() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700 hover:text-white"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Edit Dealer
+          </button>
           <DealerPortalAccess dealerId={dealerId} />
           <button
             onClick={handleToggleStatus}
@@ -182,9 +192,10 @@ export default function Dealer360Page() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-sm sm:col-span-2">
           <span className="text-xs text-slate-500 block uppercase font-medium flex items-center gap-1">
             <Percent className="h-3 w-3 text-amber-400" />
-            Accrued Commission ({dealer.commission_type === "PERCENTAGE" ? `${dealer.commission_rate_percentage}%` : `PKR ${dealer.commission_rate_percentage}/sub`})
+            {dealer.commission_type === "MONTHLY_SLAB" && !dealer.parent_dealer ? "Monthly Payout" : "Accrued Commission"} ({payTermsText(dealer)})
           </span>
           <p className="mt-1 text-2xl font-bold text-amber-400">PKR {Number(metrics.calculated_commission).toLocaleString()}</p>
+          {metrics.payout && <span className="text-[11px] text-slate-400">{payoutHint(metrics.payout)}</span>}
         </div>
       </div>
 
@@ -265,18 +276,52 @@ export default function Dealer360Page() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 backdrop-blur-sm shadow-xl space-y-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Commission & Agreement Terms</h2>
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Revenue Split Model:</span>
-                <span className="font-semibold text-white">{dealer.commission_type}</span>
+              <div className="flex flex-wrap justify-between items-center gap-2">
+                <span className="text-slate-400">Paid as:</span>
+                <span className="font-bold text-amber-400 text-sm">{payTermsText(dealer)}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Contracted Rate:</span>
-                <span className="font-bold text-amber-400 text-sm">
-                  {dealer.commission_type === "PERCENTAGE"
-                    ? `${dealer.commission_rate_percentage}% of collected revenue`
-                    : `PKR ${dealer.commission_rate_percentage} per active customer`}
-                </span>
-              </div>
+              {dealer.commission_type === "MONTHLY_SLAB" && !dealer.parent_dealer && (
+                <div>
+                  <span className="text-slate-400">Monthly slabs:</span>
+                  {dealer.payout_slabs.length === 0 ? (
+                    <p className="mt-1 text-slate-500">No slabs set. Use Edit Dealer to add them.</p>
+                  ) : (
+                    <ul className="mt-1.5 space-y-1">
+                      {dealer.payout_slabs.map((slab) => {
+                        const reached = metrics.payout?.slab?.min_active_users === slab.min_active_users;
+                        return (
+                          <li key={slab.min_active_users} className={reached ? "font-semibold text-emerald-400" : "text-slate-300"}>
+                            {slabText(slab)}{reached && " ← this month"}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {dealer.parent_dealer && (
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <span className="text-slate-400">Sub dealer of:</span>
+                  <Link href={`/dealers/${dealer.parent_dealer}`} className="font-semibold text-sky-400 hover:underline">
+                    {dealer.parent_dealer_name} ({dealer.parent_dealer_code})
+                  </Link>
+                </div>
+              )}
+              {data.sub_dealers.length > 0 && (
+                <div>
+                  <span className="text-slate-400">Sub dealers (their active users count here):</span>
+                  <ul className="mt-1.5 space-y-1">
+                    {data.sub_dealers.map((sub) => (
+                      <li key={sub.id}>
+                        <Link href={`/dealers/${sub.id}`} className="text-sky-400 hover:underline">
+                          {sub.name} ({sub.dealer_code})
+                        </Link>
+                        {sub.status !== "ACTIVE" && <span className="ml-1 text-slate-500">· {sub.status.toLowerCase()}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Partnership Inception:</span>
                 <span className="text-slate-300">{dealer.joining_date}</span>
@@ -398,6 +443,16 @@ export default function Dealer360Page() {
             </div>
           )}
         </div>
+      )}
+      {editing && (
+        <DealerFormModal
+          dealer={dealer}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            void loadData();
+          }}
+        />
       )}
     </div>
   );

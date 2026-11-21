@@ -40,6 +40,7 @@ from billing.models import (
     PromiseToPay,
     RecoveryAllocation,
 )
+from customers.dealer_payout import dealer_payout
 from customers.models import (
     Area,
     City,
@@ -956,13 +957,7 @@ def get_dealer_360_performance_report(
         invoiced = invoices_qs.aggregate(t=Coalesce(Sum("lines__amount"), Decimal("0.00")))["t"]
         collected = payments_qs.aggregate(t=Coalesce(Sum("amount"), Decimal("0.00")))["t"]
 
-        # Commission Calculation
-        if d.commission_type == Dealer.CommissionType.PERCENTAGE:
-            rate = d.commission_rate_percentage or Decimal("0.00")
-            commission_accrued = (rate / Decimal("100.00")) * collected
-        else:
-            flat_rate = d.commission_rate_percentage or Decimal("0.00")
-            commission_accrued = flat_rate * Decimal(str(active_subscribers))
+        commission_accrued = dealer_payout(d, collected=collected, own_active=active_subscribers)["amount"]
 
         commission_settled = settlements_qs.aggregate(t=Coalesce(Sum("amount"), Decimal("0.00")))["t"]
         net_isp_margin = collected - commission_accrued

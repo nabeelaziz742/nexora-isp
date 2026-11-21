@@ -1,7 +1,21 @@
 import { apiRequest, normalizeList, type ListResponse } from "@/services/api-client";
 
 export type DealerStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "TERMINATED";
-export type CommissionType = "PERCENTAGE" | "FLAT_PER_SUBSCRIBER";
+export type CommissionType = "PERCENTAGE" | "FLAT_PER_USER" | "MONTHLY_SLAB";
+
+// MONTHLY_SLAB dealers get the monthly_amount of the highest slab their active users reach.
+export interface PayoutSlab {
+  min_active_users: number;
+  monthly_amount: string;
+}
+
+export interface DealerPayout {
+  amount: string;
+  basis: CommissionType | "PAID_BY_PARENT";
+  active_users: number;
+  slab: PayoutSlab | null;
+  next_slab: PayoutSlab | null;
+}
 
 export interface DealerItem {
   id: string;
@@ -20,6 +34,11 @@ export interface DealerItem {
   assigned_area_name?: string;
   commission_rate_percentage: string | number;
   commission_type: CommissionType;
+  payout_slabs: PayoutSlab[];
+  parent_dealer: string | null;
+  parent_dealer_name: string | null;
+  parent_dealer_code: string | null;
+  sub_dealers_count: number;
   joining_date: string;
   status: DealerStatus;
   notes?: string;
@@ -42,6 +61,8 @@ export interface DealerCreatePayload {
   assigned_area?: string;
   commission_rate_percentage?: number | string;
   commission_type?: CommissionType;
+  payout_slabs?: { min_active_users: number; monthly_amount: string | number }[];
+  parent_dealer?: string | null;
   joining_date?: string;
   status?: DealerStatus;
   notes?: string;
@@ -57,7 +78,9 @@ export interface Dealer360Data {
     total_collected: string;
     total_outstanding: string;
     calculated_commission: string;
+    payout: DealerPayout;
   };
+  sub_dealers: { id: string; dealer_code: string; name: string; status: DealerStatus }[];
   customers: {
     id: string;
     customer_number: string;

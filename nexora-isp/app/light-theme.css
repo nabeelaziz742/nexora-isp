@@ -15,6 +15,7 @@ html.light .bg-\[\#0A0E15\]:not(.keep-dark, .keep-dark *) { background-color: #F
 html.light .bg-\[\#0D1017\]:not(.keep-dark, .keep-dark *) { background-color: #EFF6FF; }
 html.light .bg-\[\#0D1117\]:not(.keep-dark, .keep-dark *) { background-color: #FFFFFF; }
 html.light .bg-\[\#0D1117\]\/60:not(.keep-dark, .keep-dark *) { background-color: #FFFFFF; }
+html.light .bg-\[\#0D1117\]\/90:not(.keep-dark, .keep-dark *) { background-color: #FFFFFF; }
 html.light .bg-\[\#0D1410\]:not(.keep-dark, .keep-dark *) { background-color: #F0FDF4; }
 html.light .bg-\[\#101720\]:not(.keep-dark, .keep-dark *) { background-color: #FFFFFF; }
 html.light .bg-\[\#111827\]:not(.keep-dark, .keep-dark *) { background-color: #F1F5F9; }
@@ -172,6 +173,7 @@ html.light .text-cyan-400\/90:not(.keep-dark, .keep-dark *) { color: var(--color
 html.light .text-emerald-200:not(.keep-dark, .keep-dark *) { color: var(--color-emerald-700); }
 html.light .text-emerald-300:not(.keep-dark, .keep-dark *) { color: var(--color-emerald-700); }
 html.light .text-emerald-400:not(.keep-dark, .keep-dark *) { color: var(--color-emerald-700); }
+html.light .text-emerald-400\/80:not(.keep-dark, .keep-dark *) { color: var(--color-emerald-700); }
 html.light .text-emerald-400\/90:not(.keep-dark, .keep-dark *) { color: var(--color-emerald-700); }
 html.light .text-green-400:not(.keep-dark, .keep-dark *) { color: var(--color-green-700); }
 html.light .text-indigo-300:not(.keep-dark, .keep-dark *) { color: var(--color-indigo-700); }
@@ -185,6 +187,7 @@ html.light .text-red-200:not(.keep-dark, .keep-dark *) { color: var(--color-red-
 html.light .text-red-300:not(.keep-dark, .keep-dark *) { color: var(--color-red-700); }
 html.light .text-red-300\/80:not(.keep-dark, .keep-dark *) { color: var(--color-red-700); }
 html.light .text-red-400:not(.keep-dark, .keep-dark *) { color: var(--color-red-700); }
+html.light .text-red-400\/80:not(.keep-dark, .keep-dark *) { color: var(--color-red-700); }
 html.light .text-rose-200\/80:not(.keep-dark, .keep-dark *) { color: var(--color-rose-700); }
 html.light .text-rose-300:not(.keep-dark, .keep-dark *) { color: var(--color-rose-700); }
 html.light .text-rose-400:not(.keep-dark, .keep-dark *) { color: var(--color-rose-700); }

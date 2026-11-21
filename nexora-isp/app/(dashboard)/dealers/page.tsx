@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
   Building2,
+  CalendarDays,
   CheckCircle2,
   DollarSign,
   Filter,
   MapPin,
   Percent,
+  Pencil,
   Phone,
   Plus,
   Power,
@@ -19,14 +20,13 @@ import {
   X,
 } from "lucide-react";
 
+import DealerFormModal from "@/components/dealers/DealerFormModal";
 import ExpenseRequestsLink from "@/components/dealers/ExpenseRequestsLink";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
 import {
   dealersService,
-  type CommissionType,
-  type DealerCreatePayload,
   type DealerItem,
   type DealerStatus,
 } from "@/services/dealers.service";
@@ -69,30 +69,9 @@ export default function DealersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modals & Action States
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Modals & Action States: null = closed, "new" = register, a dealer = edit
+  const [formDealer, setFormDealer] = useState<DealerItem | "new" | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  // Create Form State
-  const [newDealer, setNewDealer] = useState<DealerCreatePayload>({
-    name: "",
-    company_name: "",
-    cnic: "",
-    phone: "",
-    alternate_phone: "",
-    email: "",
-    address_line: "",
-    city: "",
-    area: "",
-    assigned_area: "",
-    commission_rate_percentage: 10,
-    commission_type: "PERCENTAGE",
-    joining_date: new Date().toISOString().split("T")[0],
-    status: "ACTIVE",
-    notes: "",
-  });
 
   // Load Geographic Options
   useEffect(() => {
@@ -167,43 +146,6 @@ export default function DealersPage() {
     return { total, active, totalSubscribers };
   }, [dealers]);
 
-  // Create Dealer Submit
-  const handleCreateDealer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormSubmitting(true);
-    setFormError(null);
-    try {
-      await dealersService.createDealer({
-        ...newDealer,
-        assigned_area: newDealer.assigned_area || undefined,
-        commission_rate_percentage: Number(newDealer.commission_rate_percentage) || 0,
-      });
-      setShowCreateModal(false);
-      setNewDealer({
-        name: "",
-        company_name: "",
-        cnic: "",
-        phone: "",
-        alternate_phone: "",
-        email: "",
-        address_line: "",
-        city: "",
-        area: "",
-        assigned_area: "",
-        commission_rate_percentage: 10,
-        commission_type: "PERCENTAGE",
-        joining_date: new Date().toISOString().split("T")[0],
-        status: "ACTIVE",
-        notes: "",
-      });
-      fetchDealers();
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to create dealer.");
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-
   // Status Toggle
   const handleToggleStatus = async (dealerId: string) => {
     setTogglingId(dealerId);
@@ -239,10 +181,7 @@ export default function DealersPage() {
             Refresh
           </button>
           <button
-            onClick={() => {
-              setFormError(null);
-              setShowCreateModal(true);
-            }}
+            onClick={() => setFormDealer("new")}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition shadow-emerald-950/20"
           >
             <Plus className="h-4 w-4" />
@@ -384,7 +323,7 @@ export default function DealersPage() {
           title="No dealers found"
           description="You haven't added any franchise partners or sub-ISPs yet."
           actionLabel="Add First Dealer"
-          onActionClick={() => setShowCreateModal(true)}
+          onActionClick={() => setFormDealer("new")}
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm shadow-xl">
@@ -417,6 +356,12 @@ export default function DealersPage() {
                       </td>
                       <td className="px-3 py-4">
                         <div className="font-semibold text-white">{item.name}</div>
+                        {item.parent_dealer && (
+                          <div className="text-[11px] text-sky-400">Sub dealer of {item.parent_dealer_name}</div>
+                        )}
+                        {item.sub_dealers_count > 0 && (
+                          <div className="text-[11px] text-sky-400">{item.sub_dealers_count} sub dealer{item.sub_dealers_count === 1 ? "" : "s"}</div>
+                        )}
                         {item.company_name && (
                           <div className="text-xs text-slate-400 flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
@@ -439,7 +384,14 @@ export default function DealersPage() {
                       </td>
                       <td className="px-3 py-4 text-xs">
                         <div className="flex items-center gap-1 font-semibold text-amber-400">
-                          {item.commission_type === "PERCENTAGE" ? (
+                          {item.parent_dealer ? (
+                            <span className="text-slate-400">Paid by {item.parent_dealer_name}</span>
+                          ) : item.commission_type === "MONTHLY_SLAB" ? (
+                            <>
+                              <CalendarDays className="h-3 w-3" />
+                              Monthly · {item.payout_slabs.length} slab{item.payout_slabs.length === 1 ? "" : "s"}
+                            </>
+                          ) : item.commission_type === "PERCENTAGE" ? (
                             <>
                               <Percent className="h-3 w-3" />
                               {item.commission_rate_percentage}% of billing
@@ -447,7 +399,7 @@ export default function DealersPage() {
                           ) : (
                             <>
                               <DollarSign className="h-3 w-3" />
-                              PKR {item.commission_rate_percentage} / sub
+                              PKR {item.commission_rate_percentage} / user
                             </>
                           )}
                         </div>
@@ -479,6 +431,13 @@ export default function DealersPage() {
                           >
                             <Power className="h-3.5 w-3.5" />
                           </button>
+                          <button
+                            onClick={() => setFormDealer(item)}
+                            title="Edit dealer"
+                            className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
                           <Link
                             href={`/dealers/${item.id}`}
                             className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
@@ -496,199 +455,15 @@ export default function DealersPage() {
         </div>
       )}
 
-      {/* CREATE DEALER MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div>
-                <h3 className="text-lg font-bold text-white">Register Dealer / Sub-ISP</h3>
-                <p className="text-xs text-slate-400">Configure franchise partner profile and commission revenue share</p>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-4 rounded-lg bg-rose-500/10 border border-rose-500/30 p-3 text-xs text-rose-400 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateDealer} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Contact Person Name <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newDealer.name}
-                    onChange={(e) => setNewDealer({ ...newDealer, name: e.target.value })}
-                    placeholder="e.g. Naveed Ahmed"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Company / Cable Network Name</label>
-                  <input
-                    type="text"
-                    value={newDealer.company_name || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, company_name: e.target.value })}
-                    placeholder="e.g. Naveed Cable & Broadband"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Phone Number <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newDealer.phone}
-                    onChange={(e) => setNewDealer({ ...newDealer, phone: e.target.value })}
-                    placeholder="03001234567"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Alternate Phone</label>
-                  <input
-                    type="text"
-                    value={newDealer.alternate_phone || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, alternate_phone: e.target.value })}
-                    placeholder="03219876543"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    value={newDealer.email || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, email: e.target.value })}
-                    placeholder="dealer@example.com"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">CNIC / Registration #</label>
-                  <input
-                    type="text"
-                    value={newDealer.cnic || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, cnic: e.target.value })}
-                    placeholder="37405-XXXXXXX-X"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Joining / Partnership Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={newDealer.joining_date}
-                    onChange={(e) => setNewDealer({ ...newDealer, joining_date: e.target.value })}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">City</label>
-                  <input
-                    type="text"
-                    value={newDealer.city || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, city: e.target.value })}
-                    placeholder="e.g. Rawalpindi"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Area / Sub-locality</label>
-                  <input
-                    type="text"
-                    value={newDealer.area || ""}
-                    onChange={(e) => setNewDealer({ ...newDealer, area: e.target.value })}
-                    placeholder="e.g. Satellite Town"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Commission Model</label>
-                  <select
-                    value={newDealer.commission_type}
-                    onChange={(e) => setNewDealer({ ...newDealer, commission_type: e.target.value as CommissionType })}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="PERCENTAGE">Percentage of Total Revenue (%)</option>
-                    <option value="FLAT_PER_SUBSCRIBER">Flat PKR Rate per Subscriber</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Commission Rate ({newDealer.commission_type === "PERCENTAGE" ? "%" : "PKR"})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={newDealer.commission_rate_percentage}
-                    onChange={(e) =>
-                      setNewDealer({ ...newDealer, commission_rate_percentage: parseFloat(e.target.value) || 0 })
-                    }
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Dealer Agreement Notes</label>
-                <textarea
-                  rows={2}
-                  value={newDealer.notes || ""}
-                  onChange={(e) => setNewDealer({ ...newDealer, notes: e.target.value })}
-                  placeholder="Terms, coverage scope, split details..."
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={formSubmitting}
-                  className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 transition"
-                >
-                  {formSubmitting ? "Saving..." : "Register Dealer"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {formDealer && (
+        <DealerFormModal
+          dealer={formDealer === "new" ? null : formDealer}
+          onClose={() => setFormDealer(null)}
+          onSaved={() => {
+            setFormDealer(null);
+            fetchDealers();
+          }}
+        />
       )}
     </div>
   );

@@ -167,6 +167,7 @@ class Dealer(TenantScopedModel):
     class CommissionType(models.TextChoices):
         PERCENTAGE = "PERCENTAGE", "Percentage of Revenue"
         FLAT_PER_USER = "FLAT_PER_USER", "Flat Rate Per Subscriber"
+        MONTHLY_SLAB = "MONTHLY_SLAB", "Monthly Fixed by Active Users"
 
     id = models.UUIDField(
         primary_key=True,
@@ -244,6 +245,17 @@ class Dealer(TenantScopedModel):
         max_length=30,
         choices=CommissionType.choices,
         default=CommissionType.PERCENTAGE,
+    )
+
+    # A sub dealer works under this dealer. The ISP pays only the parent
+    # dealer, whose active users include the sub dealers' ones; the parent
+    # pays its sub dealers itself.
+    parent_dealer = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="sub_dealers",
     )
 
     joining_date = models.DateField()
@@ -1492,3 +1504,47 @@ class DealerEmployeeExpense(TenantScopedModel):
 
     def __str__(self):
         return f"{self.get_category_display()} {self.amount} ({self.status})"
+
+
+class DealerPayoutSlab(TenantScopedModel):
+    """One row of a dealer's monthly payout table (MONTHLY_SLAB dealers).
+
+    The dealer gets the monthly_amount of the highest slab whose
+    min_active_users they have reached; below the first slab they get nothing.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="payout_slabs",
+    )
+
+    min_active_users = models.PositiveIntegerField()
+
+    monthly_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_payout_slab"
+        ordering = ["min_active_users"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dealer", "min_active_users"],
+                name="unique_dealer_payout_slab",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.min_active_users}+ users: {self.monthly_amount}"

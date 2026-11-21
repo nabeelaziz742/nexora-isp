@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from billing.models import Payment
 from billing.recharge_services import MAX_RECHARGE_MONTHS, recharge_service
 from billing.services import BillingDomainError, record_payment_with_allocations
+from customers.dealer_payout import dealer_payout, payout_json
 from customers.models import (
     BillingProfile,
     Customer,
@@ -274,10 +275,7 @@ def _get_dealer_service(request, service_id) -> ServiceAccount:
 
 
 def _commission(dealer: Dealer, collected: Decimal, active_customers: int) -> Decimal:
-    rate = dealer.commission_rate_percentage or Decimal("0.00")
-    if dealer.commission_type == Dealer.CommissionType.PERCENTAGE:
-        return (collected * rate / Decimal("100")).quantize(Decimal("0.01"))
-    return (Decimal(active_customers) * rate).quantize(Decimal("0.01"))
+    return dealer_payout(dealer, collected=collected, own_active=active_customers)["amount"]
 
 
 def _service_row(service: ServiceAccount, today: date) -> dict:
@@ -326,6 +324,7 @@ class DealerSummaryView(DealerPortalView):
             outstanding += calculate_service_outstanding(svc)[0]
             if svc.expiry_date and 0 <= (svc.expiry_date - today).days <= 3:
                 expiring += 1
+        payout = dealer_payout(dealer, collected=collected, own_active=active)
         data = {
             "me": {
                 "is_dealer": employee is None,
@@ -348,7 +347,9 @@ class DealerSummaryView(DealerPortalView):
             "total_outstanding": str(outstanding),
             "collected_this_month": str(collected),
             "collected_by_me_this_month": str(by_me),
-            "commission_this_month": str(_commission(dealer, collected, active)),
+            "commission_this_month": str(payout["amount"]),
+            "payout": payout_json(payout),
+            "parent_dealer_name": dealer.parent_dealer.name if dealer.parent_dealer_id else None,
         }
         # Commission is the dealer's own business; money totals need the collections right.
         if employee is not None:
@@ -360,6 +361,7 @@ class DealerSummaryView(DealerPortalView):
             data["dealer"].pop("commission_rate")
             data["dealer"].pop("commission_type")
             data.pop("commission_this_month")
+            data.pop("payout")
             if not rights["can_view_collections"]:
                 data.pop("total_outstanding")
                 data.pop("collected_this_month")
