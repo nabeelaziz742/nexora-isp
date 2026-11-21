@@ -12,14 +12,19 @@ class TenantLoginSerializer(serializers.Serializer):
         write_only=True,
         trim_whitespace=False,
     )
+    # Optional: people sign in with email and password only. Old apps and
+    # scripts that still send the code keep working.
     organization_code = serializers.CharField(
         max_length=50,
+        required=False,
+        allow_blank=True,
+        default="",
     )
 
     def validate(self, attrs):
         email = attrs["email"]
         password = attrs["password"]
-        organization_code = attrs["organization_code"]
+        organization_code = attrs.get("organization_code", "").strip()
 
         user = authenticate(
             request=self.context.get("request"),
@@ -41,21 +46,23 @@ class TenantLoginSerializer(serializers.Serializer):
                 }
             )
 
-        try:
-            membership = (
-                OrganizationMembership.objects
-                .select_related("organization")
-                .get(
-                    user=user,
-                    organization__code=organization_code,
-                    organization__is_active=True,
-                    is_active=True,
-                )
+        memberships = OrganizationMembership.objects.select_related("organization").filter(user=user)
+        if organization_code:
+            memberships = memberships.filter(organization__code__iexact=organization_code)
+
+        active = list(memberships.filter(organization__is_active=True, is_active=True)[:2])
+        if len(active) > 1:
+            # An email is normally used by one ISP only; refuse to guess.
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "This email is linked to more than one ISP. "
+                        "Please contact Nexora support."
+                    )
+                }
             )
-        except OrganizationMembership.DoesNotExist:
-            if OrganizationMembership.objects.filter(
-                user=user,
-                organization__code=organization_code,
+        if not active:
+            if memberships.filter(
                 organization__is_active=False,
                 organization__platform_subscription__suspended_at__isnull=False,
             ).exists():
@@ -75,6 +82,7 @@ class TenantLoginSerializer(serializers.Serializer):
                     ),
                 }
             )
+        membership = active[0]
 
         refresh = RefreshToken.for_user(user)
 

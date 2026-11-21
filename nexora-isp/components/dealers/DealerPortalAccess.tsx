@@ -18,13 +18,14 @@ function generatePassword() {
 }
 
 // Owner/admin control for a dealer's portal login (create, reset, disable).
-function storedOrganizationCode() {
-  try {
-    return (JSON.parse(window.localStorage.getItem("nexora_organization") ?? "{}") as { code?: string }).code ?? "";
-  } catch {
-    return "";
-  }
-}
+// Unused while sign-in is email + password only:
+// function storedOrganizationCode() {
+//   try {
+//     return (JSON.parse(window.localStorage.getItem("nexora_organization") ?? "{}") as { code?: string }).code ?? "";
+//   } catch {
+//     return "";
+//   }
+// }
 
 export default function DealerPortalAccess({ dealerId }: { dealerId: string }) {
   const [open, setOpen] = useState(false);
@@ -60,7 +61,8 @@ export default function DealerPortalAccess({ dealerId }: { dealerId: string }) {
       setState(data);
       const portalUrl = `${window.location.origin}/`;
       setShared(
-        `Dealer portal login\nLink: ${portalUrl}\nOrganization code: ${storedOrganizationCode()}\nEmail: ${data.email}\nPassword: ${password}`,
+        // `Dealer portal login\nLink: ${portalUrl}\nOrganization code: ${storedOrganizationCode()}\nEmail: ${data.email}\nPassword: ${password}`,
+        `Dealer portal login\nLink: ${portalUrl}\nEmail: ${data.email}\nPassword: ${password}`,
       );
       toast.success(state?.has_login ? "Dealer login reset." : "Dealer login created.");
     } catch (err) {

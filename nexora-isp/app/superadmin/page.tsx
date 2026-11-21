@@ -109,7 +109,7 @@ export default function SuperAdminDashboardPage() {
                       <Link href={`/superadmin/isps/${isp.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#121821]">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-slate-200">{isp.name}</p>
-                          <p className="text-xs text-slate-500">{isp.code} · {daysLeftLabel(isp.days_left)}</p>
+                          <p className="text-xs text-slate-500">{/* {isp.code} · */}{daysLeftLabel(isp.days_left)}</p>
                         </div>
                         <StatusBadge status={isp.status} />
                       </Link>

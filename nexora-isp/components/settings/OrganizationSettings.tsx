@@ -144,7 +144,7 @@ export default function OrganizationSettings() {
             />
           </label>
 
-          {/* Organization Code (Immutable) */}
+          {/* Organization Code (Immutable): hidden, sign-in is email + password only.
           <label className="block">
             <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
               Organization Code (Tenant ID)
@@ -156,6 +156,7 @@ export default function OrganizationSettings() {
               className="mt-2 h-10 w-full rounded-md border border-[#202938] bg-[#070A0F] px-3 text-xs uppercase font-mono text-slate-400 outline-none cursor-not-allowed opacity-60"
             />
           </label>
+          */}
 
           {/* Contact Phone */}
           <label className="block">

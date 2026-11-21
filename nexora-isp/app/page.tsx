@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
-  Building2,
+  // Building2, (used by the commented-out organization code field)
   CheckCircle2,
   Eye,
   EyeOff,
@@ -19,14 +19,15 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { login } from "@/services/auth.service";
 import { ApiError } from "@/services/api-error";
 
-const REMEMBER_ORG_KEY = "nexora_remember_org_code";
+// Sign-in is email + password only; the organization code is no longer asked for.
+// const REMEMBER_ORG_KEY = "nexora_remember_org_code";
 const REMEMBER_EMAIL_KEY = "nexora_remember_email";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    organization_code: "",
+    // organization_code: "",
     email: "",
     password: "",
   });
@@ -36,21 +37,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
-    organization_code?: string;
+    // organization_code?: string;
     email?: string;
     password?: string;
   }>({});
 
-  // Restore remembered organization code and email on mount
+  // Restore remembered email on mount
   useEffect(() => {
     try {
-      const savedOrg = window.localStorage.getItem(REMEMBER_ORG_KEY);
+      // const savedOrg = window.localStorage.getItem(REMEMBER_ORG_KEY);
       const savedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
 
-      if (savedOrg || savedEmail) {
+      if (savedEmail) {
         setForm((prev) => ({
           ...prev,
-          organization_code: savedOrg ?? "",
+          // organization_code: savedOrg ?? "",
           email: savedEmail ?? "",
         }));
         setRememberMe(true);
@@ -62,14 +63,14 @@ export default function LoginPage() {
 
   function validateForm(): boolean {
     const errors: {
-      organization_code?: string;
+      // organization_code?: string;
       email?: string;
       password?: string;
     } = {};
 
-    if (!form.organization_code.trim()) {
-      errors.organization_code = "Organization code is required";
-    }
+    // if (!form.organization_code.trim()) {
+    //   errors.organization_code = "Organization code is required";
+    // }
 
     if (!form.email.trim()) {
       errors.email = "Email address is required";
@@ -97,24 +98,21 @@ export default function LoginPage() {
 
     try {
       const result = await login({
-        organization_code: form.organization_code.trim().toUpperCase(),
+        // organization_code: form.organization_code.trim().toUpperCase(),
         email: form.email.trim().toLowerCase(),
         password: form.password,
       });
 
-      // Handle Remember Me (Only store Org Code and Email — NEVER store password or tokens)
+      // Handle Remember Me (only the email; NEVER the password or tokens)
       try {
         if (rememberMe) {
-          window.localStorage.setItem(
-            REMEMBER_ORG_KEY,
-            form.organization_code.trim().toUpperCase(),
-          );
+          // window.localStorage.setItem(REMEMBER_ORG_KEY, form.organization_code.trim().toUpperCase());
           window.localStorage.setItem(
             REMEMBER_EMAIL_KEY,
             form.email.trim().toLowerCase(),
           );
         } else {
-          window.localStorage.removeItem(REMEMBER_ORG_KEY);
+          // window.localStorage.removeItem(REMEMBER_ORG_KEY);
           window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
         }
       } catch {
@@ -237,7 +235,8 @@ export default function LoginPage() {
               Sign In to Your Workspace
             </h2>
             <p className="mt-1.5 text-xs text-slate-400">
-              Enter your tenant organization code and operator credentials.
+              {/* Enter your tenant organization code and operator credentials. */}
+              Enter your email and password.
             </p>
           </div>
 
@@ -252,7 +251,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {/* Organization Code Field */}
+            {/* Organization Code Field: hidden, sign-in is email + password only.
             <div>
               <label
                 htmlFor="organization_code"
@@ -295,6 +294,7 @@ export default function LoginPage() {
                 </p>
               )}
             </div>
+            */}
 
             {/* Email Field */}
             <div>
@@ -391,7 +391,7 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Remember Me Checkbox (Only remembers Org Code & Email, NEVER password) */}
+            {/* Remember Me Checkbox (Only remembers the email, NEVER password) */}
             <div className="flex items-center justify-between pt-1">
               <label className="flex cursor-pointer items-center gap-2 select-none">
                 <input
@@ -402,7 +402,8 @@ export default function LoginPage() {
                   className="h-3.5 w-3.5 rounded border-[#202938] bg-[#0D1117] text-blue-600 accent-blue-600 focus:ring-0 focus:ring-offset-0"
                 />
                 <span className="text-[11px] text-slate-400 hover:text-slate-300">
-                  Remember organization & email
+                  {/* Remember organization & email */}
+                  Remember my email
                 </span>
               </label>
 

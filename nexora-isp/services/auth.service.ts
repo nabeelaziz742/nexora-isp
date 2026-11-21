@@ -15,7 +15,8 @@ export interface AuthOrganization {
 }
 
 export interface LoginRequest {
-  organization_code: string;
+  // Sign-in is email + password; the code is optional and no longer sent by the login page.
+  organization_code?: string;
   email: string;
   password: string;
 }

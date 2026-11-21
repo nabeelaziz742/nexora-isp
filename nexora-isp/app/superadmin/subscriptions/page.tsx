@@ -108,7 +108,7 @@ export default function SubscriptionsPage() {
                 <tr key={isp.id} className="hover:bg-[#121821]">
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-200">{isp.name}</p>
-                    <p className="text-xs text-slate-500">{isp.code}</p>
+                    {/* <p className="text-xs text-slate-500">{isp.code}</p> */}
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-slate-200">{isp.owner_name || "—"}</p>

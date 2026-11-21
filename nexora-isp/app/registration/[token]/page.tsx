@@ -134,6 +134,7 @@ export default function RegistrationStatusPage() {
 
         <div className="mt-6 rounded-xl border border-[#263142] bg-[#101720] p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Organization code hidden: sign-in is email + password only.
             <div>
               <p className="text-xs uppercase tracking-wider text-slate-500">
                 Organization Code
@@ -142,6 +143,7 @@ export default function RegistrationStatusPage() {
                 {registration.organization_code}
               </p>
             </div>
+            */}
             <div>
               <p className="text-xs uppercase tracking-wider text-slate-500">
                 Registration Status
@@ -360,7 +362,8 @@ export default function RegistrationStatusPage() {
 
         {registration.status === "ACTIVE" && (
           <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-sm leading-relaxed text-emerald-200">
-            Your payment has been verified and your account is active. You can now sign in using your organization code, email, and password.
+            {/* Your payment has been verified and your account is active. You can now sign in using your organization code, email, and password. */}
+            Your payment has been verified and your account is active. You can now sign in with your email and password.
           </div>
         )}
 

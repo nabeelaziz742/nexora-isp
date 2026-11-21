@@ -117,7 +117,7 @@ export default function AllISPsPage() {
                     <Link href={`/superadmin/isps/${isp.id}`} className="font-medium text-blue-400 hover:underline">
                       {isp.name}
                     </Link>
-                    <p className="text-xs text-slate-500">{isp.code}{isp.city ? ` · ${isp.city}` : ""}</p>
+                    <p className="text-xs text-slate-500">{/* {isp.code} */}{isp.city || ""}</p>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-slate-200">{isp.owner_name || "—"}</p>

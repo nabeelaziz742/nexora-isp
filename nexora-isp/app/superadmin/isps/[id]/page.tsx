@@ -147,7 +147,7 @@ export default function ISPDetailPage() {
             <h1 className="text-2xl font-bold text-white">{isp.name}</h1>
             <StatusBadge status={isp.status} />
           </div>
-          <p className="mt-1 text-sm text-slate-400">{isp.code} · joined {formatDate(isp.joined_at)}</p>
+          <p className="mt-1 text-sm text-slate-400">{/* {isp.code} · */}Joined {formatDate(isp.joined_at)}</p>
         </div>
         {canManage && (
           isp.is_active ? (
@@ -207,12 +207,11 @@ export default function ISPDetailPage() {
           {ownerReset && (
             <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs">
               <p className="text-emerald-400">Temporary password set. Share it privately; it is shown only now.</p>
-              <pre className="mt-2 whitespace-pre-wrap text-slate-200">{`Organization code: ${ownerReset.organization_code}
-Email: ${ownerReset.email}
+              {/* Organization code line removed: sign-in is email + password only. */}
+              <pre className="mt-2 whitespace-pre-wrap text-slate-200">{`Email: ${ownerReset.email}
 Password: ${ownerReset.temporary_password}`}</pre>
               <button
-                onClick={() => void navigator.clipboard.writeText(`Organization code: ${ownerReset.organization_code}
-Email: ${ownerReset.email}
+                onClick={() => void navigator.clipboard.writeText(`Email: ${ownerReset.email}
 Password: ${ownerReset.temporary_password}`)}
                 className="mt-2 flex items-center gap-1.5 text-blue-400 hover:underline"
               >

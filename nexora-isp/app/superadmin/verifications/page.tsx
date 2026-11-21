@@ -129,10 +129,12 @@ export default function PaymentVerificationPage() {
                     <p className="text-slate-200">{item.owner_name}</p>
                     <p className="text-xs text-slate-500">{item.owner_email}</p>
                   </div>
+                  {/* Organization code hidden: sign-in is email + password only.
                   <div>
                     <p className="text-xs text-slate-500">Organization Code</p>
                     <p className="text-slate-200">{item.organization_code}</p>
                   </div>
+                  */}
                   <div>
                     <p className="text-xs text-slate-500">Amount</p>
                     <p className="text-slate-200">{formatPKR(item.amount_due)}</p>
