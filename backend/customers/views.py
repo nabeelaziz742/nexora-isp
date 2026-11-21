@@ -2,13 +2,14 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Count, Q, Sum
-from rest_framework import status
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from billing.models import Invoice, Payment
 from customers.dealer_payout import dealer_payout, payout_json, replace_payout_slabs
+from customers.dealer_portal import grant_portal_access
 from customers.models import (
     Customer,
     Dealer,
@@ -42,7 +43,8 @@ from customers.services import (
     generate_feasibility_number,
     generate_inquiry_number,
 )
-from tenancy.permissions import IsOrganizationStaffOrOwner
+from tenancy.models import StaffProfile
+from tenancy.permissions import IsOrganizationStaffOrOwner, get_effective_role
 from tenancy.services import record_audit_log
 
 
@@ -1127,6 +1129,13 @@ class DealerListCreateView(APIView):
         serializer = DealerSerializer(data=request.data, context={"organization": request.organization})
         serializer.is_valid(raise_exception=True)
         slabs = serializer.validated_data.pop("payout_slabs", [])
+        # Optional: give the dealer their portal login in the same step.
+        login = DealerLoginSerializer(data=request.data)
+        login.is_valid(raise_exception=True)
+        portal_email = login.validated_data["portal_email"]
+        portal_password = login.validated_data["portal_password"]
+        if portal_email and get_effective_role(request) not in {StaffProfile.Role.OWNER, StaffProfile.Role.ADMIN}:
+            raise PermissionDenied("Only the owner or an administrator can create a dealer login.")
 
         dealer = Dealer.objects.create(
             organization=request.organization,
@@ -1135,6 +1144,14 @@ class DealerListCreateView(APIView):
             **serializer.validated_data,
         )
         replace_payout_slabs(dealer, slabs)
+        if portal_email:
+            dealer = grant_portal_access(
+                organization=request.organization,
+                actor=request.user,
+                dealer_id=dealer.id,
+                email=portal_email,
+                password=portal_password,
+            )
 
         record_audit_log(
             organization=request.organization,
@@ -1150,6 +1167,20 @@ class DealerListCreateView(APIView):
         )
 
         return Response(DealerSerializer(dealer).data, status=status.HTTP_201_CREATED)
+
+
+class DealerLoginSerializer(serializers.Serializer):
+    portal_email = serializers.EmailField(required=False, allow_blank=True, default="")
+    portal_password = serializers.CharField(
+        required=False, allow_blank=True, default="", trim_whitespace=False, max_length=128,
+    )
+
+    def validate(self, attrs):
+        if attrs["portal_email"] and not attrs["portal_password"]:
+            raise serializers.ValidationError({"portal_password": "Set a password for the dealer's login."})
+        if attrs["portal_password"] and not attrs["portal_email"]:
+            raise serializers.ValidationError({"portal_email": "Enter the email the dealer will sign in with."})
+        return attrs
 
 
 class DealerDetailView(APIView):

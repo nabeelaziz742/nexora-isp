@@ -63,6 +63,9 @@ export interface DealerCreatePayload {
   commission_type?: CommissionType;
   payout_slabs?: { min_active_users: number; monthly_amount: string | number }[];
   parent_dealer?: string | null;
+  // New dealers only: create their portal login in the same step.
+  portal_email?: string;
+  portal_password?: string;
   joining_date?: string;
   status?: DealerStatus;
   notes?: string;

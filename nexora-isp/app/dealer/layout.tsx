@@ -95,9 +95,10 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
               onClick={() => setChangingPassword(true)}
               aria-label="Change password"
               title="Change password"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-[#121821] hover:text-slate-200"
+              className="flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-slate-400 hover:bg-[#121821] hover:text-slate-200"
             >
               <KeyRound className="h-4 w-4" />
+              <span className="hidden min-[400px]:inline">Change Password</span>
             </button>
             <button
               onClick={() => {
