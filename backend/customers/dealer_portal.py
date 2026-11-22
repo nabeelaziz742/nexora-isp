@@ -151,8 +151,8 @@ def revoke_portal_access(*, organization, actor, dealer_id) -> Dealer:
 
 
 class PortalAccessSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=8, max_length=128)
+    # Only the email: the password is made by the system and sent on WhatsApp.
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
 
 
 class DealerPortalAccessView(APIView):
@@ -162,15 +162,21 @@ class DealerPortalAccessView(APIView):
         return Response(portal_access_state(_get_dealer(request.organization, dealer_id)))
 
     def post(self, request, dealer_id):
+        """Create the login, or resend: a new password goes to the dealer's WhatsApp."""
+        from customers.dealer_login_whatsapp import send_dealer_login
+
         serializer = PortalAccessSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        dealer = grant_portal_access(
+        result = send_dealer_login(
             organization=request.organization,
             actor=request.user,
             dealer_id=dealer_id,
-            **serializer.validated_data,
+            email=serializer.validated_data["email"],
         )
-        return Response(portal_access_state(dealer), status=status.HTTP_200_OK)
+        return Response(
+            {**portal_access_state(result["dealer"]), "sent_to": result["sent_to"]},
+            status=status.HTTP_200_OK,
+        )
 
     def delete(self, request, dealer_id):
         dealer = revoke_portal_access(organization=request.organization, actor=request.user, dealer_id=dealer_id)

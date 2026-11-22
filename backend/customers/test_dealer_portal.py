@@ -1,7 +1,9 @@
 import csv
 import io
+from contextlib import contextmanager
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -16,6 +18,32 @@ from tenancy.models import Organization, OrganizationMembership, StaffProfile
 from tenancy.staff_services import get_or_create_staff_profile
 
 PASSWORD = "DealerPass!2345"
+
+
+def _test_whatsapp_provider(organization):
+    from communications.models import CommunicationProvider
+
+    return CommunicationProvider.objects.get_or_create(
+        organization=organization,
+        provider_type=CommunicationProvider.ProviderType.WHATSAPP,
+        name="Test WhatsApp",
+        defaults={"is_connected": True, "phone_number_id": "1", "access_token": "test"},
+    )[0]
+
+
+@contextmanager
+def whatsapp_ok(password=PASSWORD):
+    """Pretend the ISP's WhatsApp is connected and accepts every message."""
+    sent = []
+    with (
+        patch("customers.dealer_login_whatsapp.whatsapp_provider", side_effect=_test_whatsapp_provider),
+        patch("customers.dealer_login_whatsapp.generate_password", return_value=password),
+        patch(
+            "customers.dealer_login_whatsapp.send_whatsapp",
+            side_effect=lambda **kwargs: sent.append(kwargs) or {"success": True},
+        ),
+    ):
+        yield sent
 
 
 class DealerPortalTests(TestCase):
@@ -79,10 +107,13 @@ class DealerPortalTests(TestCase):
             "password": "OwnerPass!2345" if (user or self.owner) == self.owner else "StaffPass!2345",
         }, format="json")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
-        return self.client.post(
-            f"/api/v1/customers/dealers/{(dealer or self.dealer).id}/portal-access/",
-            {"email": email, "password": PASSWORD}, format="json",
-        )
+        # The password is made by the system and sent on WhatsApp; in tests it is
+        # fixed and the message is accepted without leaving the machine.
+        with whatsapp_ok():
+            return self.client.post(
+                f"/api/v1/customers/dealers/{(dealer or self.dealer).id}/portal-access/",
+                {"email": email}, format="json",
+            )
 
     def dealer_login(self, email="bilal@dealer.test"):
         self.client.credentials()

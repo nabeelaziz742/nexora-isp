@@ -173,6 +173,8 @@ export interface DealerPortalAccess {
   has_login: boolean;
   is_enabled: boolean;
   email: string;
+  // Masked phone the password was sent to (after a send).
+  sent_to?: string;
 }
 
 export interface DealerRequestRow {
@@ -300,10 +302,11 @@ export const dealerPortalService = {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`);
   },
 
-  setAccess(dealerId: string, payload: { email: string; password: string }) {
+  // Create the login or resend: the system makes a new password and WhatsApps it to the dealer.
+  sendLogin(dealerId: string, email: string) {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`, {
       method: "POST",
-      body: payload,
+      body: { email },
     });
   },
 

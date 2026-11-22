@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Copy, KeyRound, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
-import { toast } from "sonner";
+import { AlertCircle, CheckCircle2, KeyRound, Loader2, MessageCircle, Plus, Trash2, X } from "lucide-react";
 
 import { ApiError } from "@/services/api-error";
 import {
@@ -27,12 +26,6 @@ const PAY_TYPES: { value: CommissionType; title: string; hint: string }[] = [
 
 type SlabRow = { users: string; amount: string };
 
-function generatePassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const bytes = new Uint32Array(10);
-  crypto.getRandomValues(bytes);
-  return `Dl-${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("")}`;
-}
 
 type FormState = {
   name: string;
@@ -93,8 +86,7 @@ export default function DealerFormModal({
   const [giveLogin, setGiveLogin] = useState(true);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginEmailTouched, setLoginEmailTouched] = useState(false);
-  const [loginPassword, setLoginPassword] = useState(generatePassword);
-  const [created, setCreated] = useState<{ dealer: DealerItem; message: string } | null>(null);
+  const [created, setCreated] = useState<{ dealer: DealerItem; sentTo: string } | null>(null);
 
   useEffect(() => {
     dealersService.getDealers().then(setDealers).catch(() => setDealers([]));
@@ -148,12 +140,11 @@ export default function DealerFormModal({
         setError("Enter the email the dealer will sign in with.");
         return;
       }
-      if (loginPassword.length < 8) {
-        setError("The password must be at least 8 characters.");
+      if (!form.phone.trim()) {
+        setError("Enter the dealer's WhatsApp phone number; the password is sent there.");
         return;
       }
       payload.portal_email = portalEmail;
-      payload.portal_password = loginPassword;
     }
 
     setSaving(true);
@@ -162,17 +153,8 @@ export default function DealerFormModal({
         ? await dealersService.updateDealer(dealer!.id, payload)
         : await dealersService.createDealer({ ...payload, status: "ACTIVE" });
       if (!editing && giveLogin) {
-        setCreated({
-          dealer: saved,
-          message: [
-            "Dealer login",
-            `Link: ${window.location.origin}/`,
-            `Email: ${portalEmail}`,
-            `Password: ${loginPassword}`,
-            "",
-            "After signing in, change the password from your panel (Change Password).",
-          ].join("\n"),
-        });
+        const sentTo = (saved as { login_sent_to?: string | null }).login_sent_to;
+        setCreated({ dealer: saved, sentTo: sentTo || form.phone.trim() });
       } else {
         onSaved(saved);
       }
@@ -209,20 +191,12 @@ export default function DealerFormModal({
           <div className="mt-4 space-y-4">
             <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{created.dealer.name} was added and can sign in now. Send them these details; the password is shown only once.</span>
+              <span>
+                {created.dealer.name} was added. Their login email and password were sent on WhatsApp to {created.sentTo}.
+                They can sign in now and change the password from their panel.
+              </span>
             </div>
-            <pre className="whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-200">{created.message}</pre>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(created.message);
-                  toast.success("Copied. Send it to the dealer on WhatsApp.");
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-700"
-              >
-                <Copy className="h-4 w-4" /> Copy
-              </button>
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => onSaved(created.dealer)}
@@ -424,29 +398,14 @@ export default function DealerFormModal({
                       className={inputClass}
                     />
                   </div>
-                  <div>
-                    <label className={labelClass}>Password <span className="text-rose-400">*</span></label>
-                    <div className="flex gap-2">
-                      <input
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        className={`${inputClass} min-w-0 font-mono`}
-                        aria-label="Starting password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setLoginPassword(generatePassword())}
-                        title="New password"
-                        aria-label="New password"
-                        className="shrink-0 rounded-lg border border-slate-700 px-2.5 text-slate-300 hover:bg-slate-800"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
+                  <div className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5 text-[11px] text-slate-300">
+                    <MessageCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    <span>
+                      The system makes the password and sends it to the dealer&apos;s WhatsApp
+                      {form.phone.trim() ? ` (${form.phone.trim()})` : " (the phone number above)"}. Nobody at the ISP sees it;
+                      the dealer can change it from their panel.
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 sm:col-span-2">
-                    The dealer signs in on the normal login page with this email and password, then changes the password from their own panel.
-                  </p>
                 </div>
               )}
             </div>

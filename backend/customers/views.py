@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from billing.models import Invoice, Payment
 from customers.dealer_payout import dealer_payout, payout_json, replace_payout_slabs
-from customers.dealer_portal import grant_portal_access
+from customers.dealer_login_whatsapp import send_dealer_login
 from customers.models import (
     Customer,
     Dealer,
@@ -1129,11 +1129,11 @@ class DealerListCreateView(APIView):
         serializer = DealerSerializer(data=request.data, context={"organization": request.organization})
         serializer.is_valid(raise_exception=True)
         slabs = serializer.validated_data.pop("payout_slabs", [])
-        # Optional: give the dealer their portal login in the same step.
+        # Optional: give the dealer their portal login in the same step. The
+        # password is made by the system and sent only to their WhatsApp.
         login = DealerLoginSerializer(data=request.data)
         login.is_valid(raise_exception=True)
         portal_email = login.validated_data["portal_email"]
-        portal_password = login.validated_data["portal_password"]
         if portal_email and get_effective_role(request) not in {StaffProfile.Role.OWNER, StaffProfile.Role.ADMIN}:
             raise PermissionDenied("Only the owner or an administrator can create a dealer login.")
 
@@ -1144,14 +1144,17 @@ class DealerListCreateView(APIView):
             **serializer.validated_data,
         )
         replace_payout_slabs(dealer, slabs)
+        login_sent_to = None
         if portal_email:
-            dealer = grant_portal_access(
+            # Fails (and adds nothing) when WhatsApp is not connected or the message is refused.
+            result = send_dealer_login(
                 organization=request.organization,
                 actor=request.user,
                 dealer_id=dealer.id,
                 email=portal_email,
-                password=portal_password,
             )
+            dealer = result["dealer"]
+            login_sent_to = result["sent_to"]
 
         record_audit_log(
             organization=request.organization,
@@ -1166,21 +1169,14 @@ class DealerListCreateView(APIView):
             },
         )
 
-        return Response(DealerSerializer(dealer).data, status=status.HTTP_201_CREATED)
+        return Response(
+            {**DealerSerializer(dealer).data, "login_sent_to": login_sent_to},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class DealerLoginSerializer(serializers.Serializer):
     portal_email = serializers.EmailField(required=False, allow_blank=True, default="")
-    portal_password = serializers.CharField(
-        required=False, allow_blank=True, default="", trim_whitespace=False, max_length=128,
-    )
-
-    def validate(self, attrs):
-        if attrs["portal_email"] and not attrs["portal_password"]:
-            raise serializers.ValidationError({"portal_password": "Set a password for the dealer's login."})
-        if attrs["portal_password"] and not attrs["portal_email"]:
-            raise serializers.ValidationError({"portal_email": "Enter the email the dealer will sign in with."})
-        return attrs
 
 
 class DealerDetailView(APIView):

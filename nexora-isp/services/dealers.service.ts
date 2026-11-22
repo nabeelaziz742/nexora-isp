@@ -63,9 +63,8 @@ export interface DealerCreatePayload {
   commission_type?: CommissionType;
   payout_slabs?: { min_active_users: number; monthly_amount: string | number }[];
   parent_dealer?: string | null;
-  // New dealers only: create their portal login in the same step.
+  // New dealers only: create their portal login in the same step; the password goes to their WhatsApp.
   portal_email?: string;
-  portal_password?: string;
   joining_date?: string;
   status?: DealerStatus;
   notes?: string;
@@ -125,7 +124,7 @@ export const dealersService = {
   },
 
   createDealer(data: DealerCreatePayload) {
-    return apiRequest<DealerItem>("/customers/dealers/", {
+    return apiRequest<DealerItem & { login_sent_to?: string | null }>("/customers/dealers/", {
       method: "POST",
       body: data,
     });
