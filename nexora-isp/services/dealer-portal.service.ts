@@ -302,7 +302,7 @@ export const dealerPortalService = {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`);
   },
 
-  // Create the login or resend: the system makes a new password and WhatsApps it to the dealer.
+  // Create the login or resend: the system makes a new password and emails it (WhatsApp too when connected).
   sendLogin(dealerId: string, email: string) {
     return apiRequest<DealerPortalAccess>(`/customers/dealers/${dealerId}/portal-access/`, {
       method: "POST",

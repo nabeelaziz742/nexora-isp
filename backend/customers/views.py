@@ -1146,7 +1146,7 @@ class DealerListCreateView(APIView):
         replace_payout_slabs(dealer, slabs)
         login_sent_to = None
         if portal_email:
-            # Fails (and adds nothing) when WhatsApp is not connected or the message is refused.
+            # Sent by email, and on WhatsApp when connected; adds nothing if neither goes out.
             result = send_dealer_login(
                 organization=request.organization,
                 actor=request.user,

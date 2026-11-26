@@ -63,7 +63,7 @@ export interface DealerCreatePayload {
   commission_type?: CommissionType;
   payout_slabs?: { min_active_users: number; monthly_amount: string | number }[];
   parent_dealer?: string | null;
-  // New dealers only: create their portal login in the same step; the password goes to their WhatsApp.
+  // New dealers only: create their portal login in the same step; the password is emailed to them (WhatsApp too when connected).
   portal_email?: string;
   joining_date?: string;
   status?: DealerStatus;

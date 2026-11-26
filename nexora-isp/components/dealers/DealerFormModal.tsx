@@ -140,10 +140,6 @@ export default function DealerFormModal({
         setError("Enter the email the dealer will sign in with.");
         return;
       }
-      if (!form.phone.trim()) {
-        setError("Enter the dealer's WhatsApp phone number; the password is sent there.");
-        return;
-      }
       payload.portal_email = portalEmail;
     }
 
@@ -154,7 +150,7 @@ export default function DealerFormModal({
         : await dealersService.createDealer({ ...payload, status: "ACTIVE" });
       if (!editing && giveLogin) {
         const sentTo = (saved as { login_sent_to?: string | null }).login_sent_to;
-        setCreated({ dealer: saved, sentTo: sentTo || form.phone.trim() });
+        setCreated({ dealer: saved, sentTo: sentTo || portalEmail });
       } else {
         onSaved(saved);
       }
@@ -192,7 +188,7 @@ export default function DealerFormModal({
             <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                {created.dealer.name} was added. Their login email and password were sent on WhatsApp to {created.sentTo}.
+                {created.dealer.name} was added. Their login email and password were sent by {created.sentTo}.
                 They can sign in now and change the password from their panel.
               </span>
             </div>
@@ -401,9 +397,9 @@ export default function DealerFormModal({
                   <div className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5 text-[11px] text-slate-300">
                     <MessageCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
                     <span>
-                      The system makes the password and sends it to the dealer&apos;s WhatsApp
-                      {form.phone.trim() ? ` (${form.phone.trim()})` : " (the phone number above)"}. Nobody at the ISP sees it;
-                      the dealer can change it from their panel.
+                      The system makes the password and emails it to the login email above, and also sends it on
+                      WhatsApp when your WhatsApp is connected. Nobody at the ISP sees it; the dealer can change it
+                      from their panel.
                     </span>
                   </div>
                 </div>
