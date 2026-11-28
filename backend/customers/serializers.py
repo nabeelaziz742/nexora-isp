@@ -527,6 +527,7 @@ class DealerSerializer(serializers.ModelSerializer):
     parent_dealer_name = serializers.CharField(source="parent_dealer.name", read_only=True, default=None)
     parent_dealer_code = serializers.CharField(source="parent_dealer.dealer_code", read_only=True, default=None)
     sub_dealers_count = serializers.SerializerMethodField()
+    has_portal_login = serializers.SerializerMethodField()
     # Monthly payout table for MONTHLY_SLAB dealers; sending it replaces the whole table.
     payout_slabs = PayoutSlabSerializer(many=True, required=False)
 
@@ -554,6 +555,7 @@ class DealerSerializer(serializers.ModelSerializer):
             "parent_dealer_name",
             "parent_dealer_code",
             "sub_dealers_count",
+            "has_portal_login",
             "joining_date",
             "status",
             "notes",
@@ -573,6 +575,13 @@ class DealerSerializer(serializers.ModelSerializer):
 
     def get_sub_dealers_count(self, obj):
         return obj.sub_dealers.count()
+
+    def get_has_portal_login(self, obj):
+        return bool(
+            obj.portal_membership_id
+            and obj.portal_membership.is_active
+            and obj.portal_membership.user.is_active
+        )
 
     def validate(self, attrs):
         instance = self.instance

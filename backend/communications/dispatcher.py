@@ -40,7 +40,7 @@ class CommunicationDispatcher:
             queue = (
                 CommunicationQueue.objects
                 .select_related("provider")
-                .select_for_update(skip_locked=True)
+                .select_for_update(of=("self",), skip_locked=True)
                 .filter(
                     status=CommunicationQueue.Status.PENDING,
                     scheduled_at__lte=now,
@@ -54,7 +54,7 @@ class CommunicationDispatcher:
                 queue = (
                     CommunicationQueue.objects
                     .select_related("provider")
-                    .select_for_update(skip_locked=True)
+                    .select_for_update(of=("self",), skip_locked=True)
                     .filter(
                         status=CommunicationQueue.Status.PENDING,
                         scheduled_at__lte=now,

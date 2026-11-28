@@ -13,6 +13,7 @@ from customers.dealer_login_whatsapp import send_dealer_login
 from customers.models import (
     Customer,
     Dealer,
+    DealerArea,
     FeasibilityAssessment,
     Inquiry,
     InternetPackage,
@@ -1337,6 +1338,17 @@ class Dealer360View(APIView):
             for p in payments_qs.order_by("-paid_at")[:50]
         ]
 
+        dealer_areas = [
+            {
+                "id": str(area.id),
+                "name": area.name,
+                "city": area.city,
+                "notes": area.notes,
+                "is_active": area.is_active,
+            }
+            for area in DealerArea.objects.for_organization(request.organization).filter(dealer=dealer).order_by("name")
+        ]
+
         return Response(
             {
                 "dealer": DealerSerializer(dealer).data,
@@ -1353,6 +1365,7 @@ class Dealer360View(APIView):
                     "payout": payout_json(payout),
                 },
                 "sub_dealers": sub_dealers,
+                "areas": dealer_areas,
                 "customers": customer_list,
                 "recent_collections": collection_list,
             }

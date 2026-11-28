@@ -45,6 +45,7 @@ class Complaint(TenantScopedModel):
 
     class Source(models.TextChoices):
         CUSTOMER_PORTAL = "CUSTOMER_PORTAL", "Customer Portal"
+        DEALER = "DEALER", "Dealer Portal"
         PHONE = "PHONE", "Phone Call"
         WHATSAPP = "WHATSAPP", "WhatsApp"
         SMS = "SMS", "SMS"

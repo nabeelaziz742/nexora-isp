@@ -23,6 +23,8 @@ from customers.models import (
     Customer,
     CustomerImportBatch,
     Dealer,
+    DealerArea,
+    DealerEmployee,
     InternetPackage,
     NotificationPreference,
     ServiceAccount,
@@ -85,16 +87,31 @@ COLUMNS = [
 COLUMN_KEYS = [column.key for column in COLUMNS]
 REQUIRED_KEYS = [column.key for column in COLUMNS if column.required]
 TEXT_COLUMNS = {"phone", "alternate_phone", "cnic", "legacy_id", "pppoe_username", "pppoe_password", "ip_address"}
+DEALER_EMPLOYEE_EMAIL_COLUMN = ImportColumn(
+    "employee_email",
+    False,
+    "ali@dealer.test",
+    "Optional: email of one of your employees (from the Codes sheet).",
+)
+
+
+def _columns_for(dealer: Dealer | None = None) -> list[ImportColumn]:
+    if dealer is None:
+        return COLUMNS
+    return [col for col in COLUMNS if col.key != "dealer_code"] + [DEALER_EMPLOYEE_EMAIL_COLUMN]
 
 
 # ---------------------------------------------------------------------------
 # Template
 # ---------------------------------------------------------------------------
 
-def build_import_template(*, organization) -> bytes:
+def build_import_template(*, organization, dealer: Dealer | None = None) -> bytes:
     """Excel workbook: an empty Customers sheet, instructions and the tenant's codes."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
+
+    columns = _columns_for(dealer)
+    column_keys = [column.key for column in columns]
 
     workbook = Workbook()
     header_font = Font(bold=True, color="FFFFFF")
@@ -103,8 +120,8 @@ def build_import_template(*, organization) -> bytes:
 
     sheet = workbook.active
     sheet.title = SHEET_NAME
-    sheet.append(COLUMN_KEYS)
-    for index, column in enumerate(COLUMNS, start=1):
+    sheet.append(column_keys)
+    for index, column in enumerate(columns, start=1):
         cell = sheet.cell(row=1, column=index)
         cell.font = header_font
         cell.fill = required_fill if column.required else header_fill
@@ -120,7 +137,10 @@ def build_import_template(*, organization) -> bytes:
     guide.append(["How to use this template"])
     guide["A1"].font = Font(bold=True, size=13)
     guide.append(["Fill one customer per row on the Customers sheet. Red headers are required."])
-    guide.append(["Use the exact codes from the Codes sheet for packages, nodes and dealers."])
+    if dealer is None:
+        guide.append(["Use the exact codes from the Codes sheet for packages, nodes and dealers."])
+    else:
+        guide.append(["Use the exact codes from the Codes sheet for packages, nodes, areas and employees."])
     guide.append(["Imported customers are treated as already connected: the router is not changed,"])
     guide.append(["no first bill is created and no messages are sent."])
     guide.append([])
@@ -128,45 +148,90 @@ def build_import_template(*, organization) -> bytes:
     for cell in guide[7]:
         cell.font = header_font
         cell.fill = header_fill
-    for column in COLUMNS:
+    for column in columns:
         guide.append([column.key, "Yes" if column.required else "", column.example, column.notes])
     guide.append([])
     guide.append(["Example row (copy to the Customers sheet and replace with real data):"])
-    guide.append(COLUMN_KEYS)
-    guide.append([column.example for column in COLUMNS])
+    guide.append(column_keys)
+    guide.append([column.example for column in columns])
     for letter, width in zip("ABCD", (20, 10, 22, 48)):
         guide.column_dimensions[letter].width = width
 
     codes = workbook.create_sheet("Codes")
-    codes.append(["Package code", "Package name", "Price", "", "Node code", "Node name", "", "Dealer code", "Dealer name"])
-    for cell in codes[1]:
-        if cell.value:
-            cell.font = header_font
-            cell.fill = header_fill
     packages = list(
         InternetPackage.objects.for_organization(organization).filter(is_active=True).order_by("name")
     )
     nodes = list(
         NetworkNode.objects.for_organization(organization).filter(is_active=True).order_by("code")
     )
-    dealers = list(Dealer.objects.for_organization(organization).order_by("dealer_code"))
-    for row in range(max(len(packages), len(nodes), len(dealers))):
-        package = packages[row] if row < len(packages) else None
-        node = nodes[row] if row < len(nodes) else None
-        dealer = dealers[row] if row < len(dealers) else None
+    if dealer is None:
+        codes.append(["Package code", "Package name", "Price", "", "Node code", "Node name", "", "Dealer code", "Dealer name"])
+        for cell in codes[1]:
+            if cell.value:
+                cell.font = header_font
+                cell.fill = header_fill
+        dealers = list(Dealer.objects.for_organization(organization).order_by("dealer_code"))
+        for row in range(max(len(packages), len(nodes), len(dealers))):
+            package = packages[row] if row < len(packages) else None
+            node = nodes[row] if row < len(nodes) else None
+            dealer_row = dealers[row] if row < len(dealers) else None
+            codes.append([
+                package.code if package else "",
+                package.name if package else "",
+                float(package.monthly_price) if package else "",
+                "",
+                node.code if node else "",
+                node.name if node else "",
+                "",
+                dealer_row.dealer_code if dealer_row else "",
+                dealer_row.name if dealer_row else "",
+            ])
+        for letter in "ABCDEFGHI":
+            codes.column_dimensions[letter].width = 18
+    else:
         codes.append([
-            package.code if package else "",
-            package.name if package else "",
-            float(package.monthly_price) if package else "",
-            "",
-            node.code if node else "",
-            node.name if node else "",
-            "",
-            dealer.dealer_code if dealer else "",
-            dealer.name if dealer else "",
+            "Package code", "Package name", "Price", "",
+            "Node code", "Node name", "",
+            "Employee email", "Employee name", "",
+            "Area name", "City",
         ])
-    for letter in "ABCDEFGHI":
-        codes.column_dimensions[letter].width = 18
+        for cell in codes[1]:
+            if cell.value:
+                cell.font = header_font
+                cell.fill = header_fill
+        employees = list(
+            DealerEmployee.objects.for_organization(organization)
+            .filter(dealer=dealer)
+            .select_related("membership__user")
+            .order_by("membership__user__email")
+        )
+        areas = list(
+            DealerArea.objects.for_organization(organization)
+            .filter(dealer=dealer, is_active=True)
+            .order_by("name")
+        )
+        for row in range(max(len(packages), len(nodes), len(employees), len(areas), 1)):
+            package = packages[row] if row < len(packages) else None
+            node = nodes[row] if row < len(nodes) else None
+            emp = employees[row] if row < len(employees) else None
+            area = areas[row] if row < len(areas) else None
+            emp_user = emp.membership.user if emp else None
+            codes.append([
+                package.code if package else "",
+                package.name if package else "",
+                float(package.monthly_price) if package else "",
+                "",
+                node.code if node else "",
+                node.name if node else "",
+                "",
+                emp_user.email if emp_user else "",
+                (emp_user.get_full_name() or emp_user.email) if emp_user else "",
+                "",
+                area.name if area else "",
+                area.city if area else "",
+            ])
+        for letter in "ABCDEFGHIJKL":
+            codes.column_dimensions[letter].width = 18
 
     output = io.BytesIO()
     workbook.save(output)
@@ -193,12 +258,16 @@ def _cell_to_text(value) -> str:
     return str(value).strip()
 
 
-def parse_import_file(uploaded_file) -> list[dict]:
+def parse_import_file(uploaded_file, *, dealer: Dealer | None = None) -> list[dict]:
     """Rows as {column_key: text}, each with its spreadsheet row number."""
     if uploaded_file is None:
         raise CustomerImportError("Choose an Excel (.xlsx) or CSV file to upload.")
     if uploaded_file.size > MAX_IMPORT_BYTES:
         raise CustomerImportError("The file must be 5 MB or smaller.")
+
+    columns = _columns_for(dealer)
+    column_keys = [column.key for column in columns]
+    required_keys = [column.key for column in columns if column.required]
 
     name = (uploaded_file.name or "").lower()
     uploaded_file.seek(0)
@@ -216,7 +285,7 @@ def parse_import_file(uploaded_file) -> list[dict]:
         raise CustomerImportError("The file is empty.")
 
     headers = [_normalize_header(value) for value in raw_rows[0]]
-    missing = [key for key in REQUIRED_KEYS if key not in headers]
+    missing = [key for key in required_keys if key not in headers]
     if missing:
         raise CustomerImportError(
             "Missing required columns: " + ", ".join(missing) + ". Please use the template."
@@ -227,7 +296,7 @@ def parse_import_file(uploaded_file) -> list[dict]:
         record = {
             header: _cell_to_text(values[index]) if index < len(values) else ""
             for index, header in enumerate(headers)
-            if header in COLUMN_KEYS
+            if header in column_keys
         }
         if not any(record.values()):
             continue
@@ -330,7 +399,11 @@ class ValidatedRow:
         return not self.errors
 
 
-def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow]:
+def validate_import_rows(*, organization, rows: list[dict], dealer: Dealer | None = None) -> list[ValidatedRow]:
+    columns = _columns_for(dealer)
+    column_keys = [column.key for column in columns]
+    required_keys = [column.key for column in columns if column.required]
+
     packages = {
         package.code.lower(): package
         for package in InternetPackage.objects.for_organization(organization).filter(is_active=True)
@@ -339,7 +412,21 @@ def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow
         node.code.lower(): node
         for node in NetworkNode.objects.for_organization(organization).filter(is_active=True)
     }
-    dealers = {dealer.dealer_code.lower(): dealer for dealer in Dealer.objects.for_organization(organization)}
+    dealers = (
+        {}
+        if dealer is not None
+        else {d.dealer_code.lower(): d for d in Dealer.objects.for_organization(organization)}
+    )
+    dealer_employees = (
+        {
+            emp.membership.user.email.lower(): emp
+            for emp in DealerEmployee.objects.for_organization(organization)
+            .filter(dealer=dealer)
+            .select_related("membership__user")
+        }
+        if dealer is not None
+        else {}
+    )
     existing_phones = set(Customer.objects.for_organization(organization).values_list("phone", flat=True))
     existing_legacy = {
         value.lower()
@@ -360,11 +447,11 @@ def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow
     results = []
 
     for raw in rows:
-        values = {key: raw.get(key, "").strip() for key in COLUMN_KEYS}
+        values = {key: raw.get(key, "").strip() for key in column_keys}
         result = ValidatedRow(row=raw["_row"], values=values)
         errors = result.errors
 
-        for key in REQUIRED_KEYS:
+        for key in required_keys:
             if not values[key]:
                 errors.append(f"{key} is required.")
 
@@ -405,11 +492,19 @@ def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow
                 errors.append("This legacy_id appears twice in the file.")
             seen_legacy.add(legacy_id.lower())
 
-        dealer = None
-        if values["dealer_code"]:
-            dealer = dealers.get(values["dealer_code"].lower())
-            if dealer is None:
-                errors.append(f"Dealer code '{values['dealer_code']}' was not found.")
+        row_dealer = dealer
+        assigned_dealer_employee = None
+        if dealer is None:
+            if values.get("dealer_code"):
+                row_dealer = dealers.get(values["dealer_code"].lower())
+                if row_dealer is None:
+                    errors.append(f"Dealer code '{values['dealer_code']}' was not found.")
+        else:
+            emp_email = values.get("employee_email", "").lower()
+            if emp_email:
+                assigned_dealer_employee = dealer_employees.get(emp_email)
+                if assigned_dealer_employee is None:
+                    errors.append(f"Employee email '{values['employee_email']}' was not found for this dealer.")
 
         package = None
         if values["package_code"]:
@@ -460,9 +555,13 @@ def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow
         if opening_balance > 0 and advance > 0:
             errors.append("Give either opening_balance or advance, not both.")
 
-        status = (values["status"] or "ACTIVE").upper()
-        if status not in {"ACTIVE", "SUSPENDED"}:
-            errors.append("status must be ACTIVE or SUSPENDED.")
+        if dealer is not None:
+            # Dealer imports always become ACTIVE customers immediately.
+            status = "ACTIVE"
+        else:
+            status = (values["status"] or "ACTIVE").upper()
+            if status not in {"ACTIVE", "SUSPENDED"}:
+                errors.append("status must be ACTIVE or SUSPENDED.")
 
         node = None
         if values["node_code"]:
@@ -504,7 +603,8 @@ def validate_import_rows(*, organization, rows: list[dict]) -> list[ValidatedRow
                 "area": values["area"],
                 "city": values["city"],
                 "legacy_id": legacy_id,
-                "dealer": dealer,
+                "dealer": row_dealer,
+                "assigned_dealer_employee": assigned_dealer_employee,
                 "package": package,
                 "billing_mode": billing_mode,
                 "billing_day": billing_day,
@@ -547,6 +647,7 @@ def _import_one(*, organization, actor, data: dict, create_on_router: bool) -> C
         organization=organization,
         customer_number=_build_customer_number(organization=organization),
         dealer=data["dealer"],
+        assigned_dealer_employee=data.get("assigned_dealer_employee"),
         first_name=data["first_name"],
         last_name=data["last_name"],
         phone=data["phone"],
@@ -650,13 +751,18 @@ def import_customers(
     actor,
     uploaded_file,
     create_on_router: bool = False,
+    dealer: Dealer | None = None,
 ) -> ImportResult:
     """Import every valid row; invalid rows are skipped and reported."""
     if not organization.is_active:
         raise CustomerImportError("Organization is inactive.")
 
-    rows = parse_import_file(uploaded_file)
-    validated = validate_import_rows(organization=organization, rows=rows)
+    if dealer is not None:
+        # Dealer imports never provision anything on the router.
+        create_on_router = False
+
+    rows = parse_import_file(uploaded_file, dealer=dealer)
+    validated = validate_import_rows(organization=organization, rows=rows, dealer=dealer)
 
     errors = [{"row": item.row, "errors": item.errors} for item in validated if not item.is_valid]
     imported_ids = []
@@ -679,6 +785,7 @@ def import_customers(
     errors.sort(key=lambda entry: entry["row"])
     batch = CustomerImportBatch.objects.create(
         organization=organization,
+        dealer=dealer,
         file_name=(uploaded_file.name or "")[:255],
         total_rows=len(validated),
         imported_count=len(imported_ids),
@@ -688,19 +795,24 @@ def import_customers(
         created_by=actor,
     )
 
+    metadata = {
+        "file_name": batch.file_name,
+        "total_rows": batch.total_rows,
+        "imported": batch.imported_count,
+        "skipped": batch.skipped_count,
+        "create_on_router": create_on_router,
+    }
+    if dealer is not None:
+        metadata["dealer_id"] = str(dealer.id)
+        metadata["dealer_code"] = dealer.dealer_code
+
     record_audit_log(
         organization=organization,
         actor=actor,
         action="CUSTOMERS_IMPORTED",
         resource_type="CustomerImportBatch",
         resource_id=batch.id,
-        metadata={
-            "file_name": batch.file_name,
-            "total_rows": batch.total_rows,
-            "imported": batch.imported_count,
-            "skipped": batch.skipped_count,
-            "create_on_router": create_on_router,
-        },
+        metadata=metadata,
     )
 
     return ImportResult(batch=batch, imported_customer_ids=imported_ids)

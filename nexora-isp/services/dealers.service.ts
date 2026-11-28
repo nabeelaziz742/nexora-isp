@@ -39,6 +39,7 @@ export interface DealerItem {
   parent_dealer_name: string | null;
   parent_dealer_code: string | null;
   sub_dealers_count: number;
+  has_portal_login?: boolean;
   joining_date: string;
   status: DealerStatus;
   notes?: string;
@@ -83,6 +84,7 @@ export interface Dealer360Data {
     payout: DealerPayout;
   };
   sub_dealers: { id: string; dealer_code: string; name: string; status: DealerStatus }[];
+  areas?: { id: string; name: string; city: string; notes: string; is_active: boolean }[];
   customers: {
     id: string;
     customer_number: string;

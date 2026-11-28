@@ -313,3 +313,155 @@ class CustomerImportTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertFalse(Customer.objects.exists())
+
+
+class DealerCustomerImportTests(APITestCase):
+    def setUp(self):
+        from datetime import date
+        from customers.models import Country, DealerEmployee
+
+        self.organization = Organization.objects.create(name="Dealer Import ISP", code="DISP", city="Lahore")
+        country = Country.objects.create(organization=self.organization, name="Pakistan", code="PK")
+        self.dealer_a = Dealer.objects.create(
+            organization=self.organization,
+            dealer_code="D-A",
+            name="Dealer A",
+            phone="03000001111",
+            country=country,
+            city="Lahore",
+            address_line="Shop A",
+            commission_rate_percentage=Decimal("10.00"),
+            joining_date=date(2025, 1, 1),
+        )
+        self.dealer_b = Dealer.objects.create(
+            organization=self.organization,
+            dealer_code="D-B",
+            name="Dealer B",
+            phone="03000002222",
+            country=country,
+            city="Lahore",
+            address_line="Shop B",
+            commission_rate_percentage=Decimal("10.00"),
+            joining_date=date(2025, 1, 1),
+        )
+        self.dealer_user = User.objects.create_user(
+            username="dealer-a@disp.test", email="dealer-a@disp.test", password="Password123!",
+        )
+        self.dealer_membership = OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.dealer_user,
+            role=OrganizationMembership.Role.DEALER,
+            is_active=True,
+        )
+        self.dealer_a.portal_membership = self.dealer_membership
+        self.dealer_a.save(update_fields=["portal_membership"])
+
+        self.emp_user = User.objects.create_user(
+            username="emp-a@disp.test", email="emp-a@disp.test", password="Password123!",
+        )
+        emp_membership = OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.emp_user,
+            role=OrganizationMembership.Role.DEALER,
+            is_active=True,
+        )
+        self.employee = DealerEmployee.objects.create(
+            organization=self.organization,
+            dealer=self.dealer_a,
+            membership=emp_membership,
+            can_import_customers=False,
+        )
+        self.package = InternetPackage.objects.create(
+            organization=self.organization,
+            name="Fiber 20",
+            code="F-20",
+            download_speed_mbps=20,
+            upload_speed_mbps=20,
+            monthly_price=Decimal("2500.00"),
+            is_active=True,
+        )
+        self.node = NetworkNode.objects.create(
+            organization=self.organization,
+            name="Core Router",
+            code="RTR-01",
+            node_type=NetworkNode.NodeType.ROUTER,
+            management_ip="192.168.88.1",
+        )
+
+    def auth_as(self, email):
+        resp = self.client.post(
+            "/api/v1/auth/login/",
+            {"organization_code": "DISP", "email": email, "password": "Password123!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['access']}")
+
+    def test_template_preview_and_import_are_dealer_scoped_and_never_provision_router(self):
+        from customers.import_services import _columns_for
+
+        dealer_headers = [col.key for col in _columns_for(self.dealer_a)]
+        self.auth_as("dealer-a@disp.test")
+
+        tpl = self.client.get("/api/v1/dealer-portal/import/template/")
+        self.assertEqual(tpl.status_code, status.HTTP_200_OK)
+        wb = load_workbook(io.BytesIO(tpl.content))
+        headers = [c.value for c in wb["Customers"][1]]
+        self.assertNotIn("dealer_code", headers)
+        self.assertIn("employee_email", headers)
+
+        upload = make_xlsx(
+            [
+                base_row(
+                    phone="03005556661",
+                    node_code="RTR-01",
+                    pppoe_username="dealer_cust_1",
+                    pppoe_password="pppoe-secret",
+                    employee_email="emp-a@disp.test",
+                ),
+                base_row(
+                    phone="03005556662",
+                    employee_email="unknown@disp.test",
+                ),
+            ],
+            headers=dealer_headers,
+        )
+        preview = self.client.post("/api/v1/dealer-portal/import/preview/", {"file": upload}, format="multipart")
+        self.assertEqual(preview.status_code, status.HTTP_200_OK)
+        self.assertEqual(preview.data["valid_count"], 1)
+        self.assertEqual(preview.data["invalid_count"], 1)
+
+        upload.seek(0)
+        imported = self.client.post("/api/v1/dealer-portal/import/", {"file": upload}, format="multipart")
+        self.assertEqual(imported.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(imported.data["imported_count"], 1)
+        self.assertEqual(imported.data["skipped_count"], 1)
+
+        customer = Customer.objects.get(organization=self.organization)
+        self.assertEqual(customer.dealer_id, self.dealer_a.id)
+        self.assertEqual(customer.assigned_dealer_employee_id, self.employee.id)
+        service = ServiceAccount.objects.get(customer=customer)
+        self.assertEqual(service.status, ServiceAccount.Status.ACTIVE)
+        self.assertFalse(ProvisioningRequest.objects.exists())
+
+        history = self.client.get("/api/v1/dealer-portal/import/history/")
+        self.assertEqual(history.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(history.data), 1)
+
+    def test_employee_needs_import_right(self):
+        from customers.import_services import _columns_for
+
+        dealer_headers = [col.key for col in _columns_for(self.dealer_a)]
+        self.auth_as("emp-a@disp.test")
+        upload = make_xlsx([base_row(phone="03005557771")], headers=dealer_headers)
+        self.assertEqual(self.client.get("/api/v1/dealer-portal/import/template/").status_code, 403)
+        self.assertEqual(
+            self.client.post("/api/v1/dealer-portal/import/preview/", {"file": upload}, format="multipart").status_code,
+            403,
+        )
+        upload.seek(0)
+        self.assertEqual(
+            self.client.post("/api/v1/dealer-portal/import/", {"file": upload}, format="multipart").status_code,
+            403,
+        )
+

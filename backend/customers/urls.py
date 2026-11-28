@@ -37,7 +37,7 @@ from customers.views import (
 )
 from customers.dealer_cash import OfficeDealerCashView, OfficeEmployeeCashReceivedView
 from customers.dealer_expenses import OfficeExpenseListView, OfficeExpenseReviewView
-from customers.dealer_portal import DealerPortalAccessView
+from customers.dealer_portal import DealerJumpView, DealerPortalAccessView
 from customers.suspension_views import (
     AutomatedSuspensionRunView,
     ManualServiceRestoreView,
@@ -255,6 +255,11 @@ urlpatterns = [
         "dealers/<uuid:dealer_id>/portal-access/",
         DealerPortalAccessView.as_view(),
         name="dealer-portal-access",
+    ),
+    path(
+        "dealers/<uuid:dealer_id>/jump/",
+        DealerJumpView.as_view(),
+        name="dealer-jump",
     ),
     path(
         "dealers/<uuid:dealer_id>/employee-cash/",

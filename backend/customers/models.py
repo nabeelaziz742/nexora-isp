@@ -340,6 +340,14 @@ class Customer(TenantScopedModel):
         related_name="customers",
     )
 
+    assigned_dealer_employee = models.ForeignKey(
+        "DealerEmployee",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_customers",
+    )
+
     first_name = models.CharField(
         max_length=150,
     )
@@ -1275,6 +1283,14 @@ class CustomerImportBatch(TenantScopedModel):
         blank=True,
     )
 
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="import_batches",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -1302,13 +1318,89 @@ class DealerEmployee(TenantScopedModel):
     has every right.
     """
 
-    RIGHTS = (
-        "can_view_customers",
-        "can_collect_payments",
-        "can_recharge",
-        "can_request_customers",
-        "can_view_collections",
+    RIGHT_GROUPS = (
+        {
+            "key": "customer",
+            "label": "Customer",
+            "rights": (
+                ("can_view_all_customers", "All customers"),
+                ("can_view_customers", "Customer list"),
+                ("can_request_customers", "Add customer"),
+                ("can_import_customers", "Import customers"),
+                ("can_export_customers", "PDF / Excel export"),
+                ("can_edit_customers", "Edit customer"),
+                ("can_deactivate_customers", "Deactivate customer"),
+                ("can_recharge", "Renew bill"),
+            ),
+        },
+        {
+            "key": "collection",
+            "label": "Collection",
+            "rights": (
+                ("can_collect_payments", "Collect fee"),
+                ("can_view_collections", "Collection view"),
+                ("can_view_ledger", "Customer ledger"),
+            ),
+        },
+        {
+            "key": "system",
+            "label": "System",
+            "rights": (
+                ("can_manage_complaints", "Complaint"),
+                ("can_web_login", "Web login"),
+                ("can_mobile_login", "Mobile login"),
+                ("can_view_packages", "Packages"),
+                ("can_manage_sms_templates", "SMS templates"),
+                ("can_view_sms_log", "View SMS log"),
+                ("can_view_areas", "Areas"),
+                ("can_manage_areas", "Add / update areas"),
+            ),
+        },
+        {
+            "key": "admin",
+            "label": "Admin",
+            "rights": (
+                ("can_manage_employees", "Add / edit employees"),
+                ("can_view_dashboard", "Dashboard"),
+                ("can_change_payment_date", "Change payment date"),
+                ("can_reverse_payments", "Reverse fee"),
+                ("can_view_all_collections", "All collections"),
+                ("can_edit_company_info", "Company info"),
+            ),
+        },
+        {
+            "key": "messaging",
+            "label": "Messaging",
+            "rights": (
+                ("can_send_sms", "Send SMS"),
+                ("can_broadcast_sms", "Broadcast SMS"),
+                ("can_cancel_sms", "Cancel pending SMS"),
+            ),
+        },
+        {
+            "key": "accounts",
+            "label": "Accounts",
+            "rights": (
+                ("can_view_accounts", "Accounts"),
+                ("can_view_journal", "Journal view"),
+                ("can_add_journal_entries", "Journal add"),
+                ("can_void_journal_entries", "Void journal entry"),
+            ),
+        },
     )
+
+    RIGHTS = tuple(key for group in RIGHT_GROUPS for key, _ in group["rights"])
+
+    @classmethod
+    def right_groups_schema(cls) -> list[dict]:
+        return [
+            {
+                "key": group["key"],
+                "label": group["label"],
+                "rights": [{"key": key, "label": label} for key, label in group["rights"]],
+            }
+            for group in cls.RIGHT_GROUPS
+        ]
 
     id = models.UUIDField(
         primary_key=True,
@@ -1333,11 +1425,49 @@ class DealerEmployee(TenantScopedModel):
         blank=True,
     )
 
+    # Customer
+    can_view_all_customers = models.BooleanField(default=False)
     can_view_customers = models.BooleanField(default=True)
-    can_collect_payments = models.BooleanField(default=True)
-    can_recharge = models.BooleanField(default=False)
     can_request_customers = models.BooleanField(default=False)
+    can_import_customers = models.BooleanField(default=False)
+    can_export_customers = models.BooleanField(default=False)
+    can_edit_customers = models.BooleanField(default=False)
+    can_deactivate_customers = models.BooleanField(default=False)
+    can_recharge = models.BooleanField(default=False)
+
+    # Collection
+    can_collect_payments = models.BooleanField(default=True)
     can_view_collections = models.BooleanField(default=False)
+    can_view_ledger = models.BooleanField(default=False)
+
+    # System
+    can_manage_complaints = models.BooleanField(default=False)
+    can_web_login = models.BooleanField(default=True)
+    can_mobile_login = models.BooleanField(default=False)
+    can_view_packages = models.BooleanField(default=False)
+    can_manage_sms_templates = models.BooleanField(default=False)
+    can_view_sms_log = models.BooleanField(default=False)
+    can_view_areas = models.BooleanField(default=False)
+    can_manage_areas = models.BooleanField(default=False)
+
+    # Admin
+    can_manage_employees = models.BooleanField(default=False)
+    can_view_dashboard = models.BooleanField(default=True)
+    can_change_payment_date = models.BooleanField(default=False)
+    can_reverse_payments = models.BooleanField(default=False)
+    can_view_all_collections = models.BooleanField(default=False)
+    can_edit_company_info = models.BooleanField(default=False)
+
+    # Messaging
+    can_send_sms = models.BooleanField(default=False)
+    can_broadcast_sms = models.BooleanField(default=False)
+    can_cancel_sms = models.BooleanField(default=False)
+
+    # Accounts
+    can_view_accounts = models.BooleanField(default=False)
+    can_view_journal = models.BooleanField(default=False)
+    can_add_journal_entries = models.BooleanField(default=False)
+    can_void_journal_entries = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -1548,3 +1678,193 @@ class DealerPayoutSlab(TenantScopedModel):
 
     def __str__(self):
         return f"{self.min_active_users}+ users: {self.monthly_amount}"
+
+
+class DealerArea(TenantScopedModel):
+    """Area managed by a dealer for their own customers; separate from ISP areas."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="dealer_areas",
+    )
+
+    name = models.CharField(
+        max_length=150,
+    )
+
+    city = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_area"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dealer", "name"],
+                name="unique_dealer_area_name",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.dealer.dealer_code})"
+
+
+class DealerJournalEntry(TenantScopedModel):
+    """Manual income/expense journal entry recorded by a dealer."""
+
+    class Kind(models.TextChoices):
+        INCOME = "INCOME", "Income"
+        EXPENSE = "EXPENSE", "Expense"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="journal_entries",
+    )
+
+    date = models.DateField()
+
+    kind = models.CharField(
+        max_length=10,
+        choices=Kind.choices,
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    description = models.CharField(
+        max_length=500,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dealer_journal_entries_created",
+    )
+
+    is_void = models.BooleanField(
+        default=False,
+    )
+
+    void_reason = models.CharField(
+        max_length=500,
+        blank=True,
+    )
+
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dealer_journal_entries_voided",
+    )
+
+    voided_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_journal_entry"
+        ordering = ["-date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.date} {self.kind} {self.amount} ({self.dealer.dealer_code})"
+
+
+class DealerSmsTemplate(TenantScopedModel):
+    """Reusable SMS message template owned by a dealer."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    dealer = models.ForeignKey(
+        Dealer,
+        on_delete=models.CASCADE,
+        related_name="sms_templates",
+    )
+
+    name = models.CharField(
+        max_length=120,
+    )
+
+    body = models.TextField()
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dealer_sms_templates",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "customers_dealer_sms_template"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dealer", "name"],
+                name="unique_dealer_sms_template_name",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.dealer.dealer_code})"

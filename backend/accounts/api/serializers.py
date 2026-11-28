@@ -84,6 +84,20 @@ class TenantLoginSerializer(serializers.Serializer):
             )
         membership = active[0]
 
+        if membership.role == OrganizationMembership.Role.DEALER:
+            from customers.models import DealerEmployee
+
+            employee = DealerEmployee.objects.filter(membership=membership).first()
+            if employee is not None and not employee.can_web_login:
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "Web login is disabled for this employee account. "
+                            "Please contact your dealer."
+                        )
+                    }
+                )
+
         refresh = RefreshToken.for_user(user)
 
         refresh["organization_id"] = str(
@@ -155,6 +169,15 @@ class TenantTokenRefreshSerializer(serializers.Serializer):
         from tenancy.models import StaffProfile
         if membership.role == OrganizationMembership.Role.OWNER:
             effective_role = StaffProfile.Role.OWNER
+        elif membership.role == OrganizationMembership.Role.DEALER:
+            from customers.models import DealerEmployee
+
+            employee = DealerEmployee.objects.filter(membership=membership).first()
+            if employee is not None and not employee.can_web_login:
+                raise serializers.ValidationError(
+                    {"detail": "Web login is disabled for this employee account."}
+                )
+            effective_role = OrganizationMembership.Role.DEALER
         else:
             profile = StaffProfile.objects.filter(membership=membership).first()
             if profile and profile.role:

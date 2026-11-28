@@ -371,12 +371,32 @@ class CommunicationQueue(TenantScopedModel):
     template = models.ForeignKey(
         CommunicationTemplate,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="queue_items",
     )
 
     provider = models.ForeignKey(
         CommunicationProvider,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="queue_items",
+    )
+
+    dealer = models.ForeignKey(
+        "customers.Dealer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sms_queue",
+    )
+
+    dealer_template = models.ForeignKey(
+        "customers.DealerSmsTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="queue_items",
     )
 

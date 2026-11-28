@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   DollarSign,
   Filter,
+  Loader2,
+  LogIn,
   MapPin,
   Percent,
   Pencil,
@@ -20,16 +22,20 @@ import {
   X,
 } from "lucide-react";
 
+import { toast } from "sonner";
 import DealerFormModal from "@/components/dealers/DealerFormModal";
 import ExpenseRequestsLink from "@/components/dealers/ExpenseRequestsLink";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import Skeleton from "@/components/ui/Skeleton";
+import { ApiError } from "@/services/api-error";
+import { dealerPortalService } from "@/services/dealer-portal.service";
 import {
   dealersService,
   type DealerItem,
   type DealerStatus,
 } from "@/services/dealers.service";
+import { pushJumpSession } from "@/services/jump-session";
 import { geoService, type City, type Area } from "@/services/geo.service";
 
 const STATUS_CONFIG: Record<
@@ -72,6 +78,31 @@ export default function DealersPage() {
   // Modals & Action States: null = closed, "new" = register, a dealer = edit
   const [formDealer, setFormDealer] = useState<DealerItem | "new" | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [jumpingId, setJumpingId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsOwner(window.localStorage.getItem("nexora_role") === "OWNER");
+    } catch {
+      setIsOwner(false);
+    }
+  }, []);
+
+  async function handleJump(item: DealerItem) {
+    setJumpingId(item.id);
+    try {
+      const res = await dealerPortalService.jumpIntoDealer(item.id);
+      pushJumpSession(res, {
+        returnTo: "/dealers",
+        viewerLabel: `Viewing as ${item.name} (Dealer)`,
+      });
+      window.location.href = "/dealer";
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not open dealer portal.");
+      setJumpingId(null);
+    }
+  }
 
   // Load Geographic Options
   useEffect(() => {
@@ -444,6 +475,32 @@ export default function DealersPage() {
                           >
                             Dealer 360
                           </Link>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => void handleJump(item)}
+                              disabled={
+                                jumpingId === item.id ||
+                                item.status !== "ACTIVE" ||
+                                !item.has_portal_login
+                              }
+                              title={
+                                item.status !== "ACTIVE"
+                                  ? "Dealer must be active to jump"
+                                  : !item.has_portal_login
+                                    ? "Enable portal login in Dealer 360 first"
+                                    : "Open this dealer's portal"
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-500/40 bg-blue-600/15 px-2.5 py-1 text-xs font-medium text-blue-300 hover:bg-blue-600/25 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500 transition"
+                            >
+                              {jumpingId === item.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <LogIn className="h-3 w-3" />
+                              )}
+                              Jump
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -33,7 +33,7 @@ class DealerEmployeeCashTests(TestCase):
     def employee_with_cash(self):
         """Ali collects 1000 + 500; the dealer collects 700 himself (not Ali's cash)."""
         self.as_dealer()
-        row = self.add_employee(can_collect_payments=True)
+        row = self.add_employee(can_view_all_customers=True, can_collect_payments=True)
         self.collect(self.ahmed, "700")
         self.employee_login()
         self.collect(self.ahmed, "1000")

@@ -1,7 +1,34 @@
 from django.urls import path
 
+from customers.dealer_accounts import (
+    DealerAccountsView,
+    DealerJournalExportView,
+    DealerJournalView,
+    DealerJournalVoidView,
+)
 from customers.dealer_cash import DealerCashView, DealerEmployeeCashReceivedView
+from customers.dealer_customers import (
+    DealerCustomerAssignOptionsView,
+    DealerCustomerAssignView,
+    DealerCustomerDeactivateView,
+    DealerCustomerDetailEditView,
+    DealerCustomerExportView,
+    DealerCustomerImportHistoryView,
+    DealerCustomerImportPreviewView,
+    DealerCustomerImportTemplateView,
+    DealerCustomerImportView,
+    DealerCustomerLedgerView,
+)
 from customers.dealer_expenses import DealerExpenseView
+from customers.dealer_sms import (
+    DealerSmsBroadcastView,
+    DealerSmsCancelView,
+    DealerSmsLogView,
+    DealerSmsOptionsView,
+    DealerSmsSendView,
+    DealerSmsTemplateDetailView,
+    DealerSmsTemplateListCreateView,
+)
 from customers.dealer_employees import (
     DealerEmployeeDetailView,
     DealerEmployeeListView,
@@ -9,10 +36,19 @@ from customers.dealer_employees import (
 )
 
 from customers.dealer_portal import (
+    DealerAboutView,
+    DealerAreaDetailView,
+    DealerAreaListCreateView,
+    DealerAreaStatusToggleView,
     DealerCollectionsView,
     DealerCollectPaymentView,
+    DealerCompanyInfoView,
+    DealerComplaintListCreateView,
     DealerCustomerListView,
     DealerCustomerRequestView,
+    DealerEmployeeJumpView,
+    DealerPackageListView,
+    DealerPaymentReverseView,
     DealerRechargeView,
     DealerSummaryView,
 )
@@ -20,12 +56,40 @@ from customers.dealer_portal import (
 urlpatterns = [
     path("summary/", DealerSummaryView.as_view(), name="dealer-portal-summary"),
     path("customers/", DealerCustomerListView.as_view(), name="dealer-portal-customers"),
+    path("customers/assign-options/", DealerCustomerAssignOptionsView.as_view(), name="dealer-portal-customers-assign-options"),
+    path("customers/assign/", DealerCustomerAssignView.as_view(), name="dealer-portal-customers-assign"),
+    path("customers/export/", DealerCustomerExportView.as_view(), name="dealer-portal-customers-export"),
+    path("customers/<uuid:customer_id>/", DealerCustomerDetailEditView.as_view(), name="dealer-portal-customer-detail"),
+    path("customers/<uuid:customer_id>/deactivate/", DealerCustomerDeactivateView.as_view(), name="dealer-portal-customer-deactivate"),
+    path("customers/<uuid:customer_id>/ledger/", DealerCustomerLedgerView.as_view(), name="dealer-portal-customer-ledger"),
+    path("import/template/", DealerCustomerImportTemplateView.as_view(), name="dealer-portal-import-template"),
+    path("import/preview/", DealerCustomerImportPreviewView.as_view(), name="dealer-portal-import-preview"),
+    path("import/", DealerCustomerImportView.as_view(), name="dealer-portal-import"),
+    path("import/history/", DealerCustomerImportHistoryView.as_view(), name="dealer-portal-import-history"),
     path("services/<uuid:service_id>/payments/", DealerCollectPaymentView.as_view(), name="dealer-portal-payment"),
     path("services/<uuid:service_id>/recharge/", DealerRechargeView.as_view(), name="dealer-portal-recharge"),
+    path("payments/<uuid:payment_id>/reverse/", DealerPaymentReverseView.as_view(), name="dealer-portal-payment-reverse"),
     path("requests/", DealerCustomerRequestView.as_view(), name="dealer-portal-requests"),
+    path("complaints/", DealerComplaintListCreateView.as_view(), name="dealer-portal-complaints"),
     path("collections/", DealerCollectionsView.as_view(), name="dealer-portal-collections"),
+    path("areas/", DealerAreaListCreateView.as_view(), name="dealer-portal-areas"),
+    path("areas/<uuid:area_id>/", DealerAreaDetailView.as_view(), name="dealer-portal-area-detail"),
+    path("areas/<uuid:area_id>/status/", DealerAreaStatusToggleView.as_view(), name="dealer-portal-area-status"),
+    path("packages/", DealerPackageListView.as_view(), name="dealer-portal-packages"),
+    path("sms-templates/", DealerSmsTemplateListCreateView.as_view(), name="dealer-portal-sms-templates"),
+    path("sms-templates/<uuid:template_id>/", DealerSmsTemplateDetailView.as_view(), name="dealer-portal-sms-template"),
+    path("sms/options/", DealerSmsOptionsView.as_view(), name="dealer-portal-sms-options"),
+    path("sms/send/", DealerSmsSendView.as_view(), name="dealer-portal-sms-send"),
+    path("sms/broadcast/", DealerSmsBroadcastView.as_view(), name="dealer-portal-sms-broadcast"),
+    path("sms-log/", DealerSmsLogView.as_view(), name="dealer-portal-sms-log"),
+    path("sms-log/<uuid:queue_id>/cancel/", DealerSmsCancelView.as_view(), name="dealer-portal-sms-cancel"),
     path("employees/", DealerEmployeeListView.as_view(), name="dealer-portal-employees"),
     path("employees/<uuid:employee_id>/", DealerEmployeeDetailView.as_view(), name="dealer-portal-employee"),
+    path(
+        "employees/<uuid:employee_id>/jump/",
+        DealerEmployeeJumpView.as_view(),
+        name="dealer-portal-employee-jump",
+    ),
     path(
         "employees/<uuid:employee_id>/password/",
         DealerEmployeePasswordView.as_view(),
@@ -37,5 +101,11 @@ urlpatterns = [
         name="dealer-portal-employee-cash-received",
     ),
     path("cash/", DealerCashView.as_view(), name="dealer-portal-cash"),
+    path("accounts/", DealerAccountsView.as_view(), name="dealer-portal-accounts"),
+    path("journal/", DealerJournalView.as_view(), name="dealer-portal-journal"),
+    path("journal/export/", DealerJournalExportView.as_view(), name="dealer-portal-journal-export"),
+    path("journal/<uuid:entry_id>/void/", DealerJournalVoidView.as_view(), name="dealer-portal-journal-void"),
+    path("company-info/", DealerCompanyInfoView.as_view(), name="dealer-portal-company-info"),
+    path("about/", DealerAboutView.as_view(), name="dealer-portal-about"),
     path("expenses/", DealerExpenseView.as_view(), name="dealer-portal-expenses"),
 ]

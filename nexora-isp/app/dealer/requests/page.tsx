@@ -35,6 +35,7 @@ function statusClass(status: string) {
 export default function DealerRequestsPage() {
   const [rows, setRows] = useState<DealerRequestRow[]>([]);
   const [packages, setPackages] = useState<{ id: string; name: string; monthly_price: string }[]>([]);
+  const [areas, setAreas] = useState<{ id: string; name: string; city: string }[]>([]);
   const [form, setForm] = useState<DealerRequestPayload>(EMPTY);
   const [defaultCity, setDefaultCity] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,7 @@ export default function DealerRequestsPage() {
       const data = await dealerPortalService.getRequests();
       setRows(data.results);
       setPackages(data.packages);
+      setAreas(data.areas ?? []);
       setDefaultCity(data.default_city);
       setForm((current) => (current.city ? current : { ...current, city: data.default_city }));
     } catch (err) {
@@ -113,7 +115,28 @@ export default function DealerRequestsPage() {
           </label>
           <label className="text-xs text-slate-400">
             Area
-            <input value={form.area} onChange={(e) => set("area", e.target.value)} className={inputClass} />
+            {areas.length > 0 ? (
+              <select
+                value={form.area}
+                onChange={(e) => {
+                  const selected = areas.find((a) => a.name === e.target.value);
+                  set("area", e.target.value);
+                  if (selected?.city && (!form.city || form.city === defaultCity)) {
+                    set("city", selected.city);
+                  }
+                }}
+                className={inputClass}
+              >
+                <option value="">Select area</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.name}>
+                    {area.name}{area.city ? ` (${area.city})` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input value={form.area} onChange={(e) => set("area", e.target.value)} className={inputClass} />
+            )}
           </label>
           <label className="text-xs text-slate-400">
             City *

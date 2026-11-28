@@ -334,6 +334,33 @@ export default function Dealer360Page() {
                 <p className="text-slate-300 whitespace-pre-wrap">{dealer.notes}</p>
               </div>
             )}
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs">
+              <span className="text-slate-500 block mb-2">Dealer Areas (Read-only)</span>
+              {!data.areas || data.areas.length === 0 ? (
+                <p className="text-slate-500">No dealer areas added yet.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {data.areas.map((area) => (
+                    <li key={area.id} className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="font-medium text-slate-200">{area.name}</span>
+                        {area.city && <span className="ml-1.5 text-slate-400">· {area.city}</span>}
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          area.is_active
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                            : "bg-slate-500/10 text-slate-400 border border-slate-500/30"
+                        }`}
+                      >
+                        {area.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}

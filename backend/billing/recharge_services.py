@@ -1,7 +1,7 @@
 import calendar
 import logging
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -95,6 +95,7 @@ def recharge_service(
     payment_method: str,
     reference: str = "",
     notes: str = "",
+    paid_at: datetime | None = None,
 ) -> RechargeResult:
     if not organization.is_active:
         raise BillingDomainError("Organization is inactive.")
@@ -158,6 +159,7 @@ def recharge_service(
             allocations=[
                 {"invoice_id": invoice.id, "amount": invoice.outstanding_amount},
             ],
+            paid_at=paid_at,
         )
         invoice.refresh_from_db()
 

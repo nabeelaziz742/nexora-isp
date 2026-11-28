@@ -9,7 +9,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from customers.dealer_portal import DealerPortalView
@@ -44,7 +44,26 @@ def _check_password(password: str, user=None) -> None:
         raise ValidationError({"password": list(exc.messages)}) from exc
 
 
-def _apply_rights(employee: DealerEmployee, rights: dict) -> None:
+def _apply_rights(
+    employee: DealerEmployee,
+    rights: dict,
+    *,
+    actor_employee: DealerEmployee | None = None,
+    is_create: bool = False,
+) -> None:
+    if actor_employee is not None:
+        if not is_create and employee.id == actor_employee.id and rights:
+            raise PermissionDenied("You cannot change your own rights.")
+        for right, value in rights.items():
+            if bool(value) and not getattr(actor_employee, right):
+                if is_create or not getattr(employee, right):
+                    raise PermissionDenied(f"You cannot grant '{right}' because you do not have this right.")
+        if is_create:
+            # Never grant a model-default right that the creating employee lacks.
+            for right in DealerEmployee.RIGHTS:
+                if right not in rights and not getattr(actor_employee, right):
+                    setattr(employee, right, False)
+
     for right in DealerEmployee.RIGHTS:
         if right in rights:
             setattr(employee, right, bool(rights[right]))
@@ -63,7 +82,14 @@ def _get_employee(request, employee_id) -> DealerEmployee:
 
 
 @transaction.atomic
-def create_dealer_employee(*, organization, dealer, actor, data: dict) -> DealerEmployee:
+def create_dealer_employee(
+    *,
+    organization,
+    dealer,
+    actor,
+    data: dict,
+    actor_employee: DealerEmployee | None = None,
+) -> DealerEmployee:
     if DealerEmployee.objects.for_organization(organization).filter(dealer=dealer).count() >= MAX_EMPLOYEES_PER_DEALER:
         raise ValidationError({"detail": f"A dealer can have at most {MAX_EMPLOYEES_PER_DEALER} employees."})
     email = data["email"].strip().lower()
@@ -71,6 +97,12 @@ def create_dealer_employee(*, organization, dealer, actor, data: dict) -> Dealer
     if User.objects.filter(email__iexact=email).exists():
         raise ValidationError({"email": "This email is already used by another account."})
     _check_password(data["password"])
+
+    requested_rights = data.get("rights", {})
+    if actor_employee is not None:
+        for right, value in requested_rights.items():
+            if bool(value) and not getattr(actor_employee, right):
+                raise PermissionDenied(f"You cannot grant '{right}' because you do not have this right.")
 
     user = User.objects.create_user(
         username=email,
@@ -92,7 +124,7 @@ def create_dealer_employee(*, organization, dealer, actor, data: dict) -> Dealer
         membership=membership,
         phone=data.get("phone", "").strip(),
     )
-    _apply_rights(employee, data.get("rights", {}))
+    _apply_rights(employee, requested_rights, actor_employee=actor_employee, is_create=True)
     employee.save()
     record_audit_log(
         organization=organization,
@@ -106,7 +138,24 @@ def create_dealer_employee(*, organization, dealer, actor, data: dict) -> Dealer
 
 
 @transaction.atomic
-def update_dealer_employee(*, organization, employee: DealerEmployee, actor, data: dict) -> DealerEmployee:
+def update_dealer_employee(
+    *,
+    organization,
+    employee: DealerEmployee,
+    actor,
+    data: dict,
+    actor_employee: DealerEmployee | None = None,
+) -> DealerEmployee:
+    requested_rights = data.get("rights", {})
+    if actor_employee is not None:
+        if employee.id == actor_employee.id:
+            if requested_rights:
+                raise PermissionDenied("You cannot change your own rights.")
+            if "is_active" in data and not data["is_active"]:
+                raise PermissionDenied("You cannot deactivate your own account.")
+
+    _apply_rights(employee, requested_rights, actor_employee=actor_employee, is_create=False)
+
     user = employee.membership.user
     user_fields = []
     for field in ("first_name", "last_name"):
@@ -117,7 +166,6 @@ def update_dealer_employee(*, organization, employee: DealerEmployee, actor, dat
         user.save(update_fields=user_fields)
     if "phone" in data:
         employee.phone = data["phone"].strip()
-    _apply_rights(employee, data.get("rights", {}))
     employee.save()
     if "is_active" in data and employee.membership.is_active != data["is_active"]:
         employee.membership.is_active = data["is_active"]
@@ -137,12 +185,11 @@ def update_dealer_employee(*, organization, employee: DealerEmployee, actor, dat
     return employee
 
 
-class RightsSerializer(serializers.Serializer):
-    can_view_customers = serializers.BooleanField(required=False)
-    can_collect_payments = serializers.BooleanField(required=False)
-    can_recharge = serializers.BooleanField(required=False)
-    can_request_customers = serializers.BooleanField(required=False)
-    can_view_collections = serializers.BooleanField(required=False)
+RightsSerializer = type(
+    "RightsSerializer",
+    (serializers.Serializer,),
+    {right: serializers.BooleanField(required=False) for right in DealerEmployee.RIGHTS},
+)
 
 
 class EmployeeCreateSerializer(serializers.Serializer):
@@ -170,7 +217,11 @@ class DealerOwnerView(DealerPortalView):
     dealer_owner_only = True
 
 
-class DealerEmployeeListView(DealerOwnerView):
+class DealerEmployeeManagerView(DealerPortalView):
+    required_rights = ("can_manage_employees",)
+
+
+class DealerEmployeeListView(DealerEmployeeManagerView):
     def get(self, request):
         employees = (
             DealerEmployee.objects.for_organization(request.organization)
@@ -180,6 +231,7 @@ class DealerEmployeeListView(DealerOwnerView):
         return Response({
             "results": [employee_row(employee) for employee in employees],
             "max_employees": MAX_EMPLOYEES_PER_DEALER,
+            "right_groups": DealerEmployee.right_groups_schema(),
         })
 
     def post(self, request):
@@ -190,11 +242,12 @@ class DealerEmployeeListView(DealerOwnerView):
             dealer=request.dealer,
             actor=request.user,
             data=serializer.validated_data,
+            actor_employee=request.dealer_employee,
         )
         return Response(employee_row(employee), status=status.HTTP_201_CREATED)
 
 
-class DealerEmployeeDetailView(DealerOwnerView):
+class DealerEmployeeDetailView(DealerEmployeeManagerView):
     def patch(self, request, employee_id):
         employee = _get_employee(request, employee_id)
         serializer = EmployeeUpdateSerializer(data=request.data, partial=True)
@@ -204,11 +257,12 @@ class DealerEmployeeDetailView(DealerOwnerView):
             employee=employee,
             actor=request.user,
             data=serializer.validated_data,
+            actor_employee=request.dealer_employee,
         )
         return Response(employee_row(employee))
 
 
-class DealerEmployeePasswordView(DealerOwnerView):
+class DealerEmployeePasswordView(DealerEmployeeManagerView):
     def post(self, request, employee_id):
         employee = _get_employee(request, employee_id)
         serializer = EmployeePasswordSerializer(data=request.data)

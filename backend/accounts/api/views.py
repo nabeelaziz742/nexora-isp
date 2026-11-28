@@ -53,6 +53,10 @@ class CurrentSessionAPIView(APIView):
         user = request.user
         organization = request.organization
 
+        auth = getattr(request, "auth", None)
+        impersonated_by = auth.get("impersonated_by") if auth else None
+        impersonated_by_name = auth.get("impersonated_by_name") if auth else None
+        jump_kind = auth.get("jump_kind") if auth else None
         return Response(
             {
                 "user": {
@@ -67,6 +71,9 @@ class CurrentSessionAPIView(APIView):
                     "code": organization.code,
                 },
                 "role": request.organization_role,
+                "impersonated_by": impersonated_by,
+                "impersonated_by_name": impersonated_by_name,
+                "jump_kind": jump_kind,
             },
             status=status.HTTP_200_OK,
         )

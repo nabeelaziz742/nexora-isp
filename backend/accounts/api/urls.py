@@ -1,5 +1,6 @@
 from django.urls import path
 
+from accounts.api.jump import JumpBackAPIView
 from accounts.api.password_views import (
     ChangePasswordAPIView,
     PasswordResetConfirmAPIView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "token/refresh/",
         TenantTokenRefreshAPIView.as_view(),
         name="token-refresh",
+    ),
+    path(
+        "jump/back/",
+        JumpBackAPIView.as_view(),
+        name="jump-back",
     ),
     path(
         "change-password/",
